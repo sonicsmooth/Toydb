@@ -3,12 +3,11 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.dockfx/DockFX "0.1.1"]
-                 [org.clojure/tools.trace "0.7.9"]
-                 [jfxutils "0.1.0-SNAPSHOT"]]
-  :resource-paths ["resources" "../../" "../../java/DockFX/"]
-
-
-  
-  :main toydb.core)
+  :dependencies [[jfxutils "0.1.0-SNAPSHOT"]
+                 [docks "0.1.0-SNAPSHOT"]]
+  :resource-paths ["resources/anchor_resources"
+                   "resources/dock_resources"
+                   "../../"] ;; back to /c/dev/, eg for icons
+  :main toydb.core
+  )
   

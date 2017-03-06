@@ -12,30 +12,36 @@
 
 
 
-(defn menu-item [& {:keys [name icon action]}]
-  (jfxnew MenuItem
-          :text name
-          :graphic (image-view icon)
-          :on-action (eventhandler [_] (action))))
+(defn menu-item [& {:keys [id text icon action]}]
+  (let [item (MenuItem.)]
+    (when id (.setId item id))
+    (when text (.setText item text))
+    (when icon (.setGraphic item (image-view icon)))
+    (when action (.setOnAction item (eventhandler [_] (action))))
+    item))
 
 (defn separator-menu-item []
   (SeparatorMenuItem.))
 
-(defn menu [& {:keys [name icon items]}]
-  (jfxnew Menu
-          :text name
-          :graphic (image-view icon)
-          :items items))
+(defn menu [& {:keys [id text icon items]}]
+  (let [m (Menu.)]
+    (when id (.setId m id))
+    (when text (.setText m text))
+    (when icon (.setGraphic m (image-view icon)))
+    (when items (add-items! m items))
+    m))
 
 (defn menu-bar [menus]
-  (jfxnew MenuBar :menus menus))
+  (let [mb (MenuBar.)]
+    (when menus (add-menus! mb  menus))
+    mb))
 
 (defn status-bar [items]
-  (jfxnew HBox
-          :spacing 10
-          :children items
-          :alignment Pos/CENTER_LEFT
-          :style "-fx-background-color: gainsboro"))
+  (let [sb (jfxnew HBox :pref-height 30, :spacing 10,
+                   :alignment Pos/CENTER_LEFT
+                   :style "-fx-background-color: gainsboro")]
+    (when items (set-children! sb items))
+    sb))
 
 (defn open-file-dialog []
   (println "here opening")
@@ -43,4 +49,16 @@
     (.showOpenDialog fc (Stage.))))
 
 (defn tool-bar [nodes]
-  (jfxnew ToolBar :items nodes))
+  (let [tb (jfxnew ToolBar)]
+    (when nodes (add-items! tb nodes))
+    tb))
+
+
+
+
+
+
+
+
+
+

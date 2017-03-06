@@ -54,22 +54,23 @@
   (short-str [a] (.getHostName a))
 
   java.lang.Iterable
-  (get-items [coll] (tm/children coll))
-  (leaf? [coll] (empty? (tm/children coll)))
-  (status-image [col state] (state {:leaf file-image
+  (get-items [it] (tm/children it))
+  (leaf? [it] (empty? (tm/children it)))
+  (status-image [it state] (state {:leaf file-image
                                      :collapsed collapsed-folder-image
                                      :expanded expanded-folder-image}))
-  (short-str [coll] (str (first coll)))
+  (short-str [it] (str (first it)))
   
   Object
-  (leaf? [kw] true)
-  (status-image [path state] (state {:leaf file-image}))
-  (short-str [x] (str x))
+  (leaf? [o] true)
+  (status-image [o state] (state {:leaf file-image}))
+  (short-str [o] (str o))
 
   nil
-  (leaf? [kw] true)
-  (status-image [path state] (state {:leaf file-image}))
-  (short-str [x] nil))
+  (get-items [n] nil)
+  (leaf? [n] true)
+  (status-image [n state] (state {:leaf file-image}))
+  (short-str [n] (str n)))
 
 
 
@@ -178,7 +179,7 @@
   (try
     (doto (TreeView. (tree-item item expanded?))
       (.setCellFactory tree-cell-factory))
-    (catch Exception e
+    #_(catch Exception e
       (println "Couldn't create treeview" e))))
 
 

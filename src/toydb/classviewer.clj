@@ -50,7 +50,7 @@
 
 
 (defn make-tree-from-obj [obj]
-  (tm/make-tree-from-chain (find-hierarchy obj)))
+  (tm/make-tree-from-chain (fxparents obj)))
 
 (defn init-trees
 "Returns a list of independent trees, one from each obj"
