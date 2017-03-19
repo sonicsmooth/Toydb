@@ -24,7 +24,6 @@
   ;;(:require [toydb.classviewer :as cv])
   ;;(:require [clojure.edn :as edn])
 
-
   (:import [java.net InetAddress]
            [javafx.application Application]
            [javafx.collections ObservableList FXCollections]
@@ -41,8 +40,8 @@
            [java.nio.file FileSystems Files Paths Path ]))
 
 
-;;(set! *warn-on-reflection* true)
-;;(set! *unchecked-math* :warn-on-boxed)
+;;(set! *warn-on-reflection* false)
+;;(set! *unchecked-math* false)
 
 
 
@@ -123,7 +122,7 @@
                                                         (.setPrefWidth 100))))}]
 
         
-    (.setOnCloseRequest (:main windows) (eventhandler [_] (close-windows! app)))
+    (.setOnCloseRequest (:main windows) (event-handler [_] (close-windows! app)))
 
     ;; Assign content to currently empty app fields
     (dosync (alter (:database app) map-replace initial-db-map))

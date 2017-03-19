@@ -266,7 +266,7 @@
   ;; Creates listener that commits current value and cancels edit when
   ;; defocused.  getterfn retrieves the value to commit
   [cell getterfn]
-  (change-listener [_ obv oldval newval]
+  (change-listener [oldval newval]
                    (if (true? newval)
                      ;;(println "focused graphic in cell" cell)
                      nil
@@ -284,7 +284,7 @@
   (let [focus-listener (make-focus-change-listener cell getterfn)]
     (add-listener! graphic :focused focus-listener)
     (.setOnKeyPressed graphic
-                      (eventhandler [e] ;; here "cell" still refers to the tablecell
+                      (event-handler [e] ;; here "cell" still refers to the tablecell
                                     (try
                                       (condp = (.getCode e)
                                         KeyCode/ENTER (do ;;(println "ENTER pressed.  Removing focus listener")
@@ -524,7 +524,7 @@
                    :editable (db/mutable? var))]
     (let [selectmodel (.getSelectionModel tv)          
           focusmodel (.getFocusModel tv)]
-      (.setOnKeyPressed tv (eventhandler [e] ;; selects and focuses next cell and row
+      (.setOnKeyPressed tv (event-handler [e] ;; selects and focuses next cell and row
                                          (condp = (.getCode e)
                                            KeyCode/TAB
                                            (try
@@ -556,9 +556,9 @@
                         :cell-value-factory CELL-VALUE-FACTORY
                         :cell-factory FANCY-TABLECELL-FACTORY
                         :user-data {:accessfn kee}
-                        :on-edit-start (eventhandler [e] #_(println "editing column " (.getOldValue e) (.getNewValue e)))
-                        :on-edit-cancel (eventhandler [e] #_(println "canceling column with event" e))
-                        :on-edit-commit (eventhandler [e] (do #_(println "column's on-edit-commit handler calling column-commit") (column-commit e)))
+                        :on-edit-start (event-handler [e] #_(println "editing column " (.getOldValue e) (.getNewValue e)))
+                        :on-edit-cancel (event-handler [e] #_(println "canceling column with event" e))
+                        :on-edit-commit (event-handler [e] (do #_(println "column's on-edit-commit handler calling column-commit") (column-commit e)))
                         :editable ismutable
                         :sortable true))
         cols (map colfn allkeys)
@@ -597,9 +597,9 @@
                           :cell-value-factory CELL-VALUE-FACTORY
                           :cell-factory FANCY-TABLECELL-FACTORY
                           :user-data {:accessfn val} ;; val is fn for accessing cell values from data item
-                          :on-edit-start (eventhandler [e] #_(println "editing column " (.getOldValue e) (.getNewValue e)))
-                          :on-edit-cancel (eventhandler [e] #_(println "canceling column with event" e))
-                          :on-edit-commit (eventhandler [e] (do #_(println "column's on-edit-commit handler calling column-commit") (column-commit e)))
+                          :on-edit-start (event-handler [e] #_(println "editing column " (.getOldValue e) (.getNewValue e)))
+                          :on-edit-cancel (event-handler [e] #_(println "canceling column with event" e))
+                          :on-edit-commit (event-handler [e] (do #_(println "column's on-edit-commit handler calling column-commit") (column-commit e)))
                           :editable ismutable)
         #_type-col #_(jfxnew TableColumn "Type"
                              :cell-value-factory CELL-VALUE-FACTORY

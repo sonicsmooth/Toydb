@@ -87,7 +87,7 @@
 (defn class-window [& [width height]]
   (let [stage (jfxnew Stage
                       :scene (Scene. (class-pane width height))
-                      :on-close-request (eventhandler [_] (close-all-windows)))]
+                      :on-close-request (event-handler [_] (close-all-windows)))]
     (when width (.setWidth stage width))
     (when height (.setHeight stage height))
     stage))
@@ -115,7 +115,7 @@
                        :scene (Scene. pane)
                        :width width
                        :height height
-                       :on-close-request (eventhandler [_] (close-all-windows)))]
+                       :on-close-request (event-handler [_] (close-all-windows)))]
     window))
 
 (defn -start [myoutpw]

@@ -8,6 +8,6 @@
   :resource-paths ["resources/anchor_resources"
                    "resources/dock_resources"
                    "../../"] ;; back to /c/dev/, eg for icons
-  :main toydb.core
-  )
+  :jvm-opts ["-Djavafx.animation.fullspeed=true"]
+  :main toydb.core)
   

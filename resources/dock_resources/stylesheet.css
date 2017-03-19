@@ -1,0 +1,9 @@
+
+
+.table-cell:hover { -fx-background-color: linear-gradient(red 0%, pink 90%, #e0e0e0 90%); } 
+.table-cell:focus { -fx-background-color: linear-gradient(white 0%, black 90%, #e0e0e0 90%); }
+
+.table-row-cell:hover { -fx-background-color: linear-gradient(green 0%, pink 90%, #e0e0e0 90%); }
+.table-row-cell:focus { -fx-background-color: linear-gradient(cyan 0%, yellow 90%, #e0e0e0 90%); }
+
+

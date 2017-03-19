@@ -17,7 +17,7 @@
     (when id (.setId item id))
     (when text (.setText item text))
     (when icon (.setGraphic item (image-view icon)))
-    (when action (.setOnAction item (eventhandler [_] (action))))
+    (when action (.setOnAction item (event-handler [_] (action))))
     item))
 
 (defn separator-menu-item []

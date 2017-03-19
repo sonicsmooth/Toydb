@@ -140,7 +140,7 @@
 
 
 (def text1 (TextField. "hi"))
-(.setOnAction text1 (eventhandler [evt] (println "in event handler, out is " *out*)))
+(.setOnAction text1 (event-handler [evt] (println "in event handler, out is " *out*)))
 
 
 (defn -start [out]
@@ -262,14 +262,14 @@
 
 
     (comment
-      (.addListener (:ppg-prop grid-properties) (change-listener [_ _ _ nv]  (println "ppg:" nv)))
-      (.addListener (:upg-prop grid-properties) (change-listener [_ _ _ nv]  (println "upg:" nv)))
-      (.addListener (:upp-prop grid-properties) (change-listener [_ _ _ nv]  (println "upp:" nv)))
-      (.addListener (:ppu-prop grid-properties) (change-listener [_ _ _ nv]  (println "ppu:" nv)))
-      (.addListener (:zoom-level-prop grid-properties) (change-listener [_ _ _ nv]  (println "zoom-level:" nv)))
-      (.addListener (:total-zoom-prop grid-properties) (change-listener [_ _ _ nv]  (println "total-zoom:" nv)))
-      (.addListener (:originX-prop grid-properties) (change-listener [_ _ _ nv]  (println "origin-X:" nv)))
-      (.addListener (:originY-prop grid-properties) (change-listener [_ _ _ nv]  (println "origin-Y:" nv))))
+      (.addListener (:ppg-prop grid-properties) (change-listener [ _ nv]  (println "ppg:" nv)))
+      (.addListener (:upg-prop grid-properties) (change-listener [ _ nv]  (println "upg:" nv)))
+      (.addListener (:upp-prop grid-properties) (change-listener [ _ nv]  (println "upp:" nv)))
+      (.addListener (:ppu-prop grid-properties) (change-listener [ _ nv]  (println "ppu:" nv)))
+      (.addListener (:zoom-level-prop grid-properties) (change-listener [ _ nv]  (println "zoom-level:" nv)))
+      (.addListener (:total-zoom-prop grid-properties) (change-listener [ _ nv]  (println "total-zoom:" nv)))
+      (.addListener (:originX-prop grid-properties) (change-listener [ _ nv]  (println "origin-X:" nv)))
+      (.addListener (:originY-prop grid-properties) (change-listener [ _ nv]  (println "origin-Y:" nv))))
 
 
 

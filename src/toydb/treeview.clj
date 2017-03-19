@@ -122,10 +122,10 @@
            (run-later (doto treeitem
                         (.setGraphic imageview)
                         (.addEventHandler (TreeItem/branchExpandedEvent)   
-                                          (eventhandler [e] (when (.isExpanded treeitem)
+                                          (event-handler [e] (when (.isExpanded treeitem)
                                                               (.setImage imageview (status-image item :expanded)))))
                         (.addEventHandler (TreeItem/branchCollapsedEvent)
-                                          (eventhandler [e] (when (not (.isExpanded treeitem))
+                                          (event-handler [e] (when (not (.isExpanded treeitem))
                                                               (.setImage imageview (status-image item :collapsed))))))))))
     treeitem))
 
@@ -166,10 +166,10 @@
                             (run-later (doto this
                                          (.setGraphic imageview)
                                          (.addEventHandler (TreeItem/branchExpandedEvent)   
-                                                           (eventhandler [e] (when (.isExpanded treeitem)
+                                                           (event-handler [e] (when (.isExpanded treeitem)
                                                                                (.setImage imageview (status-image item :expanded)))))
                                          (.addEventHandler (TreeItem/branchCollapsedEvent)
-                                                           (eventhandler [e] (when (not (.isExpanded treeitem))
+                                                           (event-handler [e] (when (not (.isExpanded treeitem))
                                                                                (.setImage imageview (status-image item :collapsed))))))))))))))))
 
 

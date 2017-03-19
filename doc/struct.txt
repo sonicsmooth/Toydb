@@ -1,0 +1,45 @@
+application
+    database
+    windows -- main, debug
+    panes -- editor, explorer, statusbar, inspector
+    editor struct
+        zoom/pan/view data
+        Group of grid and components
+            grid-canvas node
+            components gui
+                Group of components
+        behaviors
+    how things tie together
+    
+
+GUI
+Stage0: main window
+    Scene:
+        Application BorderPane:
+            TOP: Menu, toolbars
+            BOTTOM: Status bar
+            CENTER: DockBase
+                LEFT: DockNode with Explorer Pane
+                RIGHT: DockNode with Inspector Pane
+                CENTER: DockNode (:top-pane editor)
+                    TOP: Editor toolbars
+                    BOTTOM: Editor status, slider, zoom
+                    CENTER: DockBase (center-dock-base)
+                        CENTER: BorderPane (doc-pane1)
+                            CENTER: grid-canvas
+                            TOP: doc-tool-bar
+                            BOTTOM: doc-status-bar
+                        CENTER: BorderPane (doc-pane2)
+                            CENTER: grid-canvas
+                            TOP: doc-tool-bar
+                            BOTTOM: doc-status-bar
+            
+            
+Stage1: debug window
+    Scene: console-scene
+        BorderPane: console-pane
+            CENTER: TextArea
+            BOTTOM: Label
+
+        
+    
