@@ -1,5 +1,6 @@
 (ns ^{:doc "Creates a resizable canvas"}
-    toydb.canvas)
+    toydb.canvas
+  (require [jfxutils.core :only [showstack]]))
 
 (defn resizable-canvas
   "Returns a proxy of Canvas which is resizable.  The function drawfn,
@@ -16,30 +17,9 @@
     (prefWidth [h] (.minWidth this h))
     (prefHeight [w] (.minHeight this w))
     (resize [w h]
-      (println "resize to " w h)
       (when drawfn
         (let [old-size (javafx.geometry.Point2D. (.getWidth this) (.getHeight this))]
           (.setWidth this w)
           (.setHeight this h)
           (drawfn this old-size))))))
-
-
-
-
-
-
-
-
-
-
-  
-
-
-
-
-
-
-
-
-
 

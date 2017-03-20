@@ -4,20 +4,11 @@
     (:use [clojure.data :only [diff]])
     (:use [clojure.pprint])
 
-    (:import ;;[javafx.beans.property SimpleDoubleProperty
-             ;;SimpleLongProperty] [javafx.geometry Orientation
-             ;;Point2D] [javafx.scene CacheHint Group Scene]
-             ;;[javafx.scene.control Button Label Menu MenuBar
-             ;;MenuItem ToolBar] [javafx.scene.input MouseEvent
-             ;;ScrollEvent] [javafx.scene.layout Pane StackPane VBox
-             ;;HBox Background BackgroundFill CornerRadii]
-             ;;[javafx.scene.shape Rectangle Circle Ellipse
-             ;;StrokeLineCap] [javafx.stage Stage FileChooser]
-             [javafx.geometry Insets VPos Point2D]
+    (:import [javafx.geometry Insets VPos Point2D]
              [javafx.scene.canvas Canvas GraphicsContext]
              [javafx.scene.paint Color LinearGradient RadialGradient CycleMethod Stop]
              [javafx.scene.text Font Text TextAlignment]))
-;;[javafx.application Platform Application]
+
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
@@ -160,7 +151,7 @@
 
 (defn resize-grid!
   "Updates origin so grid sticks to bottom left, then resizes
-  grid. canvas is the Canvas thas is being resized.  old-size is the
+  grid. canvas is the Canvas that is being resized.  old-size is the
   Point2D describing the size of the Canvas before the resizing event.
   view-data is an Atom which has an :origin key which is a Point2D
   describing the center of the grid in pixels, on an untransformed
@@ -168,7 +159,6 @@
   [^Canvas canvas ^Point2D old-size view-data]
   ;; Compute how far the bottom edge has moved, and add that to the
   ;; origin's y value
-  (println "resize-grid!")
   (let [^Point2D origin (:origin @view-data)
         dy (- (.getHeight canvas) (.getY old-size))
         new-origin (Point2D. (.getX origin) (+ (.getY origin) dy))]
@@ -177,7 +167,6 @@
 (defn draw-grid!
   "Draws grid onto canvas using provided view-data"
   [^Canvas canvas view-data]
-  (println "draw-grid!")
   (let [^GraphicsContext gc (.getGraphicsContext2D canvas)
         zoomspecs (:zoom view-data)
         border-pt Point2D/ZERO
@@ -272,11 +261,26 @@
       (.setFill Color/DARKBLUE)
       (.setTextBaseline VPos/CENTER)
       (.fillText (format "%5.3f zoom level" (:level zoomspecs) ) 10 (- height 100))
-      (.fillText (format "%5.3f %s per major gridline" (.getX upg) (:unit-name view-data)) 10  (- height 80))
+      (.fillText (format "%5.3f %s per major gridline" (.getX upg) (name (:unit view-data))) 10  (- height 80))
       (.fillText (format "%5.3f px per major gridline" (.getX ppg)) 10  (- height 60))
       (.fillText (format "Zoom: %5.3f total zoom " totalzoom)       10  (- height 40))
-      (.fillText (format "Scale: %5.3f pixels per %s" (.getX ppu) (:unit-name view-data))  10 (- height 20)))
+      (.fillText (format "Scale: %5.3f pixels per %s" (.getX ppu) (name (:unit view-data)))  10 (- height 20)))
     canvas))
+
+(defn resize-callback
+  "Returns function which is called by .resize callback in reified Canvas"
+  [view-data]
+  (fn [canvas old-size]
+    (resize-grid! canvas old-size view-data)))
+
+
+
+
+
+
+
+
+
 
 
 

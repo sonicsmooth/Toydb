@@ -27,7 +27,8 @@
    :axis-line-color Color/DARKBLUE})
 
 (def DEFAULT-VIEW-SPECS
-  {:origin (Point2D. 10 -10) ;; in canvas space pixels, relative to bottom left corner
+  {:unit :cm      ;; so we know how to convert
+   :origin (Point2D. 10 -10) ;; in canvas space pixels, relative to bottom left corner, so negative y means up from bottom
    :zoom {:pixels-per-grid    [100 100] ;; Major step size [x,y] in pixels per grid unit at zoom level 0
           :units-per-grid     [ 1    1] ;; Reality units per major grid unit.
           :minors-per-major   [ 5    5] ;; Minor steps per major step
@@ -35,10 +36,6 @@
           :level  0.0  ;; Basically the log of the zoom, an integer when using scroll wheel
           :minmax [-10 30]}
    ;;:canvas-border    [10 10 ] ;;[ 1.2 1.2] ;; upper left corner in canvas space
-   
- ;; how many zoom clicks we are in.  Pos or neg integer.
-   :current-unit :mm      ;; so we know how to convert
-   :unit-name "mm"
    :colors DEFAULT-GRID-COLORS})
 
 (defprotocol EditorProtocol
@@ -50,13 +47,11 @@
   "Functions for Document defrecord"
   (reset-view! [this])  ;; mutates view, triggers watch
   (redraw-view! [this]) ;; called from watch
-  (zoom-to! [this zoom-level] [this zoom-level pt]) ;; mutates view, triggers watch
-  (zoom-by! [this dzoom-level] [this dzoom-level pt]) ;; mutates view, triggers watch
   (pan-to! [this point2d])  ;; mutates view, triggers watch
   (pan-by! [this dpoint2d]) ;; mutates view, triggers watch
+  (zoom-to! [this zoom-level] [this zoom-level pt]) ;; mutates view, triggers watch
+  (zoom-by! [this dzoom-level] [this dzoom-level pt]) ;; mutates view, triggers watch
   (init-handlers! [this])) 
-
-
 
 
 (defrecord Editor [top-pane
@@ -72,12 +67,18 @@
                      uuid       ;; unique identifier for this instance
                      behaviors] ;; for toolbars or whatever
   DocumentProtocol
-  (reset-view! [doc]  (swap! (:view-data doc) map-replace DEFAULT-VIEW-SPECS))
-  (redraw-view! [doc] (do (println "redraw-view!")
-                          (toydb.grid/draw-grid! (:grid-canvas doc) @(:view-data doc))))
-  (zoom-to! [doc zoom-level]  (zoom-to! doc zoom-level Point2D/ZERO))
-  (zoom-to! [doc zoom-level pt])
-  (zoom-by! [doc dzoom-level] (zoom-by! doc dzoom-level Point2D/ZERO))
+  (reset-view! [doc] (do ;; sqeeze to nothing so resizing back up again works
+                       (.resize (:grid-canvas doc) 0.0 0.0)
+                       (swap! (:view-data doc) map-replace DEFAULT-VIEW-SPECS)))
+  (redraw-view! [doc] (toydb.grid/draw-grid! (:grid-canvas doc) @(:view-data doc)))
+  (pan-to! [doc point2d] (swap! (:view-data doc) assoc-in [:origin] point2d))
+  (pan-by! [doc dpoint2d] (swap! (:view-data doc) update-in [:origin] #(let [^Point2D x %] (.add x dpoint2d))))
+  (zoom-to! [doc zoom-level] ;; Set zoom level with respect to origin
+    (zoom-to! doc zoom-level Point2D/ZERO))
+  (zoom-to! [doc zoom-level pt] ;; Set zoom level centered on position pt
+    )
+  (zoom-by! [doc dzoom-level] ;; Zoom by a certain amount centered on origin
+    (zoom-by! doc dzoom-level Point2D/ZERO))
   (zoom-by! [doc dzoom-level pt]
     ;; For zoom-on-point, we take the difference in grid coordinates between the pre-zoom
     ;; and post-zoom state, then calculate the equivalent pixel coordinates, and move
@@ -100,9 +101,6 @@
               ^Point2D new-origin (.add dpos-pixels (:origin specs))
               newspecs (assoc-in newspecs [:origin] new-origin)]
           (swap! (:view-data doc) map-replace newspecs)))))  
-  (pan-to! [doc point2d] (swap! (:view-data doc) assoc-in [:origin] point2d))
-  (pan-by! [doc dpoint2d] (swap! (:view-data doc) update-in [:origin] #(let [^Point2D x %] (.add x dpoint2d))))
-
   (init-handlers! [doc]
     ;; Add mouse events to deal with pan, zoom, drag
     (let [^javafx.scene.Node pane (:doc-pane doc)
@@ -133,19 +131,19 @@
                                 :shift (.isShiftDown event)
                                 :alt (.isAltDown event)))
 
+          long-id (fn [idtxt] (str idtxt "-" (:uuid doc)))
           lookup-node (memoize (fn [idtxt node] ;; always looks down starting at node
-                                 (let [id (:uuid doc)
-                                       long-id (str idtxt "-" id)]
-                                   (lookup long-id node))))
+                                 (let [         ;;id (:uuid doc)
+                                       ;;long-id (str idtxt "-" id)
+                                       ]
+                                   (lookup (long-id idtxt) node))))
 
           move-handler (event-handler [mouse-event]
                                       (let [^MouseEvent event mouse-event
                                             ppos (Point2D. (.getX event) (.getY event))
                                             upos (grid/pixels-to-units ppos @(:view-data doc) :translate)
                                             ppos-label (lookup-node "pixel-pos-label" pane)
-                                            upos-label (lookup-node "unit-pos-label" pane)
-                                            ]
-                                        
+                                            upos-label (lookup-node "unit-pos-label" pane)]                                        
                                         (.setText ppos-label (format "px:% 5.5f, % 5.5f" (.getX ppos) (.getY ppos)))
                                         (.setText upos-label (format "ux:% 5.5f, uy: % 5.5f" (.getX upos) (.getY upos)))))
 
@@ -198,9 +196,22 @@
           
           keyboard-handler (event-handler [key-event]  (capture-kbd! key-event))
           focus-listener (change-listener [oldval newval] nil)
-          reset-btn-handler (event-handler [action-event]
-                                           (println @(:view-data doc))
-                                           )]
+          reset-btn-handler (event-handler [action-event] (reset-view! doc))
+          unit-btn-handler (event-handler [action-event]
+                                          (let [vd (:view-data doc)
+                                                id (.. action-event getSource getId)
+                                                old-ppg (get-in @vd [:zoom :pixels-per-grid])
+                                                to-inch (and (= (:unit @vd) :cm) (= id (long-id "inch-button")))
+                                                to-cm (and (= (:unit @vd) :inch) (= id (long-id "cm-button")))
+                                                new-ppg (cond to-inch (map * old-ppg [2.54 2.54])
+                                                              to-cm (map / old-ppg [2.54 2.54]))
+                                                new-unit (cond to-inch :inch
+                                                               to-cm :cm)]
+                                            (when new-unit
+                                              (swap! vd assoc-in-pairs
+                                                     [:unit] new-unit
+                                                     [:zoom :pixels-per-grid] new-ppg))))
+]
       
       (set-event-handler! pane :mouse-moved move-handler)
       (set-event-handler! pane :mouse-pressed click-handler)
@@ -209,9 +220,9 @@
       (set-event-handler! pane :scroll scroll-handler)
       (set-event-handler! pane :key-pressed keyboard-handler)
       (set-event-handler! pane :key-released keyboard-handler)
-      ;;(printexp (lookup-node "reset-button" pane))
       (set-event-handler! (lookup-node "reset-button" pane) :action reset-btn-handler)
-
+      (set-event-handler! (lookup-node "cm-button" pane) :action unit-btn-handler)
+      (set-event-handler! (lookup-node "inch-button" pane) :action unit-btn-handler)
       (add-listener! pane :focused focus-listener))))
 
 (defn make-idfn [id]
@@ -223,8 +234,8 @@
   ([] (doc-tool-bar nil))
   ([^String id]
    (let [idfn (make-idfn id)]
-     (mb/tool-bar [(jfxnew Button :id (idfn "mm-button" ) :text "mm")
-                   (jfxnew Button :id (idfn "inches-button") :text "inches")
+     (mb/tool-bar [(jfxnew Button :id (idfn "cm-button" ) :text "cm")
+                   (jfxnew Button :id (idfn "inch-button") :text "inch")
                    (jfxnew Button :id (idfn "reset-button") :text "reset")]))))
 
 (defn editor-tool-bar
@@ -269,46 +280,50 @@
     (when (second size) (.setPrefHeight pane (second size)))
     pane))
 
+
+(defn document
+  "Make document with relevant handlers"
+  [width height]
+  (let [id (uuid)
+        view-data (atom DEFAULT-VIEW-SPECS)
+        grid-canvas (canvas/resizable-canvas (grid/resize-callback view-data))
+        surface-pane (jfxnew StackPane :children [grid-canvas])
+        doc-pane (border-pane
+                  :center surface-pane,
+                  :top (doc-tool-bar id),
+                  :bottom (doc-status-bar id)
+                  :size [width height])
+        doc (->Document view-data grid-canvas surface-pane doc-pane id [])]
+    (add-watch view-data id (fn [k r o n] (redraw-view! doc)))
+    (init-handlers! doc)
+    doc))
+
 (defn editor
-  ;; Start a new editor
-  ([app] (editor app [640 480]))
+  ;; Start a new editor with a few documents
+  ([app] (editor app [nil nil]))
   ([app [width height]]
-   (let [id1 (uuid)
-         id2 (uuid)
-         view-data1 (atom DEFAULT-VIEW-SPECS)
-         view-data2 (atom DEFAULT-VIEW-SPECS)
-         grid-canvas1 (canvas/resizable-canvas #(grid/resize-grid! %1 %2 view-data1))
-         grid-canvas2 (canvas/resizable-canvas #(grid/resize-grid! %1 %2 view-data2))
-         surface-pane1 (jfxnew StackPane :children [grid-canvas1])
-         surface-pane2 (jfxnew StackPane :children [grid-canvas2])
-         doc-pane1 (border-pane :center surface-pane1, :top (doc-tool-bar id1), :bottom (doc-status-bar id1) :size [width height])
-         doc-pane2 (border-pane :center surface-pane2, :top (doc-tool-bar id2), :bottom (doc-status-bar id2) :size [width height])
-         center-dock-base (docks/base :left (docks/node doc-pane1 "document1")
-                                      :right (docks/node doc-pane2 "document2"))
-         top-pane (border-pane :center center-dock-base, :top (editor-tool-bar), :bottom (editor-status-bar) :size [width height])
-         doc1 (->Document view-data1 grid-canvas1 surface-pane1 doc-pane1 id1 [])
-         doc2 (->Document view-data2 grid-canvas2 surface-pane2 doc-pane2 id2 [])
-         docs [doc1 doc2]
-         editor (->Editor top-pane docs [])]
+   (let [doc1 (document width height)
+         doc2 (document width height)
+         center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "document1")
+                                      :right (docks/node (:doc-pane doc2) "document2"))
+         top-pane (border-pane
+                   :center center-dock-base,
+                   :top (editor-tool-bar),
+                   :bottom (editor-status-bar)
+                   :size [width height])
+         editor (->Editor top-pane [doc1 doc2] [])]
      
      ;; How it works, for each doc:
      ;; 1.  Add watch to atom which calls protocol redraw
      ;; 2.  Add FX handlers to deal with mouse, keyboard input
      ;; 3.  Handler calls protocol zoom, pan, etc
      ;; 3.  Protocol fn mutates atom which triggers protocol redraw
-
-     (add-watch view-data1 :doc1 (fn [k r o n] (redraw-view! doc1)))
-     (add-watch view-data2 :doc2 (fn [k r o n] (redraw-view! doc2)))
-     (init-handlers! doc1)
-     (init-handlers! doc2)
-     ;;(.setFocusTraversable surface-pane1 true)
-     ;;(.setFocusTraversable surface-pane2 true)
-
      
      (when width (.setPrefWidth top-pane width))
      (when height (.setPrefHeight top-pane height))
 
      editor)))
+
 
 
 
