@@ -16,14 +16,14 @@
 (comment
   (def root-image (image "icons/tango-icons-0.8.90/scalable/devices/computer.svg"))
   (def file-image (image "icons/tango-icons-0.8.90/scalable/mimetypes/text-x-generic.svg"))
-  (def collapsed-folder-image (image "icons/tango-icons-0.8.90/scalable/places/folder.svg") )
-  (def expanded-folder-image  (image "icons/tango-icons-0.8.90/scalable/status/folder-open.svg")))
+  (def collapsed-folder-image (image "icons/tango-icon-theme-0.8.90/scalable/places/folder.svg") )
+  (def expanded-folder-image  (image "icons/tango-icon-theme-0.8.90/scalable/status/folder-open.svg")))
 
 ;; From iconfinder website
-(def root-image (image "icons/tango-icons-0.8.90/scalable/devices/computer.svg"))
-(def file-image (image "icons/must_have_icon_set/Text Document/Text Document_16x16.png"))
-(def collapsed-folder-image (image "icons/must_have_icon_set/Folder/Folder_16x16.png"))
-(def expanded-folder-image (image "icons/must_have_icon_set/Folder/Folder_16x16.png"))
+(def root-image (image "icons/tango-icon-theme-0.8.90/scalable/devices/computer.svg"))
+(def file-image (image "icons/must-have-icon-set/Text Document/Text Document_16x16.png"))
+(def collapsed-folder-image (image "icons/must-have-icon-set/Folder/Folder_16x16.png"))
+(def expanded-folder-image (image "icons/must-have-icon-set/Folder/Folder_16x16.png"))
 
 
 

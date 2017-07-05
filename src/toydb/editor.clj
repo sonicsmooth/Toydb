@@ -210,8 +210,7 @@
                                             (when new-unit
                                               (swap! vd assoc-in-pairs
                                                      [:unit] new-unit
-                                                     [:zoom :pixels-per-grid] new-ppg))))
-]
+                                                     [:zoom :pixels-per-grid] new-ppg))))]
       
       (set-event-handler! pane :mouse-moved move-handler)
       (set-event-handler! pane :mouse-pressed click-handler)
