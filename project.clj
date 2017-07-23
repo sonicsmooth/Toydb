@@ -5,8 +5,8 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[jfxutils "0.1.0-SNAPSHOT"]
                  [docks/docks "0.1.0-SNAPSHOT"]
-                 ;;[org.dockfx/DockFX "0.1.8"]
-                 ]
+                 ;;[uncomplicate/neanderthal "0.14.0"]
+                 [net.mikera/vectorz-clj "0.47.0"]]
   :resource-paths ["resources/anchor_resources"
                    "resources/dock_resources"
                    "resources"

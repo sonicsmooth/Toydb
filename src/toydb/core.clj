@@ -129,7 +129,6 @@
     (swap! (:editor app) map-replace editor)
     (swap! (:panes app) map-replace panes)
     (swap! (:windows app) map-replace windows)
-    
     app))
 
 

@@ -34,7 +34,7 @@
           :minors-per-major   [ 5    5] ;; Minor steps per major step
           :ratio  10   ;; how many zoom clicks per major-div replacement.  Positive integer.
           :level  0.0  ;; Basically the log of the zoom, an integer when using scroll wheel
-          :minmax [-10 30]}
+          :minmax [-10 30]} ;; Limits of zoom level
    ;;:canvas-border    [10 10 ] ;;[ 1.2 1.2] ;; upper left corner in canvas space
    :colors DEFAULT-GRID-COLORS})
 
@@ -144,8 +144,8 @@
                                             upos (grid/pixels-to-units ppos @(:view-data doc) :translate)
                                             ppos-label (lookup-node "pixel-pos-label" pane)
                                             upos-label (lookup-node "unit-pos-label" pane)]                                        
-                                        (.setText ppos-label (format "px:% 5.5f, % 5.5f" (.getX ppos) (.getY ppos)))
-                                        (.setText upos-label (format "ux:% 5.5f, uy: % 5.5f" (.getX upos) (.getY upos)))))
+                                        (.setText ppos-label (format "px:% 5.5f, py:% 5.5f" (.getX ppos) (.getY ppos)))
+                                        (.setText upos-label (format "ux:% 5.5f, uy:% 5.5f" (.getX upos) (.getY upos)))))
 
           click-handler (event-handler [mouse-event] ;; We only need this to capture the initial state of the mouse
                                        ;; We look at mouse event (down+up = 2) * (2^2=4 mouse states) * (2^3=8 key states)
@@ -280,8 +280,9 @@
     pane))
 
 
-(defn document
-  "Make document with relevant handlers"
+;; Doc-View is a graphical thing with a grid, not some UI-less abstroction of document
+(defn doc-view
+  "Make doc-view with relevant handlers"
   [width height]
   (let [id (uuid)
         view-data (atom DEFAULT-VIEW-SPECS)
@@ -292,19 +293,19 @@
                   :top (doc-tool-bar id),
                   :bottom (doc-status-bar id)
                   :size [width height])
-        doc (->Document view-data grid-canvas surface-pane doc-pane id [])]
+        doc (->Doc-View view-data grid-canvas surface-pane doc-pane id [])]
     (add-watch view-data id (fn [k r o n] (redraw-view! doc)))
     (init-handlers! doc)
     doc))
 
 (defn editor
-  ;; Start a new editor with a few documents
+  ;; Start a new editor with a few doc-views
   ([app] (editor app [nil nil]))
   ([app [width height]]
-   (let [doc1 (document width height)
-         doc2 (document width height)
-         center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "document1")
-                                      :right (docks/node (:doc-pane doc2) "document2"))
+   (let [doc1 (doc-view width height)
+         doc2 (doc-view width height)
+         center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
+                                      :right (docks/node (:doc-pane doc2) "doc2"))
          top-pane (border-pane
                    :center center-dock-base,
                    :top (editor-tool-bar),

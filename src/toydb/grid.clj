@@ -37,13 +37,8 @@
 
 (defn point-inc
   "Adds 1.0 to both X and Y"
-  [^Point2D p]
-  (Point2D. (+ (.getX p) 1.0) (+ (.getY p) 1.0)))
-
-(defn point-inc!
-  "Adds 1.0 to both X and Y"
-  [^Point2D p]
-  (Point2D. (+ (.getX p) 1.0) (+ (.getY p) 1.0)))
+  ([^Point2D p]
+   (.add p 1.0 1.0)))
 
 (defn point-ceil
   "Element-by-element ceiling of one Point2D object.  Returns single
@@ -59,7 +54,7 @@
 
 (defn _calc-conversions
   "Calculates and returns scaled pixels-per-grid, units-per-grid,
-  units-per-pixel, and pixels-per-unit based on zoom specs, which is
+  units-per-pixel, and pixels-per-unit based on zoom specs, which is a
   map with :minors-per-major, :zoom-ratio, and :zoom-level keys"
   [zoomspecs]
   (let [calc-Amult ;; Rescales pixels-per-grid.
@@ -78,7 +73,7 @@
         ppgY (* Amult (double (second (:pixels-per-grid zoomspecs)))) 
         upgX (* Bmult (double (first (:units-per-grid zoomspecs))))
         upgY (* Bmult (double (second (:units-per-grid zoomspecs))))
-        ppg (Point2D. ppgX ppgY)
+        ppg (Point2D. ppgX (- ppgY))
         upg (Point2D. upgX upgY)
         upp (point-div upg ppg)
         ppu (point-div ppg upg)]
@@ -86,6 +81,7 @@
 
 ;;(def calc-conversions (memoize _calc-conversions))
 (def calc-conversions _calc-conversions)
+
 
 (defn snap-to-nearest
   "Rounds all elements of seq to closest integer multiqple of m, which
@@ -223,7 +219,7 @@
     ;; ...then set transform
     ;; We are drawing a grid in unit space transformed to pixel space.
     ;; We are not drowing in grid space.
-    ;; The order here matters!  translate, then scale!
+    ;; The order here matters!  translate, then scale! (or does it?)
     ;;(.setTransform (.getX ppu) 0  0 (.getY ppu) (.getX origin) (.getY origin))
     (doto gc
       (.save)
@@ -251,7 +247,7 @@
     (when (and (> (.getX origin) 0) (< (.getX origin) width))
       (.strokeLine gc 0 (.getY ulower-left) 0 (.getY uupper-right) )) ;; vertical
 
-    ;; Test diagonal
+    ;; Test diagonal.  Should go from origin to upper right
     (.strokeLine gc 0 0 1 1)
 
     ;; Restore back to non-transformed then draw text
