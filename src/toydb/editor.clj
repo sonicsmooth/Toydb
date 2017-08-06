@@ -312,10 +312,13 @@
      ;; ...then set the atom down here
      (reset! doc-atom doc)
      ;; This watch is what triggers a redraw whenever view-data changes
-     (add-watch view-data-atom uid (fn [k r o n] (redraw-view! doc)))
-     (add-watch view-data-atom "zoom" (fn [k r o n]
-                                        (when (not= (:zoomlevel n) (:zoomlevel o))
-                                          (.setValue zoom-slider (:zoomlevel n) ))))
+     (add-watch view-data-atom uid (fn [k r o n]
+                                     ;; Redraw either via forcing the
+                                     ;; zoom slider, or by just
+                                     ;; calling redraw
+                                     (if (not= (:zoomlevel n) (:zoomlevel o))
+                                       (.setValue zoom-slider (:zoomlevel n))
+                                       (redraw-view! doc))))
 
      ;; Connect zoom slider to actual zoom level
      (add-listener! zoom-slider :value
