@@ -3,7 +3,9 @@
     (:use [jfxutils.core :exclude [-main]])
     (:use [clojure.data :only [diff]])
     (:use [clojure.pprint])
-
+    (:require toydb.viewdef)
+    (:require [clojure.core.matrix :as matrix]
+              [clojure.core.matrix.operators :as matrixop])
     (:import [javafx.geometry Insets VPos Point2D]
              [javafx.scene.canvas Canvas GraphicsContext]
              [javafx.scene.paint Color LinearGradient RadialGradient CycleMethod Stop]
@@ -12,262 +14,173 @@
 
 (set! *warn-on-reflection* true)
 (set! *unchecked-math* :warn-on-boxed)
+(matrix/set-current-implementation :vectorz)
 
-(defn vec-to-pt
-  "Returns new Point2D based on 2-seq"
-  [[x y]]
-  (Point2D. x y))
+(def DEFAULT-GRID-COLORS
+  {:background (simple-vert-gradient Color/SLATEGRAY Color/SILVER)
+   :major-line-color Color/BLACK
+   :minor-line-color Color/LIGHTGRAY
+   :axis-line-color Color/DARKBLUE})
 
-(defn point-mult
-  "Element-by-element multiply of two Point2D objects.  Returns single
-  Point2D."
-  [^Point2D p1 ^Point2D p2]
-  (Point2D. (* (.getX p1) (.getX p2)) (* (.getY p1) (.getY p2))))
+(defrecord GridSpacing [^double majspacing,
+                        ^double minspacing])
 
-(defn point-div
-  "Element-by-element divide of two Point2D objects.  Returns single
-  Point2D."
-  [^Point2D p1 ^Point2D p2]
-  (Point2D. (/ (.getX p1) (.getX p2)) (/ (.getY p1) (.getY p2))))
+(defrecord GridSpecs [^double left
+                      ^double right
+                      ^double top
+                      ^double bottom
+                      ^doubles majhsteps
+                      ^doubles minhsteps
+                      ^doubles majvsteps
+                      ^doubles minvsteps
+                      ^GridSpacing spacing])
 
-(defn point-add
-  "Add single value to both X and Y"
-  [^Point2D p ^double i]
-  (.add p (Point2D. i i)))
+(defrecord LineSpec [^Point2D p1
+                     ^Point2D p2
+                     ^double width
+                     ^Color color])
 
-(defn point-inc
-  "Adds 1.0 to both X and Y"
-  ([^Point2D p]
-   (.add p 1.0 1.0)))
+;; Prematurely optimized, so faster than necessary
+(defn compute-steps
+  "Computes the locations, in unit space, of grid points.
+The points are located spacing units apart, and are on the integer
+  spacing grid.  Start and stop are the full extent, so the grid
+  points will be between start and stop.  For example, if start is
+  -3.2 and stop is 4.5, with spacing 1, then the output is [-3 -2 -1 0
+  1 2 3 4]"
+  (^doubles [^double start, ^double stop, ^double spacing]
+   (let [strtd (Math/ceil (/ start spacing))
+         stpd (Math/floor (/ stop spacing))
+         nsteps (long (+ (- stpd strtd) 1))
+         steps (double-array nsteps)]
+     (dotimes [i (count steps)]
+         (aset-double steps i (*  (+ strtd i) spacing)))
+     steps)))
 
-(defn point-ceil
-  "Element-by-element ceiling of one Point2D object.  Returns single
-  Point2D."
-  [^Point2D p]
-  (Point2D. (Math/ceil (.getX p)) (Math/ceil (.getY p))))
+(defn grid-specs
+  "Returns a GridSpecs structure with enough stuff to draw a grid"
+  [^toydb.viewdef.ViewDef view]
+  (let [;; Feed the known pixel values to the inverse transform to get the points
+        ;; for the upper left and bottom right corners of the canvas ,in units, not pixels
+        invt (.inv-transform view)
+        left_top_vec_px (matrix/matrix [0 0 1])
+        right_bottom_vec_px (matrix/matrix [(- (.width view) 1) (- (.height view) 1) 1])
+        [left top] (vec (matrix/mmul invt left_top_vec_px))
+        [right bottom] (vec (matrix/mmul invt right_bottom_vec_px))
 
-(defn point-floor
-  "Element-by-element floor of one Point2D object.  Returns single
-  Point2D."
-  [^Point2D p]
-  (Point2D. (Math/floor (.getX p)) (Math/floor (.getY p))))
-
-(defn _calc-conversions
-  "Calculates and returns scaled pixels-per-grid, units-per-grid,
-  units-per-pixel, and pixels-per-unit based on zoom specs, which is a
-  map with :minors-per-major, :zoom-ratio, and :zoom-level keys"
-  [zoomspecs]
-  (let [calc-Amult ;; Rescales pixels-per-grid.
-        (fn ([{:keys [minors-per-major ^double ratio ^double level]}] 
-                     (Math/pow (first minors-per-major)
-                               (mod (/ level ratio) 1.0))))
-        
-        calc-Bmult ;; Rescales units-per-grid.
-        (fn  [{:keys [minors-per-major ^double ratio ^double level]}]
-          (/ 1.0
-             (Math/pow (first minors-per-major)
-                       (Math/floor (/ level ratio)))))
-        Amult (double (calc-Amult zoomspecs))
-        Bmult (double (calc-Bmult zoomspecs))
-        ppgX (* Amult (double (first (:pixels-per-grid zoomspecs))))
-        ppgY (* Amult (double (second (:pixels-per-grid zoomspecs)))) 
-        upgX (* Bmult (double (first (:units-per-grid zoomspecs))))
-        upgY (* Bmult (double (second (:units-per-grid zoomspecs))))
-        ppg (Point2D. ppgX (- ppgY))
-        upg (Point2D. upgX upgY)
-        upp (point-div upg ppg)
-        ppu (point-div ppg upg)]
-    [ppg upg upp ppu]))
-
-;;(def calc-conversions (memoize _calc-conversions))
-(def calc-conversions _calc-conversions)
-
-
-(defn snap-to-nearest
-  "Rounds all elements of seq to closest integer multiqple of m, which
-  can be non-integer."
-  [seq ^double m ]
-  (letfn [(f [^double x] (* m (Math/round (/ x m))))]
-    (map f seq)))
-
-(defn snap-pt-to-nearest  [^Point2D p ^double m]
-  (Point2D. (* m (Math/round (/ (.getY p) m)))
-            (* m (Math/round (/ (.getX p) m)))))
-
-(defn grid-range
-  "Returns range of grid values in units not pixels, suitable for use
-  in canvas with transfrom applied. upp is used for scaling the half
-  pixel offset."
-  [^double ustart ^double ustop ^long numpts ^double upp]
-  (letfn [(linspace [^double start ^double end ^long n] ;;"Returns a sequence of n numbers from start to end inclusive."
-            (if (= start end) nil
-                (for [^long i (range 0 n)]
-                  (+ start (* i (/ (- end start) (dec n)))))))
-          (offset [seq ^double x] ;;  "Adds x to everything in seq"
-            (map #(+ x (double %)) seq))]
-    (let [rng (linspace ustart ustop numpts)
-          snapped-rng (snap-to-nearest rng upp) ;; upp is shorthand for 1 pixel * upp
-          offset-snapped-rng (offset snapped-rng (* 0.5 upp))]
-      offset-snapped-rng)))
-
-(defn pixels-to-units
-  "Returns unit coordinates given x,y location in canvas and
-  appropriate grid specs.  If :translate is passed as final argument,
-  pixels are translated from/to origin before scaling to units.
-  Otherwise, without :translate option, only scaling is performed."
-  ^Point2D [^Point2D point specs & [option]]
-  (let [[ppg upg upp ppu] (calc-conversions (:zoom specs))]
-    (if (= option :translate)
-      (point-mult upp (.subtract point (:origin specs)))
-      (point-mult upp point))))
-
-(defn units-to-pixels 
-  "Returns pixel coordinates given x,y location in units and
-  appropriate grid specs.  If :translate is passed as final argument,
-  units are translated from/to origin before scaling to pixels.
-  Otherwise, without :translate option, only scaling is performed."
-  ^Point2D [^Point2D point specs & [option]]
-  (let [[ppg upg upp ppu] (calc-conversions (:zoom specs))
-        ^Point2D new-pixels (point-mult ppu point)]
-    (if (= option :translate)
-      (let [^Point2D origin (:origin specs)]
-        (.add origin new-pixels))
-      new-pixels)))
-
-(defn ^long mm
-  "Returns nanometers given mm"
-  [^double x]
-  (long (* x 1000000)))
-
-(defn ^long inch
-  "Returns nanometers given inches"
-  [^double x]
-  (long (* x 25400000)))
+        ;; Update grids per unit
+        zoom_exp_step (Math/floor (/ (.zoomlevel view) (.zoomratio view)))
+        kgpu (.kgpu view)
+        kmpm (.kmpm view)
+        majgpu (* kgpu (Math/pow kmpm zoom_exp_step)) ; major grids per unit after zoom
+        mingpu (* kgpu (Math/pow kmpm (+ zoom_exp_step 1)))
+        majspacing (/ 1 majgpu)
+        minspacing (/ 1 mingpu)
+        majhsteps (compute-steps left right majspacing)
+        minhsteps (compute-steps left right minspacing)
+        majvsteps (compute-steps bottom top majspacing)
+        minvsteps (compute-steps bottom top minspacing)]
+    (->GridSpecs left right top bottom
+                 majhsteps minhsteps
+                 majvsteps minvsteps
+                 (->GridSpacing majspacing minspacing))))
 
 
-(defn resize-grid!
-  "Updates origin so grid sticks to bottom left, then resizes
-  grid. canvas is the Canvas that is being resized.  old-size is the
-  Point2D describing the size of the Canvas before the resizing event.
-  view-data is an Atom which has an :origin key which is a Point2D
-  describing the center of the grid in pixels, on an untransformed
-  Canvas, from the top-left of the Canvas."
-  [^Canvas canvas ^Point2D old-size view-data]
-  ;; Compute how far the bottom edge has moved, and add that to the
-  ;; origin's y value
-  (let [^Point2D origin (:origin @view-data)
-        dy (- (.getHeight canvas) (.getY old-size))
-        new-origin (Point2D. (.getX origin) (+ (.getY origin) dy))]
-    (swap! view-data assoc-in [:origin] new-origin)))
+
+(defn collect-lines
+  "Returns list of LineSpecs, each spec describing a line"
+  [^GridSpecs gs]
+  (let  [collect-pts
+         (fn [^doubles steps, ^double startu, ^double stopu, dir]
+           ;; steps is the X's and startu, stopu are the Y's or
+           ;; vice-versa.  Returns pair of points with a vertical or
+           ;; horizontal relation
+           (case dir
+             :vertical (for [xstep steps]
+                         [(Point2D. xstep startu) (Point2D. xstep stopu)])
+             :horizontal (for [ystep steps]
+                           [(Point2D. startu ystep) (Point2D. stopu ystep)])))
+         bot (.bottom gs)
+         top (.top gs)
+         left (.left gs)
+         right (.right gs)]
+    (array-map
+     :minvertical    (collect-pts (.minhsteps gs) bot top :vertical)
+     :minhorizontal  (collect-pts (.minvsteps gs) left right :horizontal)
+     :majvertical    (collect-pts (.majhsteps gs) bot top :vertical)
+     :majhorizontal  (collect-pts (.majvsteps gs) left right :horizontal)
+     :axisvertical   (collect-pts [0.0] bot top :vertical)
+     :axishorizontal (collect-pts [0.0] left right :horizontal))))
+
+
+(defn draw-lines!
+  "Put lines on the canvas using the current transform.
+Lines is a list with each member a list of Point2D"
+  [^GraphicsContext gc lines ^double linewidthpx]
+  (.save gc)
+  (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
+        linewidthu (* linewidthpx recipscale)  ;; Divide requested linewidth down by Mxx
+        pixel-offset (* 0.5 recipscale)] ;; Half-pixel offset
+    (.setLineWidth gc linewidthu)
+    (doseq [line lines]
+      (doseq [ptpair line]
+        (let [p1 ^Point2D (first ptpair)
+              p2 ^Point2D (second ptpair)
+              xp1 (+ pixel-offset (.getX p1))
+              xp2 (+ pixel-offset (.getX p2))
+              yp1 (+ pixel-offset (.getY p1))
+              yp2 (+ pixel-offset (.getY p2))]
+          (.strokeLine gc xp1 yp1 xp2 yp2)))))
+  (.restore gc))
+
 
 (defn draw-grid!
   "Draws grid onto canvas using provided view-data"
-  [^Canvas canvas view-data]
-  (let [^GraphicsContext gc (.getGraphicsContext2D canvas)
-        zoomspecs (:zoom view-data)
-        border-pt Point2D/ZERO
+  [^Canvas canvas ^toydb.viewdef.ViewDef view-data]
+  (let [gs (grid-specs view-data)
+        lines (collect-lines gs)
+        gc (.getGraphicsContext2D canvas)
         width (.getWidth canvas)
         height (.getHeight canvas)
-        upper-left-pixel Point2D/ZERO
-        upper-right-pixel (Point2D. width 0)
-        lower-left-pixel (Point2D. 0 height)
-        lower-right-pixel (Point2D. width height)
+        xfrm (.transform view-data)
+        xvals (apply seq (matrix/reshape xfrm [1 9]))
+        mxx (nth xvals 0)
+        mxy (nth xvals 1)
+        mxt (nth xvals 2)
+        myx (nth xvals 3)
+        myy (nth xvals 4)
+        myt (nth xvals 5)]
+    
+    ;; Background
+    (.setFill gc Color/WHITE)
+    (.fillRect gc 0 0 width  height)
 
-        ^Point2D mpm (vec-to-pt (:minors-per-major zoomspecs))
-        ^double zoomlevel (:level zoomspecs)
-        ^double zoomratio (:ratio zoomspecs)
-        totalzoom (Math/pow (.getX mpm) (/ zoomlevel zoomratio))
-        [^Point2D ppg ^Point2D upg ^Point2D upp ^Point2D ppu] (calc-conversions zoomspecs) ;; in Point2D
-        ^Point2D origin (:origin view-data) ;; always location in canvas, in pixels, no transform
-
-        ;; Distances in pixels from origin to border
-        pleft-distance (- (.getX origin)) ;; typically negative, d
-        pright-distance (- width (.getX origin)) ;; typically positive
-        pupper-distance (.getY origin)   ;; typically positive
-        plower-distance (- (.getY origin) height)  ;; typically negative
-
-        ^Point2D ulower-left (point-mult upp (Point2D. pleft-distance plower-distance))  ;; pixels->units
-        ^Point2D uupper-right (point-mult upp (Point2D. pright-distance pupper-distance)) ;; pixels->units
-        ^Point2D umajstep upg 
-        ^Point2D uminstep (point-div upg mpm)
-        ^Point2D umajstart (point-mult (point-ceil (point-div ulower-left umajstep)) umajstep)
-        ^Point2D umajstop (point-mult (point-floor (point-div uupper-right umajstep)) umajstep)
-        ^Point2D uminstart (point-mult (point-ceil (point-div ulower-left uminstep)) uminstep)
-        ^Point2D uminstop (point-mult (point-floor (point-div uupper-right uminstep)) uminstep)
-        ^Point2D num-maj-pts (point-inc (point-div (.subtract umajstop umajstart) umajstep))
-        ^Point2D num-min-pts (point-inc (point-div (.subtract uminstop uminstart) uminstep))
-        
-        xs-majors (grid-range (.getX umajstart) (.getX umajstop) (.getX num-maj-pts) (.getX upp))
-        ys-majors (grid-range (.getY umajstart) (.getY umajstop) (.getY num-maj-pts) (.getY upp))
-        xs-minors (grid-range (.getX uminstart) (.getX uminstop) (.getX num-min-pts) (.getX upp))
-        ys-minors (grid-range (.getY uminstart) (.getY uminstop) (.getY num-min-pts) (.getY upp))
-
-        background-paint (-> view-data :colors :background)
-        major-line-color (-> view-data :colors :major-line-color) 
-        minor-line-color (-> view-data :colors :minor-line-color)
-        axis-line-color (-> view-data :colors :axis-line-color)]
-
-    ;; Clear everything in identity state...
-    ;; Transform takes us to unit space, with Y upside down
-    (doto gc
-      (.setTransform 1 0  0 1  0 0) ;; identity
-      ;;(.clearRect 0 0 (.getWidth canvas) (.getHeight canvas))
-      (.setFill background-paint)
-      (.fillRect 0 0 (.getWidth canvas) (.getHeight canvas))) ;; main transform
-
-
-    ;; ...then set transform
-    ;; We are drawing a grid in unit space transformed to pixel space.
-    ;; We are not drowing in grid space.
-    ;; The order here matters!  translate, then scale! (or does it?)
-    ;;(.setTransform (.getX ppu) 0  0 (.getY ppu) (.getX origin) (.getY origin))
-    (doto gc
-      (.save)
-      (.translate (+ (.getX origin)) (+ (.getY origin)))
-      (.scale (.getX ppu) (- (.getY ppu))))
-
-    ;; Draw minor verticals and horizontals
-    (.setStroke gc minor-line-color)
-    (.setLineWidth gc (* 0.25 (.getX upp)))
-    (doseq [x xs-minors] (.strokeLine gc x (.getY ulower-left)  x (.getY uupper-right))) ;; vertical lines
-    (doseq [y ys-minors] (.strokeLine gc (.getX ulower-left) y (.getX uupper-right) y)) ;; horizontal lines
-
-    ;; Draw major verticals and horizontals
-    (.setStroke gc major-line-color)
-    (.setLineWidth gc (* 0.5 (.getX upp)))
-    (doseq [x xs-majors] (.strokeLine gc x (.getY ulower-left)  x (.getY uupper-right))) ;; vertical lines
-    (doseq [y ys-majors] (.strokeLine gc (.getX ulower-left) y  (.getX uupper-right) y)) ;; horizontal lines
-   
-    ;; Then the axes
-    (.setStroke gc axis-line-color)
-    (.setLineWidth gc (* 2 (.getX upp)))
-    (when (and (> (.getY origin) 0) (< (.getY origin) height))
-      (.strokeLine gc (.getX ulower-left) 0 (.getX uupper-right) 0)) ;; horizontal
-
-    (when (and (> (.getX origin) 0) (< (.getX origin) width))
-      (.strokeLine gc 0 (.getY ulower-left) 0 (.getY uupper-right) )) ;; vertical
-
-    ;; Test diagonal.  Should go from origin to upper right
-    (.strokeLine gc 0 0 1 1)
-
-    ;; Restore back to non-transformed then draw text
-    (doto gc
-      (.restore)
-      (.setFont (Font. 16.0))
-      (.setFill Color/DARKBLUE)
-      (.setTextBaseline VPos/CENTER)
-      (.fillText (format "%5.3f zoom level" (:level zoomspecs) ) 10 (- height 100))
-      (.fillText (format "%5.3f %s per major gridline" (.getX upg) (name (:unit view-data))) 10  (- height 80))
-      (.fillText (format "%5.3f px per major gridline" (.getX ppg)) 10  (- height 60))
-      (.fillText (format "Zoom: %5.3f total zoom " totalzoom)       10  (- height 40))
-      (.fillText (format "Scale: %5.3f pixels per %s" (.getX ppu) (name (:unit view-data)))  10 (- height 20)))
-    canvas))
+    (.save gc)
+    (.setTransform gc mxx myx mxy myy mxt myt)
+    (draw-lines! gc (select-values lines [:minvertical :minhorizontal]) 0.2)
+    (draw-lines! gc (select-values lines [:majvertical :majhorizontal]) 0.5)
+    (draw-lines! gc (select-values lines [:axisvertical :axishorizontal]) 2)
+    (.restore gc)))
 
 (defn resize-callback
   "Returns function which is called by .resize callback in reified Canvas"
-  [view-data]
-  (fn [canvas old-size]
-    (resize-grid! canvas old-size view-data)))
+  [view-data-atom]
+)
+
+
+
+#_(defn test-canvas []
+  (let [[width height] [640 480]
+        view-data-atom (atom (toydb.viewdef/viewdef {:width width, :height height}))
+        rscallback (fn [canvas old-size]
+                     (draw-grid! canvas @view-data-atom))
+        grid-canvas (toydb.canvas/resizable-canvas rscallback)
+        stage (jfxutils.core/stage grid-canvas [width height])]
+    (add-watch view-data-atom "id" (fn [k r o n ]
+                                     (draw-grid! grid-canvas @view-data-atom)))
+    stage))
+
+
 
 
 
