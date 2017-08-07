@@ -105,8 +105,11 @@
   (docks/set-docking-system! :DockFX)
   (let [width 1280
         height 800
-        app (->MyApplication (ref nil) (atom nil) (atom nil) (atom nil))
-        editor (editor/editor app [width height])
+        app (map->MyApplication {:database (ref nil),
+                                 :editor (atom nil),
+                                 :panes (atom nil),
+                                 :windows (atom nil)})
+        editor (editor/editor app )
         ;; panes managed by top level application; does not include editor base
         panes {:app-pane (panes/application-pane app) ;;[width height] ;; just a border pane with menubar, etc.
                :exp-pane (panes/explorer-pane app )

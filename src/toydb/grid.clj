@@ -152,8 +152,9 @@ Lines is a list with each member a list of Point2D"
         myt (nth xvals 5)]
     
     ;; Background
-    (.setFill gc Color/WHITE)
-    (.fillRect gc 0 0 width  height)
+    ;;(.setFill gc Color/WHITE)
+    ;;(.fillRect gc 0 0 width  height)
+    (.clearRect gc 0 0 width height)
 
     (.save gc)
     (.setTransform gc mxx myx mxy myy mxt myt)
@@ -167,18 +168,6 @@ Lines is a list with each member a list of Point2D"
   [view-data-atom]
 )
 
-
-
-#_(defn test-canvas []
-  (let [[width height] [640 480]
-        view-data-atom (atom (toydb.viewdef/viewdef {:width width, :height height}))
-        rscallback (fn [canvas old-size]
-                     (draw-grid! canvas @view-data-atom))
-        grid-canvas (toydb.canvas/resizable-canvas rscallback)
-        stage (jfxutils.core/stage grid-canvas [width height])]
-    (add-watch view-data-atom "id" (fn [k r o n ]
-                                     (draw-grid! grid-canvas @view-data-atom)))
-    stage))
 
 
 
