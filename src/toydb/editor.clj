@@ -15,15 +15,25 @@
            [javafx.geometry Point2D Insets]
            [javafx.scene.input MouseEvent MouseButton ScrollEvent KeyEvent]
            [javafx.scene.layout BorderPane Region HBox VBox Priority StackPane Pane
-            Background BackgroundFill CornerRadii ]
+            Background BackgroundFill CornerRadii
+            Border BorderStroke BorderStrokeStyle BorderWidths ]
+
            [javafx.scene.shape Rectangle Line Circle]
            [javafx.scene.paint Color]
            [javafx.scene.text Font]
+           [javafx.scene.transform Transform Affine Rotate Scale Translate]
            [javafx.stage Stage]
            [javafx.beans.binding Bindings]))
 
 (set! *warn-on-reflection* false)
 (set! *unchecked-math* false)
+
+(defn zsc [node sc x y]
+  (set-scale! node sc)
+  (set-translate! node x y))
+
+(def bs (BorderStroke. Color/RED, BorderStrokeStyle/SOLID, CornerRadii/EMPTY BorderWidths/DEFAULT ))
+(def border (Border. (into-array [bs])))
 
 
 (defn _make-idfn
@@ -117,25 +127,26 @@
     (draw-entities! doc)
     )
   (draw-entities! [doc]
-    (let [;;sp (.getCenter (:doc-pane doc))
+    (let [ ;;sp (.getCenter (:doc-pane doc))
           viewdef @(:view-data doc)
-          xfrm (:transform viewdef)
-          scalex (matrix/mget xfrm 0 0)
-          scaley (matrix/mget xfrm 1 1)
-          transx (matrix/mget xfrm 0 2)
-          transy (matrix/mget xfrm 1 2)
-          entities-pane (lookup-node doc "entities-group")]
+          view-xfrm (:transform viewdef)
+          scalex (matrix/mget view-xfrm 0 0)
+          scaley (matrix/mget view-xfrm 1 1)
+          transx (matrix/mget view-xfrm 0 2)
+          transy (matrix/mget view-xfrm 1 2)
+          entities-group (lookup-node doc "entities-group")
+          eg-xfrm (first (.getTransforms entities-group))]
+      (.setTx eg-xfrm transx)
+      (.setTy eg-xfrm transy)
+      (.setMxx eg-xfrm scalex)
+      (.setMyy eg-xfrm scaley)
       
-      (doto entities-pane
-        (.setScaleX scalex)
-        (.setScaleY scaley)
-        (.setTranslateX transx)
-        (.setTranslateY transy)
-        )))
+
+      ))
   
   (init-handlers! [doc]
     ;; Add mouse events to deal with pan, zoom, drag
-    (let [;;^javafx.scene.canvas.Canvas canvas (lookup-node doc "grid-canvas")
+    (let [ ;;^javafx.scene.canvas.Canvas canvas (lookup-node doc "grid-canvas")
           ^javafx.scene.Node doc-pane (:doc-pane doc) ;; Borderpane holding canvas + toolbars
           ^javafx.scene.Node mouse-pane (lookup-node doc "surface-pane" )
           mouse-state (:mouse-state doc)
@@ -328,17 +339,22 @@
          grid-canvas (canvas/resizable-canvas (fn [canvas, [oldw oldh] [neww newh]]
                                                 (when (or (not= oldw neww) (not= oldh newh))
                                                   (resize! @doc-atom [oldw oldh] [neww newh]))))
-         c1 (make-draggable! (jfxnew Circle  0.0  0.0 0.5 :fill Color/ORANGE, :stroke Color/RED,    :stroke-width 0.1))
-         c2 (make-draggable! (jfxnew Circle -3.0 -3.0 0.5 :fill Color/ORANGE, :stroke Color/GREEN,  :stroke-width 0.1))
-         c3 (make-draggable! (jfxnew Circle  3.0 -3.0 0.5 :fill Color/ORANGE, :stroke Color/BLUE,   :stroke-width 0.1))
-         c4 (make-draggable! (jfxnew Circle  3.0  3.0 0.5 :fill Color/ORANGE, :stroke Color/PURPLE, :stroke-width 0.1))
-         c5 (make-draggable! (jfxnew Circle -3.0  3.0 0.5 :fill Color/ORANGE, :stroke Color/TEAL,   :stroke-width 0.1))
-         entities-group (jfxnew Pane
+         shapes [(jfxnew Line -1 -1 1 1 :stroke Color/GREEN :stroke-width 0.05)
+                 (jfxnew Line -1 1 1 -1 :stroke Color/BLUE :stroke-width 0.05)
+                 (jfxnew Circle -1 -1 0.1 :stroke Color/GREEN :stroke-width 0.05)
+                 (jfxnew Circle -1 1 0.1 :stroke Color/BLUE :stroke-width 0.05)
+                 (make-draggable! (jfxnew Circle 0 0 0.1 :stroke Color/CADETBLUE :stroke-width 0.05 :fill Color/BISQUE))
+                 (jfxnew Rectangle 0 0 1 1 :stroke Color/AQUAMARINE :stroke-width 0.05 :fill nil)
+                 (jfxnew Line -3 0 0 0 :stroke Color/ORANGE :stroke-width 0.1)]
+         entities-group (jfxnew Group
                                 :id (idfn "entities-group")
-                                :children [c1 c2 c3 c4 c5])
+                                :children shapes)
+         
          entities-pane (jfxnew Pane
                                :id (idfn "entities-pane")
-                               :children [entities-group])
+                               :children [entities-group]
+                               ;;:background (gradient-background :horizontal Color/PURPLE Color/LIGHTPINK)
+                               )
          
          surface-pane (make-clipped! (jfxnew StackPane
                                              :id (idfn "surface-pane")
@@ -356,8 +372,9 @@
                              :mouse-state (atom nil)})
          zoomid (idfn "zoom-slider")
          zoomsearchnode (:doc-pane doc)
-         zoom-slider (lookup zoomid zoomsearchnode )
-         ]
+         zoom-slider (lookup zoomid zoomsearchnode)]
+
+     (set-list! entities-group :transforms [(Affine.)])
 
 
      ;;(.bind (.heightProperty grid-canvas) (.heightProperty surface-pane))
@@ -421,6 +438,39 @@
      ;; 3.  Protocol fn mutates atom which triggers protocol redraw
 
      editor)))
+
+
+(defn animate-scale [node]
+  (let [xfrm (first (.getTransforms eg))]
+    (doseq [sc (concat (range 1 6 0.1) (range 6 1 -0.1))]
+      (Thread/sleep 25)
+      (doto xfrm
+        (.setMxx sc)
+        (.setMyy sc)))))
+
+(defn animate-rotate [node]
+  (let [xfrm (first (.getTransforms eg))]
+    (doseq [rot (concat (range 0 5) (range 5 0 -1))]
+      (Thread/sleep 25)
+      (doto xfrm
+        (.append (Rotate. rot))))))
+
+(def doc (doc-test))
+(def sp (lookup-node doc "surface-pane"))
+(def gc (lookup-node doc "grid-canvas"))
+(def ep (lookup-node doc "entities-pane"))
+(def eg (lookup-node doc "entities-group"))
+;;(map #(.getWidth %) [sp ep gc eg])
+
+(run-later (zsc eg 1 0 0))
+
+
+
+
+
+
+
+
 
 
 
