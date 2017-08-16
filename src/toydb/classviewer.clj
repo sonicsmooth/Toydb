@@ -20,10 +20,11 @@
 
 
 
-  (:import [java.net InetAddress]
+  #_(:import [java.net InetAddress]
            [javafx.animation AnimationTimer FadeTransition FillTransition Interpolator KeyFrame KeyValue
-            ParallelTransition PathTransition PauseTransition RotateTransition ScaleTransition SequentialTransition StrokeTransition Timeline Transition TranslateTransition  ]
-           [javafx.application Application]
+            ParallelTransition PathTransition PauseTransition RotateTransition ScaleTransition SequentialTransition StrokeTransition Timeline Transition TranslateTransition Animation$Status PathTransition$OrientationType ]
+           [javafx.application Application HostServices Platform Preloader Preloader$ErrorNotification Preloader$ProgressNotification Preloader$StateChangeNotification ConditionalFeature Preloader$StateChangeNotification$Type]
+           [javafx.beans InvalidationListener Observable WeakListener WeakInvalidationListener DefaultProperty NamedArg]
            [javafx.collections ObservableList FXCollections]
            [javafx.stage Stage]
            [javafx.scene Scene Group CacheHint]
@@ -39,13 +40,26 @@
            [javafx.concurrent Task]
            [org.dockfx DockEvent DockNode DockPane DockPos DockTitleBar]))
 
-(def ALL-CLASSES [AnimationTimer FadeTransition FillTransition Interpolator KeyFrame KeyValue
+(def ALL-CLASSES (map second (ns-imports *ns*)))
+
+#_(def ALL-CLASSES [ ;; javafx.animation
+                  AnimationTimer FadeTransition FillTransition Interpolator KeyFrame KeyValue
                   ParallelTransition PathTransition PauseTransition RotateTransition ScaleTransition
                   SequentialTransition StrokeTransition Timeline Transition TranslateTransition
-                  Stage Scene Group CacheHint Circle Ellipse Line Canvas GraphicsContext MouseEvent
-                  BorderPane Pane StackPane AnchorPane HBox VBox Region Priority MenuBar MenuItem
-                  Menu Button ColorPicker TableView Slider Label TreeItem TreeView Cell Node
-                  Color ImageView Text Font Task ])
+                  Animation$Status PathTransition$OrientationType
+
+                  ;; javafx.application
+                  Application HostServices Platform Preloader Preloader$ErrorNotification
+                  Preloader$ProgressNotification Preloader$StateChangeNotification
+
+                  ;; javafx.beans
+                  WeakInvalidationListener
+
+                  ;; javafx.bean.binding
+                  Bindings BooleanBinding BooleanExpression
+
+                  
+                  ])
 
 
 
@@ -87,7 +101,7 @@
 (defn class-window [& [width height]]
   (let [stage (jfxnew Stage
                       :scene (Scene. (class-pane width height))
-                      :on-close-request (event-handler [_] (close-all-windows)))]
+                      :on-close-request (event-handler [_] (close-all-stages)))]
     (when width (.setWidth stage width))
     (when height (.setHeight stage height))
     stage))
@@ -115,15 +129,15 @@
                        :scene (Scene. pane)
                        :width width
                        :height height
-                       :on-close-request (event-handler [_] (close-all-windows)))]
+                       :on-close-request (event-handler [_] (close-all-stages)))]
     window))
 
 (defn -start [myoutpw]
   (let [dockpane (DockPane.)
         app-pane  (application-pane 600 400)
-        iv1 (image-view "icons/tango-icons-0.8.90/scalable/status/weather-clear.svg")
-        iv2 (image-view "icons/tango-icons-0.8.90/scalable/status/weather-clear.svg")
-        iv3 (image-view "icons/tango-icons-0.8.90/scalable/status/weather-clear.svg")
+        iv1 (image-view "icons/tango-icon-theme-0.8.90/scalable/status/weather-clear.svg")
+        iv2 (image-view "icons/tango-icon-theme-0.8.90/scalable/status/weather-clear.svg")
+        iv3 (image-view "icons/tango-icon-theme-0.8.90/scalable/status/weather-clear.svg")
         app-dock (DockNode. app-pane "Grid" iv1)
         exp-dock (DockNode. (class-pane 100 100) "Explorer" iv2)]
     ;;(.setDockTitleBar app-dock nil)

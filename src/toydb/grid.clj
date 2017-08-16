@@ -57,6 +57,7 @@ The points are located spacing units apart, and are on the integer
          (aset-double steps i (*  (+ strtd i) spacing)))
      steps)))
 
+
 (defn grid-specs
   "Returns a GridSpecs structure with enough stuff to draw a grid"
   [^toydb.viewdef.ViewDef view]
@@ -69,13 +70,9 @@ The points are located spacing units apart, and are on the integer
         [right bottom] (vec (matrix/mmul invt right_bottom_vec_px))
 
         ;; Update grids per unit
-        zoom_exp_step (Math/floor (/ (.zoomlevel view) (.zoomratio view)))
-        kgpu (.kgpu view)
-        kmpm (.kmpm view)
-        majgpu (* kgpu (Math/pow kmpm zoom_exp_step)) ; major grids per unit after zoom
-        mingpu (* kgpu (Math/pow kmpm (+ zoom_exp_step 1)))
-        majspacing (/ 1 majgpu)
-        minspacing (/ 1 mingpu)
+        majspacing (toydb.viewdef/compute-maj-spacing (:zoomspecs view))
+        minspacing (toydb.viewdef/compute-min-spacing (:zoomspecs view))
+        
         majhsteps (compute-steps left right majspacing)
         minhsteps (compute-steps left right minspacing)
         majvsteps (compute-steps bottom top majspacing)
@@ -84,8 +81,6 @@ The points are located spacing units apart, and are on the integer
                  majhsteps minhsteps
                  majvsteps minvsteps
                  (->GridSpacing majspacing minspacing))))
-
-
 
 (defn collect-lines
   "Returns list of LineSpecs, each spec describing a line"

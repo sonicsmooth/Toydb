@@ -83,7 +83,7 @@
   (list newleaf))
 
 (defn tree-add-in
-  "Finds subtree via invec, which is a vecor of children for each
+  "Finds subtree via invec, which is a vector of children for each
   level of tree.  When subtree has been found, adds child using
   whichfn, which should be either add-tree or add-leaf"
   [tree invec dofn arg]
