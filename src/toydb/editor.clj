@@ -176,9 +176,6 @@
   (resize! [this [oldw oldh] [neww newh]])            ;; resizes window
   (init-handlers! [this])) 
 
-
-
-
 (defrecord Doc-View [viewdef ;; zoom, pan, grid spec
                      doc-pane ;; holds everything, including toolbar, status bar, menu
                      uuid     ;; unique identifier for this instance
@@ -259,10 +256,10 @@
 
           ;; For display of coordinates in status bar
           move-handler (event-handler [mouse-event]
-                                      (let [^MouseEvent event mouse-event
-                                            ppos (Point2D. (.getX event) (.getY event))
-                                            upos (viewdef/pixels-to-units @(:viewdef doc) ppos)
-                                            snupos (viewdef/pixels-to-snapped-units @(:viewdef doc) ppos)
+                                      (let [view @(:viewdef doc)
+                                            ppos (Point2D. (.getX mouse-event) (.getY mouse-event))
+                                            upos (viewdef/pixels-to-units view ppos)
+                                            snupos (viewdef/pixels-to-snapped-units view ppos)
                                             ppos-label (lookup-node doc "pixel-pos-label")
                                             upos-label (lookup-node doc "unit-pos-label")]
                                         ;; Apparently .setText calls canvas resize somehow
@@ -270,10 +267,9 @@
                                         (.setText ppos-label (format "px:% 5.0f, py:% 5.0f" (.getX ppos) (.getY ppos)))
                                         (.setText upos-label (format "ux:%-10.5g, uy:%-10.5g" (.getX snupos) (.getY snupos)))))
 
-          click-down-handler (event-handler [mouse-event] 
-                                            (let [#_^MouseEvent event #_mouse-event
-                                                  target (.getTarget mouse-event)]
-                                              (capture-mouse! mouse-event mouse-state @(:viewdef doc))
+          click-down-handler (event-handler [mouse-event]
+                                            (capture-mouse! mouse-event mouse-state @(:viewdef doc))
+                                            (let [target (.getTarget mouse-event)]
                                               (if (and (= (:buttons @mouse-state) :L__)
                                                        (not= target entities-pane))
                                                 (capture-move-state! move-state target)
@@ -291,13 +287,12 @@
           drag-handler (event-handler [mouse-event]
                                       (.handle move-handler mouse-event) ;; update status bar text
                                       (capture-mouse! mouse-event  mouse-state @(:viewdef doc))
-                                      (let [ms @mouse-state
-                                            mv @move-state]
+                                      (let [ms @mouse-state]
                                         (condp = (:buttons ms)
                                           ;; Item moves: add movement-since-click to old position, then snap
-                                          :L__ (when-let [tgtxy (:old-xy mv)]
-                                                (set-pos! (.getTarget mouse-event)
-                                                          (snapfn (.add tgtxy (:click-du ms)))))
+                                          :L__ (when-let [tgtxy (:old-xy @move-state)]
+                                                 (set-pos! (.getTarget mouse-event)
+                                                           (snapfn (.add tgtxy (:click-du ms)))))
 
                                           ;; Pan: just tell the doc to move the required pixels
                                           :__R (pan-by! doc (:move-dpx ms) )
@@ -306,8 +301,7 @@
                                           :L_R (zoom-by! doc (- (.getY (:move-dpx ms))) (:move-px ms))
 
                                           ;; Otherise, do nothing
-                                          (println "Drag condition not handled")))
-                                      #_(let [event ^MouseEvent mouse-event]))
+                                          (println "Drag condition not handled"))))
           
           scroll-handler (event-handler [scroll-event]
                                         (let [^ScrollEvent event scroll-event
