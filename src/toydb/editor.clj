@@ -9,7 +9,7 @@
             [clojure.core.matrix :as matrix]
             [clojure.core.matrix.operators :as matrixop])
   (:require [toydb.viewdef :as viewdef] )
-  (:import [javafx.scene Group Scene]
+  (:import [javafx.scene Group Scene Node]
            [javafx.scene.canvas Canvas]
            [javafx.scene.control Button Slider Label]
            [javafx.geometry Point2D Insets]
@@ -17,7 +17,6 @@
            [javafx.scene.layout BorderPane Region HBox VBox Priority StackPane Pane
             Background BackgroundFill CornerRadii
             Border BorderStroke BorderStrokeStyle BorderWidths ]
-
            [javafx.scene.shape Rectangle Line Circle]
            [javafx.scene.paint Color]
            [javafx.scene.text Font]
@@ -28,15 +27,10 @@
 (set! *warn-on-reflection* false)
 (set! *unchecked-math* false)
 
-(defn zsc [node sc x y]
-  ;; Changes the built-in scale[XY] and translate[XY] properties, not
-  ;; the affine transform.
-  (set-xy! node :translate (Point2D. x y))
-  (set-scale! node sc))
-
+;; This needs to get fixed.
 (def bs (BorderStroke. Color/RED, BorderStrokeStyle/SOLID, CornerRadii/EMPTY BorderWidths/DEFAULT ))
-(def border (Border. (into-array [bs])))
-
+(def border (let [^"[Ljavafx.scene.layout.BorderStroke;" ba (into-array [bs])]
+              (Border. ba) ))
 
 (defn _make-idfn
   "Returns a function that appends the given id string to another
@@ -54,7 +48,8 @@
   ;; Capture mouse movement in both pixel and unit space
   ([event mouse-state ^toydb.viewdef.ViewDef view]
    ;; mouse-state is an atom with nil or a map
-   (let [[x y] [(.getX event) (.getY event)]
+   (let [^MouseEvent event event
+         [x y] [(.getX event) (.getY event)]
          state @mouse-state
          etype (.getEventType event)
 
@@ -116,19 +111,19 @@
 ;; this vary amongst the various shapes.
 
 (defprotocol ModifyProtocol
-  (set-pos! [node, newloc])     ;; changes start/end/center points, etc.
+  (set-pos! [node, newloc])   ;; changes start/end/center points, etc.
   (get-pos  [node])
   (reshape! [node, notsure])) ;; changes width, height, radius, etc.
 
 (extend-protocol ModifyProtocol
   javafx.scene.shape.Circle
-  (set-pos! [^javafx.scene.Node node, ^javafx.geometry.Point2D newloc]
+  (set-pos! [node, ^Point2D newloc]
     (set-xy! node :center newloc))
-  (get-pos [^javafx.scene.Node node]
+  (get-pos [node]
     (get-xy node :center))
 
   javafx.scene.shape.Line
-  (set-pos! [^javafx.scene.Node node, ^javafx.geometry.Point2D newloc]
+  (set-pos! [node, ^Point2D newloc]
     (let [oldstart (get-xy node :start)
           oldend (get-xy node :end)
           dline (.subtract oldend oldstart)
@@ -136,19 +131,27 @@
       (doto node
         (set-xy! :start newloc)
         (set-xy! :end newend))))
-  (get-pos [^javafx.scene.Node node]
+  (get-pos [ node]
     (get-xy node :start))
 
   javafx.scene.shape.Rectangle
-  (set-pos! [^javafx.scene.Node node, ^javafx.geometry.Point2D newloc]
+  (set-pos! [node, ^Point2D newloc]
     (set-xy! node newloc))
-  (get-pos [^javafx.scene.Node node]
-    (get-xy node)))
+  (get-pos [node]
+    (get-xy node))
+
+  javafx.scene.Group
+  (set-pos! [node, ^Point2D newloc]
+    (set-xy! node :layout newloc))
+  (get-pos [node]
+    (get-xy node :layout)))
 
 (defn capture-move-state!
   "Remembers target's TranslateX/Y value."
   [move-state target]
-  (swap! move-state assoc :old-xy (get-pos target)))
+  (swap! move-state assoc
+         :target target
+         :old-xy (get-pos target)))
 
 (defn clear-move-state!
   "Clear target's Translate X/Y value."
@@ -161,6 +164,24 @@
 #_(defrecord Editor [top-pane, docs, behaviors] 
   EditorProtocol
   (show [this] (stage (:top-pane this))))
+
+(defn get-best-target
+  "Searches up the scene graph from the event's target until it
+  reaches final-parent or scene.  Returns the child immediately below
+  final parent which of course could just be the target itself if
+  there are no parents between target and final-parent.  Nil is
+  returned if no final-parent is found."
+  [^MouseEvent mouse-event ^Node final-parent]
+  (let [target (.getTarget mouse-event)]
+    (loop [curr-node (.getTarget mouse-event)
+           curr-parent (.getParent curr-node)]
+      (if (nil? curr-parent)
+        nil ;; no final-parent found
+        (if (= curr-parent final-parent)
+          curr-node ;; found!
+          (recur curr-parent (.getParent curr-parent))))))) ;; keep going
+
+
 
 ;; in these fns, swap! the view data from a given doc. The watch will respond and update the drawing
 (defprotocol DocumentProtocol
@@ -188,11 +209,9 @@
     (jfxutils.core/lookup ((make-idfn (:uuid doc)) id) (:doc-pane doc)))
 
   (reset-view! [doc]
-    (let [canvas (lookup-node doc "grid-canvas")
-          [width height] [(.getWidth canvas) (.getHeight canvas)]
-          view-atom (:viewdef doc)
-          view @view-atom]
-      (swap! view-atom viewdef/reset-viewdef width height)))
+    (let [^Canvas canvas (lookup-node doc "grid-canvas")
+          [width height] [(.getWidth canvas) (.getHeight canvas)]]
+      (swap! (:viewdef doc) viewdef/reset-viewdef width height)))
 
   (pan-to! [doc point2d]
     (swap! (:viewdef doc) viewdef/pan-to point2d))
@@ -224,8 +243,8 @@
     ;; scales and translates entities-group for zoom and pan
     (let [viewdef @(:viewdef doc)
           view-xfrm (:transform viewdef)
-          entities-group (lookup-node doc "entities-group")
-          eg-xfrm (first (.getTransforms entities-group))]
+          ^Node entities-group (lookup-node doc "entities-group")
+          ^Affine eg-xfrm (first (.getTransforms entities-group))]
       ;; Is there some way to get the matrix and send it to .setWhatever directly?
       (.setMxx eg-xfrm (matrix/mget view-xfrm 0 0))
       (.setMyy eg-xfrm (matrix/mget view-xfrm 1 1))
@@ -234,15 +253,15 @@
   
   (init-handlers! [doc]
     ;; Add mouse events to deal with pan, zoom, drag
-    (let [^javafx.scene.Node surface-pane (lookup-node doc "surface-pane" )
-          ^javafx.scene.Node entities-pane (lookup-node doc "entities-pane")
+    (let [^Node surface-pane (lookup-node doc "surface-pane" )
+          ^Node entities-pane (lookup-node doc "entities-pane")
+          ^Node entities-group (lookup-node doc "entities-group")
           mouse-state (:mouse-state doc)
           move-state (:move-state doc)
           snapfn #(viewdef/units-to-snapped-units @(:viewdef doc) %)
 
           ;; keyboard state is probably not necessary since modifier
-          ;; keys are available with every mouse event, which is a
-          ;; GestureEvent
+          ;; keys are available with every mouse event.
           kbd-state (atom {}) ;; Should move this to doc like mouse-state?
           capture-kbd! (fn [^KeyEvent event]
                          ;; Capture state of modifier keys
@@ -256,12 +275,13 @@
 
           ;; For display of coordinates in status bar
           move-handler (event-handler [mouse-event]
-                                      (let [view @(:viewdef doc)
+                                      (let [^MouseEvent mouse-event mouse-event
+                                            view @(:viewdef doc)
                                             ppos (Point2D. (.getX mouse-event) (.getY mouse-event))
                                             upos (viewdef/pixels-to-units view ppos)
                                             snupos (viewdef/pixels-to-snapped-units view ppos)
-                                            ppos-label (lookup-node doc "pixel-pos-label")
-                                            upos-label (lookup-node doc "unit-pos-label")]
+                                            ^Label ppos-label (lookup-node doc "pixel-pos-label")
+                                            ^Label upos-label (lookup-node doc "unit-pos-label")]
                                         ;; Apparently .setText calls canvas resize somehow
                                         ;; Do an if-else to check for whether snap-to-grid is enabled
                                         (.setText ppos-label (format "px:% 5.0f, py:% 5.0f" (.getX ppos) (.getY ppos)))
@@ -269,36 +289,36 @@
 
           click-down-handler (event-handler [mouse-event]
                                             (capture-mouse! mouse-event mouse-state @(:viewdef doc))
-                                            (let [target (.getTarget mouse-event)]
-                                              (if (and (= (:buttons @mouse-state) :L__)
-                                                       (not= target entities-pane))
-                                                (capture-move-state! move-state target)
-                                                (clear-move-state! move-state))
-                                              (.requestFocus surface-pane)))
+                                            (.requestFocus surface-pane)
+                                            (if-let [target (get-best-target mouse-event entities-group)]
+                                              (when (= (:buttons @mouse-state) :L__)
+                                                (capture-move-state! move-state target))
+                                              (clear-move-state! move-state)))
           click-up-handler (event-handler [mouse-event] 
                                           (capture-mouse! mouse-event mouse-state @(:viewdef doc))
+                                          (.requestFocus surface-pane)
                                           ;; Select when distance from last click is zero, and LMB was cause
                                           (when (and (= (:click-dpx @mouse-state) Point2D/ZERO)
-                                                     (= (:button @mouse-state) MouseButton/PRIMARY))
-                                            ;;(println "selected")
-                                            )
-                                          (.requestFocus surface-pane))
+                                                     (= (:button @mouse-state) MouseButton/PRIMARY))))
 
           drag-handler (event-handler [mouse-event]
                                       (.handle move-handler mouse-event) ;; update status bar text
                                       (capture-mouse! mouse-event  mouse-state @(:viewdef doc))
-                                      (let [ms @mouse-state]
+                                      (let [ms @mouse-state
+                                            mv @move-state]
                                         (condp = (:buttons ms)
                                           ;; Item moves: add movement-since-click to old position, then snap
-                                          :L__ (when-let [tgtxy (:old-xy @move-state)]
-                                                 (set-pos! (.getTarget mouse-event)
-                                                           (snapfn (.add tgtxy (:click-du ms)))))
+                                          :L__ (when mv
+                                                 (let [^Node target (:target mv)
+                                                       ^Point2D tgtxy (:old-xy mv)]
+                                                   (set-pos! target (snapfn (.add tgtxy (:click-du ms))))))
 
                                           ;; Pan: just tell the doc to move the required pixels
                                           :__R (pan-by! doc (:move-dpx ms) )
 
                                           ;; Zoom: just tell the doc to zoom-on-point the required amount 
-                                          :L_R (zoom-by! doc (- (.getY (:move-dpx ms))) (:move-px ms))
+                                          :L_R (let [move-dpxy (double (.getY (:move-dpx ms)))]
+                                                 (zoom-by! doc (- move-dpxy)))
 
                                           ;; Otherise, do nothing
                                           (println "Drag condition not handled"))))
@@ -384,7 +404,8 @@
 
      ;; Enforce integer slider positions
      (add-listener! zoom-slider1 :value (change-listener [oldval newval]
-                                                         (.setValue zoom-slider1 (Math/round newval))))
+                                                         (let [nv (double newval)]
+                                                           (.setValue zoom-slider1 (Math/round nv)))))
 
      ;; Set up local javafx binding between slider position and text
      (.bind (.textProperty zoom-value-txt) (Bindings/format "% 5.0f" (into-array [(.valueProperty zoom-slider1)]) ))
@@ -427,7 +448,7 @@
          ;; callback refers to the doc, so we have a circular
          ;; reference so make a quick atom...
          doc-atom (atom nil)
-         grid-canvas (canvas/resizable-canvas (fn [canvas, [oldw oldh] [neww newh]]
+         ^Canvas grid-canvas (canvas/resizable-canvas (fn [canvas, [oldw oldh] [neww newh]]
                                                 (when (or (not= oldw neww) (not= oldh newh))
                                                   (resize! @doc-atom [oldw oldh] [neww newh]))))
          ;; Name the canvas so we can get to it later
@@ -468,7 +489,7 @@
                              :behaviors []
                              :mouse-state (atom nil)
                              :move-state (atom nil)})
-         zoom-slider (lookup-node doc "zoom-slider") ] ;; zoomid zoomsearchnode
+         ^Slider zoom-slider (lookup-node doc "zoom-slider") ] ;; zoomid zoomsearchnode
 
 
      ;; ...then set the atom down here
@@ -531,26 +552,34 @@
      editor)))
 
 
-(defn animate-scale [node]
-  (let [xfrm (first (.getTransforms node))]
+(defn animate-scale [^Node node]
+  (let [^Affine xfrm (first (.getTransforms node))]
     (doseq [sc (concat (range 1 6 0.1) (range 6 1 -0.1))]
       (Thread/sleep 25)
       (doto xfrm
         (.setMxx sc)
         (.setMyy sc)))))
 
-(defn animate-rotate [node]
-  (let [xfrm (first (.getTransforms node))]
+(defn animate-rotate [^Node node]
+  (let [^Affine xfrm (first (.getTransforms node))]
     (doseq [rot (concat (range 0 5) (range 5 0 -1))]
       (Thread/sleep 25)
-      (doto xfrm
-        (.append (Rotate. rot))))))
+      (.append xfrm (Rotate. rot)))))
 
 (def doc (doc-test))
 (def sp (lookup-node doc "surface-pane"))
 (def gc (lookup-node doc "grid-canvas"))
 (def ep (lookup-node doc "entities-pane"))
 (def eg (lookup-node doc "entities-group"))
+(def lg (lookup-node doc "little-group"))
+
+(defn zsc [^Node node sc x y]
+  ;; Changes the built-in scale[XY] and translate[XY] properties, not
+  ;; the affine transform.
+  (set-xy! node :translate (Point2D. x y))
+  (set-scale! node sc))
+
+
 
 (run-later (zsc eg 1 0 0))
 

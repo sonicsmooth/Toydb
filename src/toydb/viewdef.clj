@@ -1,6 +1,7 @@
 (ns toydb.viewdef
   (:require [clojure.core.matrix :as matrix]
-            [clojure.core.matrix.operators :as matrixop])
+            [clojure.core.matrix.operators :as matrixop]
+            [jfxutils.core :refer [defn-memo]])
   (:import [javafx.geometry Point2D]))
 
 (set! *warn-on-reflection* true)
@@ -90,8 +91,8 @@
      (Math/pow oldkmpm (/ (- new-zoomlevel oldzl) oldzr)))))
 
 
-(defn _compute-maj-spacing
-"Computes major grid spacing for both grid and snap-to functionality"
+(defn- _compute-maj-spacing
+  "Computes major grid spacing for both grid and snap-to functionality"
   [^toydb.viewdef.ZoomSpecs zoomspecs]
   (let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
         kgpu (.kgpu zoomspecs)
@@ -102,7 +103,8 @@
 
 ;; This should be optimized further so a mere pan doesn't cause a new
 ;; compute-min-spacing
-(defn _compute-min-spacing
+
+(defn- _compute-min-spacing
   "Computes minor gridspacing for both grid and snap-to functionality"
   (^double [^toydb.viewdef.ZoomSpecs zoomspecs]
    (let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
