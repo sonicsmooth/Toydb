@@ -31,20 +31,8 @@
 (defn zsc [node sc x y]
   ;; Changes the built-in scale[XY] and translate[XY] properties, not
   ;; the affine transform.
-  ;;(set-xy! node :scale sc)
   (set-xy! node :translate (Point2D. x y))
-  (set-scale! node sc)
-  ;;(set-translate! node x y)
-  )
-
-#_(defn getxy [^javafx.geometry.Point2D pt]
-  [(.getX pt) (.getY pt)])
-
-#_(defn point ^Point2D [^javafx.scene.input.MouseEvent evt]
-  (Point2D. (.getX evt) (.getY evt)))
-
-#_(defn transpoint ^Point2D [^javafx.scene.Node node]
-  (Point2D. (.getTranslateX node) (.getTranslateY node)))
+  (set-scale! node sc))
 
 (def bs (BorderStroke. Color/RED, BorderStrokeStyle/SOLID, CornerRadii/EMPTY BorderWidths/DEFAULT ))
 (def border (Border. (into-array [bs])))
@@ -110,23 +98,16 @@
                     :move-u evt-u
                     :move-dpx move-dpx
                     :move-du move-du}
-         kbs {:keys (+ (if (.isControlDown event) 1 0)
-                       (if (.isAltDown event)     2 0)
-                       (if (.isShiftDown event)   4 0))
+         kbs {:keys (keyword ;; generates :C__, :C_S, :_A_, etc.
+                     (str (if (.isControlDown event) \C \_)
+                          (if (.isAltDown event)     \A \_)
+                          (if (.isShiftDown event)   \S \_)))
               :button (.getButton event)
-              :buttons (+ (if (.isPrimaryButtonDown   event) 1 0)
-                          (if (.isMiddleButtonDown event)    2 0)
-                          (if (.isSecondaryButtonDown event) 4 0))}]
+              :buttons (keyword ;; generates :LMB, :L__, etc.
+                        (str (if (.isPrimaryButtonDown   event) \L \_)
+                             (if (.isMiddleButtonDown event)    \M \_)
+                             (if (.isSecondaryButtonDown event) \R \_)))}]
      (swap! mouse-state merge new-poses kbs))))
-
-(def ___ 0)
-(def L__ 1)
-(def _M_ 2)
-(def LM_ 3)
-(def __R 4)
-(def L_R 5)
-(def _MR 6)
-(def LMR 7)
 
 ;; Moving and modifying a node is none of the following: setting the
 ;; TranslateX/Y properties, setting the Affine transform, Relocating
@@ -136,7 +117,6 @@
 
 (defprotocol ModifyProtocol
   (set-pos! [node, newloc])     ;; changes start/end/center points, etc.
-  #_(add-pos! [node, dloc])
   (get-pos  [node])
   (reshape! [node, notsure])) ;; changes width, height, radius, etc.
 
@@ -144,8 +124,6 @@
   javafx.scene.shape.Circle
   (set-pos! [^javafx.scene.Node node, ^javafx.geometry.Point2D newloc]
     (set-xy! node :center newloc))
-  #_(add-pos! [^javafx.scene.Node node, ^javafx.geometry.Point2D dloc]
-    (set-pos! node (+p (get-xy node :center) dloc)))
   (get-pos [^javafx.scene.Node node]
     (get-xy node :center))
 
@@ -158,24 +136,20 @@
       (doto node
         (set-xy! :start newloc)
         (set-xy! :end newend))))
-  #_(add-pos! [^javafx.scene.Node node, ^javafx.geometry.Point2D dloc]
-    (set-pos! node (+p (get-xy node :start) dloc)))
   (get-pos [^javafx.scene.Node node]
     (get-xy node :start))
 
   javafx.scene.shape.Rectangle
   (set-pos! [^javafx.scene.Node node, ^javafx.geometry.Point2D newloc]
     (set-xy! node newloc))
-  #_(add-pos! [^javafx.scene.Node node, ^javafx.geometry.Point2D dloc]
-    (set-pos! node (+p (get-xy node) dloc)))
   (get-pos [^javafx.scene.Node node]
     (get-xy node)))
 
 (defn capture-move-state!
   "Remembers target's TranslateX/Y value."
   [move-state target]
-  ;;(println "capture-move-state as " (get-pos target))
   (swap! move-state assoc :old-xy (get-pos target)))
+
 (defn clear-move-state!
   "Clear target's Translate X/Y value."
   [move-state]
@@ -230,9 +204,7 @@
     (swap! (:viewdef doc) viewdef/pan-by dpoint2d))
 
   (resize! [doc oldsize newsize]
-    (swap! (:viewdef doc) viewdef/resize oldsize newsize @(:mouse-state doc))
-    ;;(swap! (:viewdef doc) map-replace (:viewdef doc))
-    )
+    (swap! (:viewdef doc) viewdef/resize oldsize newsize @(:mouse-state doc)))
 
   (zoom-to! [doc zoom-level]
     (swap! (:viewdef doc) viewdef/zoom-to zoom-level)) ;; Set zoom level with respect to origin
@@ -265,9 +237,7 @@
   
   (init-handlers! [doc]
     ;; Add mouse events to deal with pan, zoom, drag
-    (let [ ;;^javafx.scene.canvas.Canvas canvas (lookup-node doc "grid-canvas")
-          ;;^javafx.scene.Node doc-pane (:doc-pane doc) ;; Borderpane holding canvas + toolbars
-          ^javafx.scene.Node surface-pane (lookup-node doc "surface-pane" )
+    (let [^javafx.scene.Node surface-pane (lookup-node doc "surface-pane" )
           ^javafx.scene.Node entities-pane (lookup-node doc "entities-pane")
           mouse-state (:mouse-state doc)
           move-state (:move-state doc)
@@ -304,7 +274,7 @@
                                             (let [#_^MouseEvent event #_mouse-event
                                                   target (.getTarget mouse-event)]
                                               (capture-mouse! mouse-event mouse-state @(:viewdef doc))
-                                              (if (and (= (:buttons @mouse-state) L__)
+                                              (if (and (= (:buttons @mouse-state) :L__)
                                                        (not= target entities-pane))
                                                 (capture-move-state! move-state target)
                                                 (clear-move-state! move-state))
@@ -325,15 +295,15 @@
                                             mv @move-state]
                                         (condp = (:buttons ms)
                                           ;; Item moves: add movement-since-click to old position, then snap
-                                          L__ (when-let [tgtxy (:old-xy mv)]
+                                          :L__ (when-let [tgtxy (:old-xy mv)]
                                                 (set-pos! (.getTarget mouse-event)
                                                           (snapfn (.add tgtxy (:click-du ms)))))
 
                                           ;; Pan: just tell the doc to move the required pixels
-                                          __R (pan-by! doc (:move-dpx ms) )
+                                          :__R (pan-by! doc (:move-dpx ms) )
 
                                           ;; Zoom: just tell the doc to zoom-on-point the required amount 
-                                          L_R (zoom-by! doc (- (.getY (:move-dpx ms))) (:move-px ms))
+                                          :L_R (zoom-by! doc (- (.getY (:move-dpx ms))) (:move-px ms))
 
                                           ;; Otherise, do nothing
                                           (println "Drag condition not handled")))
