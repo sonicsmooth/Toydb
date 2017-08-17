@@ -35,10 +35,16 @@
                       ^doubles minvsteps
                       ^GridSpacing spacing])
 
+;; options
+;; scale-grid -- sigmoid shape scale to grid dots and lines
+;; dots for minor, dots for major
+;; axes on/off
+;; Origin off/cross/circle/size
 (defrecord LineSpec [^Point2D p1
                      ^Point2D p2
                      ^double width
-                     ^Color color])
+                     ^Color color
+                     ])
 
 ;; Prematurely optimized, so faster than necessary
 (defn compute-steps
@@ -111,12 +117,12 @@ The points are located spacing units apart, and are on the integer
 (defn draw-lines!
   "Put lines on the canvas using the current transform.
 Lines is a list with each member a list of Point2D"
-  [^GraphicsContext gc lines ^double linewidthpx]
+  [^GraphicsContext gc lines ^double line-width-px]
   (.save gc)
   (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
-        linewidthu (* linewidthpx recipscale)  ;; Divide requested linewidth down by Mxx
+        line-width-u (* line-width-px recipscale)  ;; Divide requested linewidth down by Mxx
         pixel-offset (* 0.5 recipscale)] ;; Half-pixel offset
-    (.setLineWidth gc linewidthu)
+    (.setLineWidth gc line-width-u)
     (doseq [line lines]
       (doseq [ptpair line]
         (let [p1 ^Point2D (first ptpair)
@@ -126,6 +132,31 @@ Lines is a list with each member a list of Point2D"
               yp1 (+ pixel-offset (.getY p1))
               yp2 (+ pixel-offset (.getY p2))]
           (.strokeLine gc xp1 yp1 xp2 yp2)))))
+  (.restore gc))
+
+(defn draw-dots!
+  ;;(count lines) must be exactly 2
+  [^GraphicsContext gc lines ^double dot-width-px]
+  (.save gc)
+  (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
+        dot-width-u (* dot-width-px recipscale)
+        pixel-offset (* 0.5 recipscale)
+        vlines (first lines)
+        hlines (second lines)]
+    (.setLineWidth gc dot-width-u)
+
+    ;; These both work...
+    #_(doseq [pt (for [vline vlines, hline hlines]
+                 (Point2D. (.getX ^Point2D (first vline)) (.getY ^Point2D (first hline))))]
+      (.strokeOval gc (.getX ^Point2D pt) (.getY ^Point2D pt) dot-width-u dot-width-u))
+    
+    ;; But this one is slightly more explicit
+    (doseq [vline vlines] ;; get X from this
+        (let [x (.getX ^Point2D (first vline))]
+          (doseq [hline hlines] ;; get Y from this
+            (let [y (.getY ^Point2D  (first hline))]
+              (.strokeOval gc x y dot-width-u dot-width-u))))))
+
   (.restore gc))
 
 
@@ -147,14 +178,16 @@ Lines is a list with each member a list of Point2D"
         myt (nth xvals 5)]
     
     ;; Background
-    ;;(.setFill gc Color/WHITE)
-    ;;(.fillRect gc 0 0 width  height)
     (.clearRect gc 0 0 width height)
 
     (.save gc)
     (.setTransform gc mxx myx mxy myy mxt myt)
-    (draw-lines! gc (select-values lines [:minvertical :minhorizontal]) 0.2)
-    (draw-lines! gc (select-values lines [:majvertical :majhorizontal]) 0.5)
+    (draw-dots! gc  (select-values lines [:minvertical :minhorizontal]) 0.25)
+    (draw-lines! gc (select-values lines [:minvertical :minhorizontal]) 0.03)
+
+    (draw-dots! gc  (select-values lines [:majvertical :majhorizontal]) 0.5)
+    (draw-lines! gc (select-values lines [:majvertical :majhorizontal]) 0.15)
+
     (draw-lines! gc (select-values lines [:axisvertical :axishorizontal]) 2)
     (.restore gc)))
 

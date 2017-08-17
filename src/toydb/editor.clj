@@ -317,8 +317,9 @@
                                           :__R (pan-by! doc (:move-dpx ms) )
 
                                           ;; Zoom: just tell the doc to zoom-on-point the required amount 
-                                          :L_R (let [move-dpxy (double (.getY (:move-dpx ms)))]
-                                                 (zoom-by! doc (- move-dpxy)))
+                                          :L_R (let [move-dpxy (double (.getY (:move-dpx ms)))
+                                                     ^Point2D click-px (:click-px ms)]
+                                                 (zoom-by! doc (- move-dpxy) click-px))
 
                                           ;; Otherise, do nothing
                                           (println "Drag condition not handled"))))
@@ -455,6 +456,8 @@
          _  (.setId grid-canvas (idfn "grid-canvas"))
          twocircles [(jfxnew Circle 0.5 0 0.25 :stroke Color/GRAY :stroke-width 0.025 :fill Color/SILVER)
                      (jfxnew Circle 1.0 0 0.15 :stroke Color/GRAY :stroke-width 0.025 :fill Color/SILVER)
+                     (jfxnew Line 0 -0.1 0 0.1 :stroke Color/BLACK :stroke-width 0.015)
+                     (jfxnew Line -0.1 0 0.1 0 :stroke Color/BLACK :stroke-width 0.015)
                      ]
          little-group (jfxnew Group
                               :id (idfn "little-group")
