@@ -1,6 +1,5 @@
 (ns ^{:doc "Creates a resizable canvas"}
-    toydb.canvas
-  (require [jfxutils.core :only [showstack]]))
+    toydb.canvas)
 
 (defn resizable-canvas
   "Returns a proxy of Canvas which is resizable.  The function drawfn,

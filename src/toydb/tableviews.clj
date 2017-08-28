@@ -238,12 +238,12 @@
                               (set-graphic-text! cell item nil))
     (instance? Boolean item) (let [[var accesspath] (calc-full-accesspath cell)
                                    cb (jfxnew CheckBox
-                                               :text (str item)
+                                              :text (str item)
                                                :selected item
                                                :disable (not (db/mutable? var)))]
                                (.setEditable cell false)
                                (set-graphic-text! cell cb nil)
-                               (when (db/mutable? var)
+                               #_(when (db/mutable? var)
                                  (uni-bind! (.selectedProperty cb) #(db/greedy-commit! % var accesspath))))
     (instance? clojure.lang.PersistentVector item) (do (.setEditable cell false)
                                                        (set-graphic-text! cell (Label. "Put vector editor here") nil))
@@ -288,14 +288,14 @@
                                     (try
                                       (condp = (.getCode e)
                                         KeyCode/ENTER (do ;;(println "ENTER pressed.  Removing focus listener")
-                                                        (remove-listener! cell :focused focus-listener)
+                                                        (remove-listener!* cell :focused focus-listener)
                                                         (.commitEdit cell (getterfn)))
                                         KeyCode/ESCAPE (do ;;(println "ESC pressed. Removing focus listener")
-                                                         (remove-listener! cell :focused focus-listener)
+                                                         (remove-listener!* cell :focused focus-listener)
                                                          (.cancelEdit cell)) ;; Removes textfield
                                         KeyCode/TAB (let [[next-row-index next-tablecolumn] (get-next-cell-position cell (not (.isShiftDown e)))]
                                                       (println "tab")
-                                                      (remove-listener! cell :focused focus-listener)
+                                                      (remove-listener!* cell :focused focus-listener)
                                                       (.commitEdit cell (getterfn)) 
                                                       (.edit (.getTableView cell) next-row-index next-tablecolumn)
                                                       (.consume e)) ;; Prevents tab from reaching tableview parent which would select the next row

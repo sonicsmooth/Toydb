@@ -4,14 +4,17 @@
   (:require [toydb
              [canvas :as canvas]
              [grid :as grid]
-             [menubars :as mb]]
+             [menubars :as mb]
+             [bind :as bind]
+             ]
             [docks.core :as docks]
             [clojure.core.matrix :as matrix]
-            [clojure.core.matrix.operators :as matrixop])
+            [clojure.core.matrix.operators :as matrixop]
+            [aprint.core :as ap])
   (:require [toydb.viewdef :as viewdef] )
   (:import [javafx.scene Group Scene Node]
            [javafx.scene.canvas Canvas]
-           [javafx.scene.control Button Slider Label]
+           [javafx.scene.control Button Slider Label TextFormatter]
            [javafx.geometry Point2D Insets]
            [javafx.scene.input MouseEvent MouseButton ScrollEvent KeyEvent]
            [javafx.scene.layout BorderPane Region HBox VBox Priority StackPane Pane
@@ -22,6 +25,7 @@
            [javafx.scene.text Font]
            [javafx.scene.transform Transform Affine Rotate Scale Translate]
            [javafx.stage Stage]
+           [javafx.util.converter DoubleStringConverter]
            [javafx.beans.binding Bindings]))
 
 (set! *warn-on-reflection* false)
@@ -235,7 +239,7 @@
     (swap! (:viewdef doc) viewdef/zoom-by dzoom-level pt)) ;; Zoom by a certain amount centered on point
 
   (redraw-view! [doc]
-    (if-let [canvas (lookup-node doc "grid-canvas")]
+    (when-let [canvas (lookup-node doc "grid-canvas")]
       (toydb.grid/draw-grid! canvas @(:viewdef doc)))
     (transscale-entities! doc))
 
@@ -405,11 +409,10 @@
 
      ;; Enforce integer slider positions
      (add-listener! zoom-slider1 :value (change-listener [oldval newval]
-                                                         (let [nv (double newval)]
-                                                           (.setValue zoom-slider1 (Math/round nv)))))
+                                                         (.setValue zoom-slider1 (Math/round (double newval)))))
 
-     ;; Set up local javafx binding between slider position and text
-     (.bind (.textProperty zoom-value-txt) (Bindings/format "% 5.0f" (into-array [(.valueProperty zoom-slider1)]) ))
+     ;; Set up local unidirectional javafx binding between slider position and text
+     ;;(.bind (.textProperty zoom-value-txt) (Bindings/format "% 5.0f" (into-array [(.valueProperty zoom-slider1)]) ))
      (mb/status-bar [mppl mupl spring zoom-label-txt zoom-slider1 zoom-value-txt]))))
 
 (defn editor-status-bar
@@ -450,8 +453,8 @@
          ;; reference so make a quick atom...
          doc-atom (atom nil)
          ^Canvas grid-canvas (canvas/resizable-canvas (fn [canvas, [oldw oldh] [neww newh]]
-                                                (when (or (not= oldw neww) (not= oldh newh))
-                                                  (resize! @doc-atom [oldw oldh] [neww newh]))))
+                                                        (when (or (not= oldw neww) (not= oldh newh))
+                                                          (resize! @doc-atom [oldw oldh] [neww newh]))))
          ;; Name the canvas so we can get to it later
          _  (.setId grid-canvas (idfn "grid-canvas"))
          twocircles [(jfxnew Circle 0.5 0 0.25 :stroke Color/GRAY :stroke-width 0.025 :fill Color/SILVER)
@@ -492,24 +495,29 @@
                              :behaviors []
                              :mouse-state (atom nil)
                              :move-state (atom nil)})
-         ^Slider zoom-slider (lookup-node doc "zoom-slider") ] ;; zoomid zoomsearchnode
+         ^Slider zoom-slider (lookup-node doc "zoom-slider")
+         ^Label zoom-label (lookup-node doc "zoom-value")]
 
-
+     
      ;; ...then set the atom down here
      (reset! doc-atom doc)
-     ;; This watch is what triggers a redraw whenever viewdef
-     ;; changes force the slider and redraw; Attempting to redraw via
-     ;; slider watch didn't work
-     (add-watch viewdef-atom uid (fn [k r o n] 
-                                   (.setValue zoom-slider (:zoomlevel (:zoomspecs n)))
+
+     ;; This watch is what triggers a redraw whenever viewdef changes.
+     (add-watch viewdef-atom uid (fn [k r o n]
                                    (redraw-view! doc)))
 
-     ;; Connect zoom slider to actual zoom level
-     (add-listener! zoom-slider :value (change-listener
-                                        [oldval newval]
-                                        (when (not= oldval newval)
-                                          (zoom-to! doc newval))))
-     
+     ;; Use fancy double-binding to tie zoom slider with internal zoom level
+     (bind/bind! :init 0
+                 :var viewdef-atom
+                 :var-fn #(zoom-to! doc %)
+                 :keyvec [:zoomspecs :zoomlevel]
+                 ;;:property :value
+                 ;;:targets [zoom-slider zoom-label]
+                 :targets {zoom-slider {:property :value}
+                           zoom-label {:property :text, :terminal true, :var-to-prop-fn str }}
+
+                 )
+     #_zoom-label
      (init-handlers! doc)
      doc)))
 
@@ -543,8 +551,8 @@
                    :top (editor-tool-bar),
                    :bottom (editor-status-bar))
          editor {:top-pane top-pane
-                              :docs [doc1 doc2]
-                              :behaviors []}]
+                 :docs [doc1 doc2]
+                 :behaviors []}]
      
      ;; How it works, for each doc:
      ;; 1.  Add watch to atom which calls protocol redraw
@@ -569,12 +577,6 @@
       (Thread/sleep 25)
       (.append xfrm (Rotate. rot)))))
 
-(def doc (doc-test))
-(def sp (lookup-node doc "surface-pane"))
-(def gc (lookup-node doc "grid-canvas"))
-(def ep (lookup-node doc "entities-pane"))
-(def eg (lookup-node doc "entities-group"))
-(def lg (lookup-node doc "little-group"))
 
 (defn zsc [^Node node sc x y]
   ;; Changes the built-in scale[XY] and translate[XY] properties, not
@@ -582,9 +584,15 @@
   (set-xy! node :translate (Point2D. x y))
   (set-scale! node sc))
 
+(defn go []
+  (def docx (doc-test))
+  (def sp (lookup-node docx "surface-pane"))
+  (def gc (lookup-node docx "grid-canvas"))
+  (def ep (lookup-node docx "entities-pane"))
+  (def eg (lookup-node docx "entities-group"))
+  (def lg (lookup-node docx "little-group"))
+  (run-later (zsc eg 1 0 0)))
 
-
-(run-later (zsc eg 1 0 0))
 
 
 

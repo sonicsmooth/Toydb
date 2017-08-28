@@ -1,4 +1,5 @@
 (ns toydb.core
+  (:gen-class)
   (:use [clojure
          [pprint]
          [repl :exclude [root-cause]]
@@ -115,7 +116,7 @@
                :exp-pane (panes/explorer-pane app )
                :db-pane (panes/db-pane app )}
         
-        windows {;;:debug (stage (console-scene *out*) [480 750])
+        windows { ;;:debug (stage (console-scene *out*) [480 750])
                  :main (main-stage (:app-pane panes)
                                    (docks/base :center (doto (docks/node (:top-pane editor) nil)
                                                          (.setPrefSize (- width 200) height))
@@ -128,10 +129,10 @@
     (.setOnCloseRequest (:main windows) (event-handler [_] (close-windows! app)))
 
     ;; Assign content to currently empty app fields
-    (dosync (alter (:database app) map-replace initial-db-map))
-    (swap! (:editor app) map-replace editor)
-    (swap! (:panes app) map-replace panes)
-    (swap! (:windows app) map-replace windows)
+    (dosync (alter (:database app) (fn [a b] b) initial-db-map))
+    (reset! (:editor app) editor)
+    (reset! (:panes app) panes)
+    (reset! (:windows app) windows)
     app))
 
 

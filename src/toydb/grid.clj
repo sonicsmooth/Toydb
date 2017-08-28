@@ -191,7 +191,7 @@ Lines is a list with each member a list of Point2D"
     (draw-lines! gc (select-values lines [:axisvertical :axishorizontal]) 2)
     (.restore gc)))
 
-(defn resize-callback
+#_(defn resize-callback
   "Returns function which is called by .resize callback in reified Canvas"
   [view-data-atom]
 )

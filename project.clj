@@ -13,5 +13,21 @@
                    "resources"
                    "../../"] ;; back to /c/dev/, eg for icons
   :jvm-opts ["-Djavafx.animation.fullspeed=true"]
-  :main toydb.core)
+  ;;:main toydb.core
+
+  :clean-targets ^{:protect false} [:target-path]
+  ;;:aot :all
+  :main toydb.editor
   
+  )
+  
+
+
+
+
+
+
+
+
+
+
