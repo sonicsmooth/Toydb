@@ -3,31 +3,50 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[jfxutils "0.1.0-SNAPSHOT"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
+                 [jfxutils "0.1.0-SNAPSHOT"]
                  [docks/docks "0.1.0-SNAPSHOT"]
                  ;;[uncomplicate/neanderthal "0.14.0"]
                  [net.mikera/vectorz-clj "0.47.0"]
-                 [aprint "0.1.3"]]
-  :resource-paths ["resources/anchor_resources"
-                   "resources/dock_resources"
-                   "resources"
-                   "../../"] ;; back to /c/dev/, eg for icons
-  :jvm-opts ["-Djavafx.animation.fullspeed=true"]
-  ;;:main toydb.core
+                 ;;[org.jfxtras/jfxtras-common "8.0-r5"]
+                 ;;[org.jfxtras/jfxtras-fxml "8.0-r5"]
+                 ;;[org.jfxtras/jfxtras-agenda "8.0-r5"]
+                 ;;[org.jfxtras/jfxtras-window "8.0-r5"]
+                 ;;[org.jfxtras/jfxtras-menu "8.0-r5"]
+                 ;;[org.jfxtras/jfxtras-gauges-linear "8.0-r5"]
+                 ;;[org.jfxtras/jfxtras-font-robto "8.0-r5"]
+                 ;;p[org.jfxtras/jfxtras-labs "8.0-r5"]q
+                 [org.controlsfx/controlsfx "8.40.13"]
+                 [com.taoensso/tufte "1.1.2"] ;; profiling
+                 [net.java.dev.jna/jna "4.5.0"]]
+  :resource-paths ["resources/fxml"
+                   "resources/css"
+                   "resources"]
 
+  ;; Still not sure why this is here
   :clean-targets ^{:protect false} [:target-path]
-  ;;:aot :all
-  :main toydb.editor
+
   
+  :profiles {:dev {:jvm-opts ["-Dtoolkit-compile-timeout=10000"
+                              "-Dtoolkit-debug=true"
+                              ]}
+             :uberjar {:jvm-opts ["-Dtoolkit-compile-timeout=5000"
+                                  "-Dtoolkit-debug=true"]}
+             }
+
+  :aot :all
+  :main toydb.core
+
+
+  
+
+
+
+
+
+
+
+
+
+
   )
-  
-
-
-
-
-
-
-
-
-
-

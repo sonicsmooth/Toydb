@@ -1,48 +1,61 @@
 (ns toydb.core
   (:gen-class)
-  (:use [clojure
-         [pprint]
-         [repl :exclude [root-cause]]
-         ;;edn
-         ])
-  (:use [jfxutils.core :exclude [-main]])
+  (:require [jfxutils.core :refer :all :exclude [-main]])
+  #_  (:use  [clojure
+              [pprint]
+              [repl :exclude [root-cause]]
+              ;;edn
+              ])
 
-  (:require [clojure.java.io :as io])
-  (:require [docks.core :as docks])
-  (:require [toydb
-             ;;[db :as db]
-             ;;[treeview]q
-             ;;[tableviews]
-             ;;[classviewer :as cv]
-             [editor :as editor]
-             [grid :as grid]
-             [application-panes :as panes]
-             [application-windows :as windows]
-             [menubars :as mb]])
+  #_(:require [clojure.java.io :as io])
+  (:require [docks.core :as docks]
+            [toydb.editor.editor :as editor]
+            [toydb.app.application-panes :as panes])
+  #_(:require [toydb
+               ;;[db :as db]
+               ;;[treeview]
+               ;;[tableviews]
+               ;;[classviewer :as cv]
+               ;;[editor :as editor]
+               [grid :as grid]
+               ;;[application-panes :as panes]
+               ;;[application-windows :as windows]
+               ;;[menubars :as mb]
+               ;;[docksdemo]
+               ])
 
   ;;(:require 
   ;;(:require [toydb.treeview :as tv])
   ;;(:require [toydb.classviewer :as cv])
   ;;(:require [clojure.edn :as edn])
 
-  (:import [java.net InetAddress]
-           [javafx.application Application]
-           [javafx.collections ObservableList FXCollections]
-           [javafx.concurrent Task]
-           [javafx.scene Node Scene Group CacheHint]
-           [javafx.scene.control MenuBar MenuItem Menu Button ColorPicker TableView Slider Label TreeItem TreeView TextArea] 
-           [javafx.scene.image ImageView]
-           [javafx.scene.input MouseEvent]
-           [javafx.scene.layout BorderPane Pane StackPane AnchorPane HBox VBox Region Priority]
-           [javafx.scene.paint Color Paint]
-           [javafx.scene.shape Circle Ellipse Line]
-           [javafx.scene.text Text Font]
-           [javafx.stage Stage]
-           [java.nio.file FileSystems Files Paths Path ]))
+  (:import ;;[java.net InetAddress]
+   ;;[javafx.application Application]
+   ;;[javafx.collections ObservableList FXCollections]
+   ;;[javafx.concurrent Task]
+   ;;[javafx.scene Node Scene Group CacheHint]
+   [javafx.scene.control ;;MenuBar MenuItem Menu
+    Button
+;;    #_ColorPicker #_TableView #_Slider #_Label #_TreeItem TreeView TextArea
+    ] 
+   ;;[javafx.scene.image ImageView]
+   ;;[javafx.scene.input MouseEvent]
+   [javafx.scene.layout
+    BorderPane
+    ;;Pane StackPane AnchorPane HBox VBox Region Priority
+    ]
+   [javafx.scene.paint Color Paint]
+   ;;[javafx.scene.shape Circle Ellipse Line]
+   ;;[javafx.scene.text Text Font]
+   ;;[javafx.stage Stage]
+   ;;[java.nio.file FileSystems Files Paths Path ]
+   ))
 
 
 ;;(set! *warn-on-reflection* false)
 ;;(set! *unchecked-math* false)
+
+
 
 
 
@@ -69,7 +82,7 @@
 
 
 ;; UI can change the type of an item
-(def initial-db-map {:components [{:name "My Rectangle"
+#_(def initial-db-map {:components [{:name "My Rectangle"
                                    :type :polygon
                                    :sides 4
                                    :width1 10.0
@@ -103,7 +116,6 @@
     (stage border-pane)))
 
 (defn application [out]
-  (docks/set-docking-system! :DockFX)
   (let [width 1280
         height 800
         app (map->MyApplication {:database (ref nil),
@@ -112,41 +124,48 @@
                                  :windows (atom nil)})
         editor (editor/editor app )
         ;; panes managed by top level application; does not include editor base
-        panes {:app-pane (panes/application-pane app) ;;[width height] ;; just a border pane with menubar, etc.
+        panes { ;;:app-pane (panes/application-pane app) ;; just a border pane with menubar, etc.
                :exp-pane (panes/explorer-pane app )
-               :db-pane (panes/db-pane app )}
-        
+               ;;:db-pane (panes/db-pane app)
+               }
         windows { ;;:debug (stage (console-scene *out*) [480 750])
-                 :main (main-stage (:app-pane panes)
-                                   (docks/base :center (doto (docks/node (:top-pane editor) nil)
-                                                         (.setPrefSize (- width 200) height))
-                                               :left (doto (docks/node (:exp-pane panes) "Explorer pane")
-                                                       (.setPrefWidth 100))
-                                               :right (doto (docks/node (:db-pane panes) "database")
-                                                        (.setPrefWidth 100))))}]
+                 :main (main-stage (BorderPane.) ;;(:app-pane panes)
+                                   (docks/base
+                                    :center (doto (docks/node (:top-pane editor) nil)
+                                              (.setPrefSize (- width 200) height))
+                                    :left (doto (docks/node (:exp-pane panes) "Explorer pane")
+                                            (.setPrefWidth 100))
+                                    #_:right #_(doto (docks/node (:db-pane panes) "database")
+                                                 (.setPrefWidth 100))))}]
 
         
-    (.setOnCloseRequest (:main windows) (event-handler [_] (close-windows! app)))
+    (.setOnCloseRequest (:main windows)
+                        (event-handler [_]
+                                       (close-windows! app)
+                                       (shutdown-agents)))
 
     ;; Assign content to currently empty app fields
-    (dosync (alter (:database app) (fn [a b] b) initial-db-map))
-    (reset! (:editor app) editor)
-    (reset! (:panes app) panes)
-    (reset! (:windows app) windows)
-    app))
+    ;;(dosync (alter (:database app) (fn [a b] b) initial-db-map))
+    ;;(reset! (:editor app) editor)
+    ;;(reset! (:panes app) panes)
+    ;;(reset! (:windows app) windows)
+    ;;app
+    ))
 
 
 (defn -start [print-writer]
-  ;; Already in FX thread
-  (let [app (application print-writer)]
-    (show-windows! app)
+  (jfxutils.core/app-init)
+  (let [app (application print-writer)
+
+        ]
+    ;;(show-windows! app)
     ;;(.show (toydb.bubble/bubble-window 800 600 100))
     ;;(.show (explorer-window 400 400))
     ;;(.show (cv/class-window 400 400))
     ;;:inspector (toydb.application-windows/inspector-window db [] field-options)
     ;;:tableview (toydb.application-windows/tableview-window db [] field-options)
 
-    (docks/init-style)
+    (run-now (docks/init-style))
     ;;app
     ))
 
@@ -155,19 +174,27 @@
 
 
 (defn main
-  "Gets called from REPL"
+  "Gets called from lein repl and cider"
   []
-  (run-now (-start *out*)))
+  (jfxutils.core/app-init)
+  (-start *out*))
 
-(defn -main []
-  ;; This gets called from lein run. The setImplicitExit was
-  ;; previously set to false when loading the jfxutils module, which
-  ;; allows the JFX thread to keep running while at the REPL.  However
-  ;; this is not what we want when running from the command line
-  ;; standalone, where we do want it to exit, so we set it back to
-  ;; true for JavaFX to be done when the last window closes
-  (javafx.application.Platform/setImplicitExit true)
-  (main))
+(defn -main
+  "Gets called from lein run and uberjar"
+  []
+  (jfxutils.core/app-init)
+  (jfxutils.core/set-exit true)
+  (-start *out*))
+
+
+
+
+
+
+
+
+
+
 
 
 
