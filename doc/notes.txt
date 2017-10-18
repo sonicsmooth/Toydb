@@ -1,0 +1,17 @@
+Todo: disable grid plotting if it gets too dense, eg when dynamic zoom is disabled,
+grid is set to something small, and user zooms way out
+
+
+Basic:
+Major spacing (distance per grid, goes to kgpu) two boxes showing mm, mils, user enters any value in either box
+Enable minor grid
+Minors per major
+Dynamic zoom
+
+
+More
+Overall zoom factor (goes to kppu)
+Zoom range
+
+
+

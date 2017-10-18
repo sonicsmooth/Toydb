@@ -1,0 +1,9 @@
+#toydb.core.CreateUser{:name "Bob", :email "bob@example.org", :start-date #inst "2015-01-03T04:30:40.347-00:00"}
+#toydb.core.CreateUser{:name "Alice", :email "alice@example.org", :start-date #inst "2015-01-03T04:31:00.843-00:00"}
+#toydb.core.CreateUser{:name "Carol", :email "carol@example.org", :start-date #inst "2015-01-03T04:31:57.181-00:00"}
+#toydb.core.CreateUser{:name "Carol2", :email "carol2@example.org", :start-date #inst "2015-01-03T05:43:18.428-00:00"}
+#toydb.core.CreateUser{:name "Carol3", :email "carol3@example.org", :start-date #inst "2015-01-03T05:57:51.552-00:00"}
+#toydb.core.CreateUser{:name "Carol3", :email "carol3@example.org", :start-date #inst "2015-01-03T05:57:57.216-00:00"}
+#toydb.core.CreateUser{:name "Carol3", :email "carol3@example.org", :start-date #inst "2015-01-03T05:59:18.918-00:00"}
+#toydb.core.CreateUser{:name "haloo", :email "bogus@aoeu.com", :start-date #inst "2015-01-04T02:09:31.747-00:00"}
+#toydb.core.CreateUser{:name "haloo", :email "bogus@aoeu.com", :start-date #inst "2015-01-04T02:09:53.762-00:00"}
