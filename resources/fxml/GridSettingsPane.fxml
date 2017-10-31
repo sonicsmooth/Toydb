@@ -14,7 +14,7 @@
 
 <HBox alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="hbox" stylesheets="@../css/style.css" xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1">
                      <children>
-                        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" prefWidth="213.0" styleClass="vbox" HBox.hgrow="SOMETIMES">
+                        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="vbox" HBox.hgrow="SOMETIMES">
                            <children>
                               <TitledPane collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Basics" VBox.vgrow="SOMETIMES">
                                  <content>
@@ -42,7 +42,7 @@
                                       </rowConstraints>
                                        <children>
                                           <Label styleClass="label-title" text="Major Grid Spacing" GridPane.columnSpan="3" GridPane.rowIndex="4" />
-                                          <TextField id="tf-major-grid-spacing-mm" maxWidth="1.7976931348623157E308" minWidth="50.0" prefWidth="50.0" GridPane.rowIndex="5" />
+                                          <TextField id="tf-major-grid-spacing-mm" maxWidth="1.7976931348623157E308" minWidth="50.0" prefWidth="50.0" text="2" GridPane.rowIndex="5" />
                                           <Label text="millimeters" GridPane.columnIndex="2" GridPane.rowIndex="5" />
                                           <TextField id="tf-major-grid-spacing-mils" maxWidth="1.7976931348623157E308" minWidth="50.0" prefWidth="50.0" GridPane.rowIndex="6" />
                                           <Label text="mils (0.001&quot;)" GridPane.columnIndex="2" GridPane.rowIndex="6" />
@@ -81,8 +81,8 @@
                                           <Label styleClass="label-title" text="Zoom range" GridPane.columnSpan="3" GridPane.rowIndex="3" />
                                           <Label text="Min" GridPane.rowIndex="4" />
                                           <Label text="Max" GridPane.rowIndex="5" />
-                                          <TextField id="tf-zoom-range-min" GridPane.columnIndex="2" GridPane.rowIndex="4" />
-                                          <TextField id="tf-zoom-range-max" GridPane.columnIndex="2" GridPane.rowIndex="5" />
+                                          <TextField id="tf-zoom-range-min" text="-200" GridPane.columnIndex="2" GridPane.rowIndex="4" />
+                                          <TextField id="tf-zoom-range-max" text="200" GridPane.columnIndex="2" GridPane.rowIndex="5" />
                                        </children>
                                     </GridPane>
                                  </content>
@@ -91,71 +91,9 @@
                         </VBox>
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="vbox" HBox.hgrow="SOMETIMES">
                            <children>
-                              <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Major Grid" VBox.vgrow="ALWAYS">
-                                 <content>
-                                    <GridPane styleClass="grid-pane">
-                                      <columnConstraints>
-                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
-                                          <ColumnConstraints hgrow="SOMETIMES" minWidth="0.0" prefWidth="100.0" />
-                                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
-                                      </columnConstraints>
-                                      <rowConstraints>
-                                          <RowConstraints vgrow="NEVER" />
-                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
-                                        <RowConstraints vgrow="NEVER" />
-                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
-                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
-                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
-                                        <RowConstraints vgrow="NEVER" />
-                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
-                                      </rowConstraints>
-                                       <children>
-                                          <CheckBox id="cb-major-grid-snap-to" minHeight="0.0" minWidth="0.0" mnemonicParsing="false" text="Snap to" />
-                                          <CheckBox id="cb-major-grid-lines-visible" mnemonicParsing="false" text="Lines Visble" GridPane.rowIndex="2" />
-                                          <CheckBox id="cb-major-grid-dots-visible" mnemonicParsing="false" text="Dots Visible" GridPane.columnIndex="2" GridPane.rowIndex="2" />
-                                          <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.rowIndex="5">
-                                             <children>
-                                                <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
-                                                   <children>
-                                                      <Slider id="sl-major-grid-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" HBox.hgrow="ALWAYS" />
-                                                      <TextField id="tf-major-grid-line-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
-                                                   </children>
-                                                </HBox>
-                                             </children>
-                                          </VBox>
-                                          <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.rowIndex="8">
-                                             <children>
-                                                <ColorPicker id="cs-major-grid-line-color" />
-                                             </children>
-                                          </VBox>
-                                          <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.columnIndex="2" GridPane.rowIndex="5">
-                                             <children>
-                                                <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
-                                                   <children>
-                                                      <Slider id="sl-major-grid-dots-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" HBox.hgrow="ALWAYS" />
-                                                      <TextField id="tf-major-grid-dots-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
-                                                   </children>
-                                                </HBox>
-                                             </children>
-                                          </VBox>
-                                          <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.columnIndex="2" GridPane.rowIndex="8">
-                                             <children>
-                                                <ColorPicker id="cs-major-grid-dots-color" />
-                                             </children>
-                                          </VBox>
-                                          <Label styleClass="label-title" text="Line width (pixels)" GridPane.columnSpan="2" GridPane.rowIndex="4" />
-                                          <Label styleClass="label-title" text="Dot width (pixels)" GridPane.columnIndex="2" GridPane.rowIndex="4" />
-                                          <Label styleClass="label-title" text="Line color" GridPane.columnSpan="2" GridPane.rowIndex="7" />
-                                          <Label styleClass="label-title" text="Dots color" GridPane.columnIndex="2" GridPane.rowIndex="7" />
-                                       </children>
-                                    </GridPane>
-                                 </content>
-                              </TitledPane>
-            <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Minor Grid">
+            <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Major Grid" VBox.vgrow="SOMETIMES">
                <content>
-                  <GridPane styleClass="grid-pane">
+                  <GridPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
                      <columnConstraints>
                         <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
                         <ColumnConstraints hgrow="SOMETIMES" minWidth="0.0" prefWidth="100.0" />
@@ -166,22 +104,84 @@
                         <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
                         <RowConstraints vgrow="NEVER" />
                         <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
-                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                         <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
                         <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
                         <RowConstraints vgrow="NEVER" />
                         <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
                      </rowConstraints>
                      <children>
-                        <CheckBox id="cb-minor-grid-snap-to" minHeight="0.0" minWidth="0.0" mnemonicParsing="false" text="Snap to" />
+                        <CheckBox id="cb-major-grid-snap-to" mnemonicParsing="false" text="Snap to" />
+                        <CheckBox id="cb-major-grid-lines-visible" mnemonicParsing="false" text="Lines Visble" GridPane.rowIndex="2" />
+                        <CheckBox id="cb-major-grid-dots-visible" mnemonicParsing="false" text="Dots Visible" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+                        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.rowIndex="5">
+                           <children>
+                              <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
+                                 <children>
+                                    <Slider id="sl-major-grid-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="5.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-major-grid-line-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                 </children>
+                              </HBox>
+                           </children>
+                        </VBox>
+                        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.rowIndex="8">
+                           <children>
+                              <ColorPicker id="cs-major-grid-line-color" />
+                           </children>
+                        </VBox>
+                        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.columnIndex="2" GridPane.rowIndex="5">
+                           <children>
+                              <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
+                                 <children>
+                                    <Slider id="sl-major-grid-dots-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-major-grid-dots-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                 </children>
+                              </HBox>
+                           </children>
+                        </VBox>
+                        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.columnIndex="2" GridPane.rowIndex="8">
+                           <children>
+                              <ColorPicker id="cs-major-grid-dots-color" />
+                           </children>
+                        </VBox>
+                        <Label styleClass="label-title" text="Line width (pixels)" GridPane.columnSpan="2" GridPane.rowIndex="4" />
+                        <Label styleClass="label-title" text="Dot width (pixels)" GridPane.columnIndex="2" GridPane.rowIndex="4" />
+                        <Label styleClass="label-title" text="Line color" GridPane.columnSpan="2" GridPane.rowIndex="7" />
+                        <Label styleClass="label-title" text="Dots color" GridPane.columnIndex="2" GridPane.rowIndex="7" />
+                     </children>
+                  </GridPane>
+               </content>
+            </TitledPane>
+            <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Minor Grid" VBox.vgrow="SOMETIMES">
+               <content>
+                  <GridPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="0.0" prefWidth="100.0" />
+                        <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+                     </columnConstraints>
+                     <rowConstraints>
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="ALWAYS" />
+                     </rowConstraints>
+                     <children>
+                        <CheckBox id="cb-minor-grid-snap-to" mnemonicParsing="false" text="Snap to" />
                         <CheckBox id="cb-minor-grid-lines-visible" mnemonicParsing="false" text="Lines Visble" GridPane.rowIndex="2" />
                         <CheckBox id="cb-minor-grid-dots-visible" mnemonicParsing="false" text="Dots Visible" GridPane.columnIndex="2" GridPane.rowIndex="2" />
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.rowIndex="5">
                            <children>
                               <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
                                  <children>
-                                    <Slider id="sl-minor-grid-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" HBox.hgrow="ALWAYS" />
+                                    <Slider id="sl-minor-grid-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="5.0" HBox.hgrow="ALWAYS" />
                                     <TextField id="tf-minor-grid-line-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
                                  </children>
                               </HBox>
@@ -196,7 +196,7 @@
                            <children>
                               <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
                                  <children>
-                                    <Slider id="sl-minor-grid-dots-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" HBox.hgrow="ALWAYS" />
+                                    <Slider id="sl-minor-grid-dots-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
                                     <TextField id="tf-minor-grid-dots-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
                                  </children>
                               </HBox>

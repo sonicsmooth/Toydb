@@ -82,9 +82,6 @@
   (short-str [a] (.getHostName a))
   (renamable? [item] false)
 
-  toydb.app.treeview.Deferral
-  (get-items [a] )
-
   java.nio.file.Path
   (get-items [file] (when (Files/isDirectory file NLO)
                       (Files/newDirectoryStream file)))

@@ -6,6 +6,7 @@
            [javafx.scene.control Tab]))
 
 
+
 (defn settings-pane [uid]
   (let [root (load-fxml-root "SettingsPane.fxml")
         schematic-gsp (gsp/grid-settings-pane (join-hyph uid "schematic"))
@@ -33,11 +34,11 @@
 
 
 (defn main []
-  (jfxutils.core/app-init false)
+  (jfxutils.core/app-init)
   (stage (settings-pane nil)))
 
 (defn -main []
-  (jfxutils.core/app-init false)
+  (jfxutils.core/app-init)
   (stage (settings-pane nil)))
 
 

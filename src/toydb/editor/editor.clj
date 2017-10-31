@@ -5,7 +5,7 @@
              [canvas :as canvas]
              [grid :as grid]
              [viewdef :as viewdef]]
-            [toydb.bind.bind :as bind]
+            [toydb.bind :as bind]
             [toydb.app.menubars :as mb]
             [docks.core :as docks]
             [clojure.core.matrix :as matrix]
@@ -661,12 +661,6 @@
                                  (:metric-selection old)))
                    (update-coordinates! doc @(:mouse-state doc)))))
 
-    
-    
-    
-    
-    
-    
     
     ;; Use fancy double binding to tie internal snap setting to checkbox
     (bind/bind! :init true

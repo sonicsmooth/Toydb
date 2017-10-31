@@ -1,6 +1,12 @@
 (ns toydb.ui.grid-settings-pane
-  (:use [jfxutils.core :exclude [-main]])
-  )
+  (:gen-class
+   :extends javafx.scene.layout.HBox
+   :post-init post-init
+   :init init
+   :constructors {[String] []}
+   )
+  (:use [jfxutils.core :exclude [-main]]))
+
 
 
 (defn update-sliders!
@@ -49,9 +55,7 @@
       (.setMax 5)
       (.setMajorTickUnit 1)
       (.setMinorTickCount 20)
-      (.setShowTickLabels true))
-    
-    root))
+      (.setShowTickLabels true))))
 
 (defn update-names!
   "Append name to all ids in settings-pane"
@@ -90,13 +94,22 @@
   root)
 
 
-
 (defn grid-settings-pane [name]
-  (let [gsp (load-fxml-root "GridSettingsPane.fxml")]
-    (update-names! gsp name)
-    (update-sliders! gsp name)))
+  (toydb.ui.grid_settings_pane. name))
 
+(defn -init [name]
+  (println "hi from -init")
+  [[] []])
 
+(defn -post-init [this name]
+  (println "hi from -post-init")
+  (jfxutils.core/app-init)
+  (let [loader (javafx.fxml.FXMLLoader. (clojure.java.io/resource "GridSettingsPane.fxml"))]
+    (.setRoot loader this)
+    (.setController loader this)
+    (.load loader)
+    (update-names! this name)
+    (update-sliders! this name)))
 
 
 
