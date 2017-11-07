@@ -30,6 +30,7 @@
   
   :profiles {:dev {:jvm-opts ["-Dtoolkit-compile-timeout=10000"
                               "-Dtoolkit-debug=true"
+                              "-XX:-OmitStackTraceInFastThrow"
                               ]}
              #_:uberjar #_{:jvm-opts ["-Dtoolkit-compile-timeout=5000"
                                   "-Dtoolkit-debug=true"]}
@@ -37,7 +38,7 @@
              }
 
   ;;:aot :all
-  ;;:main toydb.ui.grid-settings-pane ;;toydb.core
+  :main toydb.ui.GridSettingsPane
 
 
   

@@ -6,10 +6,6 @@
         Purpose of the stylesheet follows.
 */
 
-//root {
-//    display: block;
-//}
-
 
 
 .label-title {
@@ -19,50 +15,10 @@
     //-fx-effect: dropshadow(gaussian, rgba(255,255,255,0.5),0,0,0,1);
 }
 
-//.tab *.tab-label {
-//    -fx-rotate: 90;
-//}
-
-//.tab {
-//    -fx-padding: 2em 5px 2em 5px;
-//}
 
 .tab-pane {
     -fx-background-color: linear-gradient(#eeeeee, #dddddd);
 }
-
-#welcome-text {
-   -fx-font-size: 32px;
-   -fx-font-family: "Arial Black";
-   -fx-fill: #818181;
-   -fx-effect: innershadow( three-pass-box , rgba(0,0,0,0.7) , 6, 0.0 , 0 , 2 );
-}
-#actiontarget {
-  -fx-fill: FIREBRICK;
-  -fx-font-weight: bold;
-  -fx-effect: dropshadow( gaussian , rgba(255,255,255,0.5) , 0,0,0,1 );  
-}
-
-
-    //-fx-text-fill: white;
-    //-fx-font-family: "Arial Narrow";
-    //-fx-font-weight: bold;
-    //-fx-background-color: linear-gradient(#61a2b1, #2A5058);
-    //-fx-padding: 20px;
-
-    
-.button {
-    //-fx-effect: dropshadow( three-pass-box , rgba(0,0,0,0.6) , 5, 0.0 , 0 , 1 );
-    }
-
-.button:hover {
-//    -fx-background-color: linear-gradient(#2A5058, #61a2ffb1);
-}
-
-//.titled-pane > .content > * {
-//    -fx-padding: 0px;
-//}
-
 
 
 .hbox {
@@ -77,9 +33,28 @@
     -fx-padding: 8;
 }
 
+.root {
+	-fx-error-highlight: #9c0006;
+	-fx-error-faint-focus: #9C000622;
+	-fx-error-background: #FFC7CE;
+}
 
+.text-input:error {
+	-fx-text-fill: -fx-error-highlight;
+	-fx-focus-color: -fx-error-highlight;
+	-fx-faint-focus-color: -fx-error-faint-focus;
+	-fx-control-inner-background: -fx-error-background;
+}
 
+.spinner:error > .text-field {
+	-fx-text-fill: -fx-error-highlight;
+	-fx-focus-color: -fx-error-highlight;
+	-fx-faint-focus-color: -fx-error-faint-focus;
+	-fx-control-inner-background: -fx-error-background;
 
+}
+							 
+	
 
 
 

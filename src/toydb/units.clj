@@ -1,4 +1,5 @@
-(ns toydb.units)
+(ns toydb.units
+  (require [jfxutils.core :refer [printexp]]))
 
 
 ;;(set! *warn-on-reflection* true)
@@ -12,15 +13,19 @@
   (um [u])
   (mil [u])
   (inch [u])
-  (nearest [u eps]))
+  (nearest [u eps])
+  (add [u x])
+  (sub [u x]))
 
-(defrecord kilometer [^double value])
-(defrecord meter [^double value])
-(defrecord centimeter [^double value])
-(defrecord millimeter [^double value])
-(defrecord micrometer [^double value])
-(defrecord mils [^double value]) ;; thousandth of an inch
-(defrecord inches [^double value])
+(defrecord micrometer [^double value] Object (toString [d] (pr-str d)))
+(defrecord millimeter [^double value] Object (toString [d] (pr-str d)))
+(defrecord centimeter [^double value] Object (toString [d] (pr-str d)))
+(defrecord meter [^double value] Object (toString [d] (pr-str d)))
+(defrecord kilometer [^double value] Object (toString [d] (pr-str d)))
+(defrecord mils [^double value] Object (toString [d] (pr-str d))) ;; thousandth of an inch
+(defrecord inches [^double value] Object (toString [d] (pr-str d)))
+
+
 
 (def KMPIN (/ 254 10000000))
 (def MPIN  (* KMPIN 1000))
@@ -60,6 +65,8 @@
   (mil [u] (->mils (* MILPKM (.value u))))
   (inch [u] (->inches (* INPKM (.value u))))
   (nearest [u eps] (->kilometer (* eps (Math/round (/ (.value u) eps)))))
+  (add [u x] (->kilometer (+ (.value u) x)))
+  (sub [u x] (->kilometer (- (.value u) x)))
 
   meter
   (km [u] (->kilometer   (* 1e-3 (.value u))))
@@ -70,6 +77,8 @@
   (mil [u] (->mils (* MILPM (.value u))))
   (inch [u] (->inches (* INPM  (.value u))))
   (nearest [u eps] (->meter (* eps (Math/round (/ (.value u) eps)))))
+  (add [u x] (->meter (+ (.value u) x)))
+  (sub [u x] (->meter (- (.value u) x)))
 
   centimeter
   (km [u] (->kilometer   (* 1e-5 (.value u))))
@@ -80,7 +89,9 @@
   (mil [u] (->mils (* MILPCM (.value u))))
   (inch [u] (->inches (* INPCM (.value u))))
   (nearest [u eps] (->centimeter (* eps (Math/round (/ (.value u) eps)))))
-
+  (add [u x] (->centimeter (+ (.value u) x)))
+  (sub [u x] (->centimeter (- (.value u) x)))
+  
   millimeter
   (km [u] (->kilometer   (* 1e-6 (.value u))))
   (m  [u] (->meter       (* 1e-3 (.value u))))
@@ -90,7 +101,9 @@
   (mil [u] (->mils (* MILPMM (.value u))))
   (inch [u] (->inches (* INPMM (.value u))))
   (nearest [u eps] (->millimeter (* eps (Math/round (/ (.value u) eps)))))
-
+  (add [u x] (->millimeter (+ (.value u) x)))
+  (sub [u x] (->millimeter (- (.value u) x)))
+  
   micrometer
   (km [u] (->kilometer   (* 1e-9 (.value u))))
   (m  [u] (->meter       (* 1e-6 (.value u))))
@@ -100,6 +113,8 @@
   (mil [u] (->mils (* MILPUM (.value u))))
   (inch [u] (->inches (* INPUM (.value u))))
   (nearest [u eps] (->micrometer (* eps (Math/round (/ (.value u) eps)))))
+  (add [u x] (->micrometer (+ (.value u) x)))
+  (sub [u x] (->micrometer (- (.value u) x)))
   
   inches
   (km [u] (->kilometer (* KMPIN (.value u))))
@@ -110,6 +125,8 @@
   (mil [u] (->mils (* 1e3 (.value u))))
   (inch [u] u)
   (nearest [u eps] (->inches (* eps (Math/round (/ (.value u) eps)))))
+  (add [u x] (->inches (+ (.value u) x)))
+  (sub [u x] (->inches (- (.value u) x)))
   
   mils
   (km [u] (->kilometer (* KMPMIL (.value u))))
@@ -120,6 +137,8 @@
   (mil [u] u)
   (inch [u] (->inches (* 1e-3 (.value u))))
   (nearest [u eps] (->mils (* eps (Math/round (/ (.value u) eps)))))
+  (add [u x] (->mils (+ (.value u) x)))
+  (sub [u x] (->mils (- (.value u) x)))
   
   java.lang.Long
   (km [u] (->kilometer u))
@@ -159,9 +178,8 @@
   (mil [n] nil)
   (inch [n] nil)
   (nearest [n e] nil)
-
-  )
-
+  (add [n x] nil)
+  (sub [n x] nil))
 
 (defn distance
   "Converts numerical string to units.  eg '2.54cm' becomes a
@@ -173,32 +191,79 @@
   abbreviated 'in' or 'inch' or 'inches'.  Thousanths of an inch can
   be abbreviated 'mil' or 'mils'."
   ([str hint-fn]
-   (let [reg-um #"([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*um"
-         reg-mm #"([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*mm"
-         reg-cm #"([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*cm"
-         reg-m  #"([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*m"
-         reg-km  #"([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*km"
-         reg-mil  #"([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*(?:mil|mils)"
-         reg-inch  #"([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)\s*(?:in|inch|inches)"
-         reg-generic #"([-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?)"
-
-         ;;reg-um #"(.*)(um)"
-
-
-
-         ]
-     (condp re-matches str
-       reg-um :>> #(um (Double/parseDouble (second %)))
-       reg-mm :>> #(mm (Double/parseDouble (second %)))
-       reg-cm :>> #(cm (Double/parseDouble (second %)))
-       reg-m  :>> #(m (Double/parseDouble (second %)))
-       reg-km :>> #(km (Double/parseDouble (second %)))
-       reg-mil :>> #(mil (Double/parseDouble (second %)))
-       reg-inch :>> #(inch (Double/parseDouble (second %)))
-       reg-generic :>> #(hint-fn (Double/parseDouble (second %)))
-       nil)))
+   (let [reg-um #"(.*)(um)"
+         reg-mm #"(.*)(mm)"
+         reg-cm #"(.*)(cm)"
+         reg-m #"([^k]*)(m)"
+         reg-km #"(.*)(km)"
+         reg-mil #"(.*)(mil|mils)"
+         reg-inch #"(.*)(in|inch|inches)"
+         reg-generic #"(.*)"]
+     (try
+       (condp re-matches str
+         reg-um :>> #(um (Double/parseDouble (second %)))
+         reg-mm :>> #(mm (Double/parseDouble (second %)))
+         reg-cm :>> #(cm (Double/parseDouble (second %)))
+         reg-m  :>> #(m (Double/parseDouble (second %)))
+         reg-km :>> #(km (Double/parseDouble (second %)))
+         reg-mil :>> #(mil (Double/parseDouble (second %)))
+         reg-inch :>> #(inch (Double/parseDouble (second %)))
+         reg-generic :>> #(hint-fn (Double/parseDouble (second %)))
+         nil)
+       (catch java.lang.NumberFormatException e
+         ;;(printexp "caught!")
+         nil))))
   ([str]
    (distance str um)))
+
+(defn- fn-name [unit]
+  (condp = unit
+    um "um"
+    mm "mm"
+    cm "cm"
+    m "m"
+    km "km"
+    mil "mil"
+    inch "inch"))
+
+(defn- strquote [s]
+  (str "\"" s "\""))
+
+(defn distance-string-converter
+  "Returns proxy of StringConverter, using function unit, which must be
+  one of um, mm, cm, m, km, mil, inch."
+  [unit]
+  (proxy [javafx.util.StringConverter] []
+    (toString
+      ([] "custom string converter")
+      ([dis] (if dis
+               (let [unit-result (unit dis)
+                     str-result (format "%.7g" (.value unit-result))]
+                 ;;(println (format "%s toString(%s) -> %s" (fn-name unit) dis (strquote str-result)))
+                 str-result)
+               "")))
+    (fromString
+      ([s]
+       ;; Without hint arg and without "mm", "cm" etc from user,
+       ;; (distance...) returns um.  Without (unit...), result takes
+       ;; on either hinted (correct) or user-defined (incorrect)
+       ;; value, eg "1in" input into mm field will put (inch 1.0) into
+       ;; the value factory for the mm field.  So we force it to the
+       ;; correct units.  Hence unit appears in two places.  Not
+       ;; having the first (unit...) resulted in a weird bug where
+       ;; changing the value didn't trigger the ChangeListener if the
+       ;; numerical value (eg '100.000') was the same, even if the
+       ;; units changed, eg 100mm to 100km.
+       (let [result (unit (distance s unit))] 
+         ;;(println (format "%s fromString(%s) -> %s" (fn-name unit) (strquote s) result))
+         result)))))
+
+(defn distance-text-formatter
+  "Returns new TextFormatter using a distance converter which returns
+  unit.  Unit must be one of um, mm, cm, m, km, mil, inch."
+  [unit]
+  (javafx.scene.control.TextFormatter. (distance-string-converter unit)))
+  
 
 
 (defn test-inch
@@ -206,7 +271,7 @@
   [^long n]
   (loop [n n
          i (inch 1)]
-    (if (= n 0)
+    (if (zero? n)
       i
       (recur (dec n) (inch (cm i))))))
 
