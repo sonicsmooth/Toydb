@@ -15,7 +15,9 @@
   (inch [u])
   (nearest [u eps])
   (add [u x])
-  (sub [u x]))
+  (sub [u x])
+  (incr [u])
+  (decr [u]))
 
 (defrecord micrometer [^double value] Object (toString [d] (pr-str d)))
 (defrecord millimeter [^double value] Object (toString [d] (pr-str d)))
@@ -24,7 +26,6 @@
 (defrecord kilometer [^double value] Object (toString [d] (pr-str d)))
 (defrecord mils [^double value] Object (toString [d] (pr-str d))) ;; thousandth of an inch
 (defrecord inches [^double value] Object (toString [d] (pr-str d)))
-
 
 
 (def KMPIN (/ 254 10000000))
@@ -52,9 +53,13 @@
 (def MILPUM (/ 1 UMPMIL))
 
 
+
 ;; The record is mils, the function is mil
 ;; The record is inches, the function is inch
 (declare distance)
+(declare increment)
+(declare decrement)
+
 (extend-protocol DistanceProtocol
   kilometer
   (km [u] u)
@@ -67,7 +72,9 @@
   (nearest [u eps] (->kilometer (* eps (Math/round (/ (.value u) eps)))))
   (add [u x] (->kilometer (+ (.value u) x)))
   (sub [u x] (->kilometer (- (.value u) x)))
-
+  (incr [u] (->kilometer (increment (.value u))))
+  (decr [u] (->kilometer (decrement (.value u))))
+  
   meter
   (km [u] (->kilometer   (* 1e-3 (.value u))))
   (m  [u] u)
@@ -79,6 +86,8 @@
   (nearest [u eps] (->meter (* eps (Math/round (/ (.value u) eps)))))
   (add [u x] (->meter (+ (.value u) x)))
   (sub [u x] (->meter (- (.value u) x)))
+  (incr [u] (->meter (increment (.value u))))
+  (decr [u] (->meter (decrement (.value u))))
 
   centimeter
   (km [u] (->kilometer   (* 1e-5 (.value u))))
@@ -91,6 +100,8 @@
   (nearest [u eps] (->centimeter (* eps (Math/round (/ (.value u) eps)))))
   (add [u x] (->centimeter (+ (.value u) x)))
   (sub [u x] (->centimeter (- (.value u) x)))
+  (incr [u] (->centimeter (increment (.value u))))
+  (decr [u] (->centimeter (decrement (.value u))))
   
   millimeter
   (km [u] (->kilometer   (* 1e-6 (.value u))))
@@ -103,6 +114,8 @@
   (nearest [u eps] (->millimeter (* eps (Math/round (/ (.value u) eps)))))
   (add [u x] (->millimeter (+ (.value u) x)))
   (sub [u x] (->millimeter (- (.value u) x)))
+  (incr [u] (->millimeter (increment (.value u))))
+  (decr [u] (->millimeter (decrement (.value u))))
   
   micrometer
   (km [u] (->kilometer   (* 1e-9 (.value u))))
@@ -115,6 +128,8 @@
   (nearest [u eps] (->micrometer (* eps (Math/round (/ (.value u) eps)))))
   (add [u x] (->micrometer (+ (.value u) x)))
   (sub [u x] (->micrometer (- (.value u) x)))
+  (incr [u] (->micrometer (increment (.value u))))
+  (decr [u] (->micrometer (decrement (.value u))))
   
   inches
   (km [u] (->kilometer (* KMPIN (.value u))))
@@ -127,6 +142,8 @@
   (nearest [u eps] (->inches (* eps (Math/round (/ (.value u) eps)))))
   (add [u x] (->inches (+ (.value u) x)))
   (sub [u x] (->inches (- (.value u) x)))
+  (incr [u] (->inches (increment (.value u))))
+  (decr [u] (->inches (decrement (.value u))))
   
   mils
   (km [u] (->kilometer (* KMPMIL (.value u))))
@@ -139,6 +156,8 @@
   (nearest [u eps] (->mils (* eps (Math/round (/ (.value u) eps)))))
   (add [u x] (->mils (+ (.value u) x)))
   (sub [u x] (->mils (- (.value u) x)))
+  (incr [u] (->mils (increment (.value u))))
+  (decr [u] (->mils (decrement (.value u))))
   
   java.lang.Long
   (km [u] (->kilometer u))
@@ -149,6 +168,8 @@
   (mil [u] (->mils u))
   (inch [u] (->inches u))
   (nearest [u eps] (Long. (* eps (Math/round (/ (double u) eps)))))
+  (incr [u] (long (increment (double u))))
+  (decr [u] (long (decrement (double u))))
 
   java.lang.Double
   (km [u] (->kilometer u))
@@ -159,6 +180,8 @@
   (mil [u] (->mils u))
   (inch [u] (->inches u))
   (nearest [u eps] (* eps (Math/round (/ u eps))))
+  (incr [u] (increment u))
+  (decr [u] (decrement u))
 
   java.lang.String
   (km [s] (km (distance s km)))
@@ -179,7 +202,9 @@
   (inch [n] nil)
   (nearest [n e] nil)
   (add [n x] nil)
-  (sub [n x] nil))
+  (sub [n x] nil)
+  (incr [n] nil)
+  (decr [n] nil))
 
 (defn distance
   "Converts numerical string to units.  eg '2.54cm' becomes a
@@ -237,26 +262,15 @@
     (toString
       ([] "custom string converter")
       ([dis] (if dis
-               (let [unit-result (unit dis)
-                     str-result (format "%.7g" (.value unit-result))]
-                 ;;(println (format "%s toString(%s) -> %s" (fn-name unit) dis (strquote str-result)))
-                 str-result)
+               (format "%.7g" (.value (unit dis)))
                "")))
     (fromString
       ([s]
-       ;; Without hint arg and without "mm", "cm" etc from user,
-       ;; (distance...) returns um.  Without (unit...), result takes
-       ;; on either hinted (correct) or user-defined (incorrect)
-       ;; value, eg "1in" input into mm field will put (inch 1.0) into
-       ;; the value factory for the mm field.  So we force it to the
-       ;; correct units.  Hence unit appears in two places.  Not
-       ;; having the first (unit...) resulted in a weird bug where
-       ;; changing the value didn't trigger the ChangeListener if the
-       ;; numerical value (eg '100.000') was the same, even if the
-       ;; units changed, eg 100mm to 100km.
-       (let [result (unit (distance s unit))] 
-         ;;(println (format "%s fromString(%s) -> %s" (fn-name unit) (strquote s) result))
-         result)))))
+       ;; Without inner hint and without outer hint, takes on either microns or user-defined units (both incorrect)
+       ;; With inner hint and without outer hint, takes on either proper units (correct) or user-defined units
+       ;; Without inner hint and with outer hint, takes on either microns converted to units (incorrect), or user-defined units converted to units (correct)
+       ;; With inner hint and with outer hint, takes on correct units with or without user-defined units
+       (unit (distance s unit))))))
 
 (defn distance-text-formatter
   "Returns new TextFormatter using a distance converter which returns
@@ -264,7 +278,19 @@
   [unit]
   (javafx.scene.control.TextFormatter. (distance-string-converter unit)))
   
+(defn increment
+  "Find next highest integer"
+  [u]
+  (if (< (- u (long u)) 1e-12) ;; because of rounding error, the diff might not actually be zero
+    (inc u )
+    (Math/ceil u )))
 
+(defn decrement
+  "Find next lowest integer"
+  [u]
+  (if (< (- u (long u)) 1e-12) ;; because of rounding error, the diff might not actually be zero
+    ( dec u )
+    (Math/floor u )))
 
 (defn test-inch
   "Tests conversion from inch to cm and back."

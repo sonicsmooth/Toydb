@@ -47,9 +47,7 @@
       (let [v2pval (var-to-prop-fn newval)
             take-action? (nil? (find properties :no-action-val))]
         (if take-action?
-          (do
-            (println (format "Watcher setting %s to %s" target v2pval))
-            (set-prop-val! target property v2pval))
+          (set-prop-val! target property v2pval)
 
           (if (= v2pval no-action)
             (println "Not taking action")
@@ -57,6 +55,7 @@
       ;; var-to-prop is nil or not specified, so just set property to
       ;; newval directly
       (set-prop-val! target property newval))
+    
     
     ;; Adding listener is also presumably a cheap operation
     (add-listener! target property change-listener)))
@@ -162,27 +161,6 @@
                       (map merge (repeat common-map) (vals targets))
                       (repeat (count target-keys) common-map))
 
-        #_listnr #_(fn [properties]
-                     (change-listener [oldval newval] ;; oldval and newval are from property
-                                      ;; The comparison should happen in the var space, ie "real" units.
-                                      (let [p2v (or (:prop-to-var-fn properties) identity)
-                                            oldreal (p2v oldval)
-                                            newreal (p2v newval)
-                                            no-action-valid? (find properties :no-action-val)
-                                            dont-swap? (= newreal (:no-action-val properties))]
-                                        (if (or (= oldreal newreal)
-                                                (and no-action-valid? dont-swap?))
-                                          (do
-                                            (println (format "not swapping new value %s: dirtifying!" newreal))
-                                            (dirtify! var))
-                                          (do
-                                            (when-not no-action-valid? (print ":no-action-val unspecified; "))
-                                            (when-not dont-swap? (print "Legit newval; "))
-                                            (println (format "listener swapping %s with %s" oldreal newreal))
-                                            (println (format "listener old->new = %s -> %s" oldval newval))
-                                            (try (swapper! newreal)
-                                                 (catch java.lang.IllegalStateException e
-                                                   (throw e))))))))
         listnr (fn [properties]
                  (invalidation-listener
                   (let [newval (.getValue observable)
@@ -191,18 +169,10 @@
                         no-action-valid? (find properties :no-action-val)
                         dont-swap? (= newreal (:no-action-val properties))]
                     (if (and no-action-valid? dont-swap?)
-                      (do
-                        ;;(println (format "not swapping new value %s: dirtifying!" newreal))
-                        (dirtify! var))
-                      (do
-                        ;;(when-not no-action-valid? (print ":no-action-val unspecified; "))
-                        ;;(when-not dont-swap? (print "Legit newval; "))
-                        ;;(println (format "listener swapping: %s becomes %s" newval newreal))
-                        (try (swapper! newreal)
-                             (catch java.lang.IllegalStateException e
-                               (throw e)))
-                        ;;(println "Listener done")
-                        )))))
+                      (dirtify! var)
+                      (try (swapper! newreal)
+                           (catch java.lang.IllegalStateException e
+                             (throw e)))))))
         
         ;;change-listeners (map make-change-listener target-vals)
         invalidation-listeners (map listnr target-vals)
@@ -227,24 +197,7 @@
     ;; be the same thing, such as a Color object, etc.
     (add-watch var targets-map
                (fn [_key _ref oldmap newmap]
-                 (update-targets! targets-map (get-in newmap keyvec)))
-               #_(fn [_key _ref oldmap newmap]
-                 (let [oldreal (get-in oldmap keyvec)
-                       newreal (get-in newmap keyvec)
-                       dirty? (true? (:dirty newmap))]
-                   (if (or (not= oldreal newreal)
-                           dirty?
-                           true)
-                     (do
-                       (when (not= oldreal newreal)
-                         (print "watcher: value changed;"))
-                       (when dirty?
-                         (print "watcher: dirty;"))
-                       (println "updating targets")
-                       (update-targets! targets-map newreal)
-                       ;;(undirtify! var)
-                       )
-                     (println "watcher: not updating target")))))
+                 (update-targets! targets-map (get-in newmap keyvec))))
     (when-let [vfn (:validator optionals)]
       (set-validator! var vfn))
 
@@ -254,8 +207,10 @@
         (add-listener! target property change-listener)))
 
     ;; Set var to init val and force targets anyway, so things may get triggered twice
-    (when-let [init (:init optionals)]
-      (swapper! init))))
+    ;; Be careful, as there is a distinction between an :init value deliberately set false,
+    ;; and a non-existent :init value
+    (when-not (nil? (find optionals :init))
+      (swapper! (:init optionals)))))
 
 
 

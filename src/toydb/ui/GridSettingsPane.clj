@@ -5,7 +5,7 @@
                                    lookup printexp replace-item set-exit set-prop-val!
                                    split-hyph stage]]
             [toydb.bind :refer [bind! dirtify!]]
-            [toydb.units :refer [um mm cm m km inch mil nearest distance
+            [toydb.units :refer [um mm cm m km inch mil incr decr nearest distance
                                  distance-string-converter distance-text-formatter
                                  add sub]]))
 
@@ -98,7 +98,7 @@
       (add-listener! txtfield :text (err-listener txtfield))
       (.add (.getStyleClass txtfield) "error"))))
 
-(defn spinner-value-factory
+(defn spinner-distance-value-factory
   "Returns proxy of SpinnerValueFactory.  Unit is the unit shown, one
   of um, mm, cm, m, km, mil, or inch.  init is the initial underlying
   value.  The type of this value is maintained.  For example, if unit
@@ -106,11 +106,11 @@
   display will be in mm."
   ([unit]
    (doto (proxy [javafx.scene.control.SpinnerValueFactory] []
-           (decrement [steps] (.setValue this (nearest (sub (.getValue this) 1.0) 1.0)))
-           (increment [steps] (.setValue this (nearest (add (.getValue this) 1.0) 1.0))))
+           (decrement [steps] (.setValue this (decr (.getValue this))))
+           (increment [steps] (.setValue this (incr (.getValue this)))))
      (.setConverter (distance-string-converter unit))))
   ([unit init]
-   (doto (spinner-value-factory unit)
+   (doto (spinner-distance-value-factory unit)
      (.setValue (unit init)))))
 
 (defn update-spinners!
@@ -119,46 +119,43 @@
   (let [sp-mm (lookup root (join-hyph name "sp-major-grid-spacing-mm"))
         sp-mil (lookup root (join-hyph name "sp-major-grid-spacing-mils"))
         sp-gpm (lookup root (join-hyph name "sp-minor-gpm"))
-        #_focus-listener #_(fn [spinner]
-                             (change-listener
-                              [old new]
-                              (when-not new
-                                (when-let [value-factory (.getValueFactory spinner)]
-                                  (when-let [converter (.getConverter value-factory)]
-                                    (.setValue value-factory
-                                               (.fromString converter
-                                                            (.. spinner getEditor getText))))))))
-        invlstnr (invalidation-listener
-                  ;; Force local text to update regardless of whether the underlying
-                  ;; value is the same as before
-                  (let [newvalue (.getValue observable)
-                        spinner (.getBean observable)
-                        converter (.. spinner getValueFactory getConverter)
-                        newstring (.toString converter newvalue)]
-                    (.setText (.getEditor spinner) newstring)))
 
+        ;; Define listeners directly, not with make-listener style function.
+        ;; The listener has all it needs to determine the Nodes, properties, etc.
+        invalid-listener (invalidation-listener
+                          ;; Force local text to update regardless of whether the underlying
+                          ;; value is the same as before
+                          (let [newvalue (.getValue observable)
+                                spinner (.getBean observable)
+                                converter (.. spinner getValueFactory getConverter)
+                                newstring (.toString converter newvalue)]
+                            (.setText (.getEditor spinner) newstring)))
 
-        
-        focus-listener (fn [spinner]
-                         (let [on-action (.. spinner getEditor getOnAction)]
-                           (change-listener
-                            (when-not newval
-                              (.handle on-action (javafx.event.ActionEvent.))))))
-        err-listener #(change-listener [oldval newval]
-                                       (.pseudoClassStateChanged
-                                        % ERROR-PSEUDO-CLASS (not (distance newval))))
+        ;; call TextField's on-action, same as user pressing enter
+        focus-listener (change-listener 
+                        (when-not newval
+                          (.. observable getBean getEditor
+                              getOnAction (handle (javafx.event.ActionEvent.)))))
+
+        err-listener (change-listener [oldval newval]
+                                      (.pseudoClassStateChanged
+                                       (.. observable getBean)
+                                       ERROR-PSEUDO-CLASS (not (distance newval))))
         field-fns {sp-mm mm, sp-mil mil}]
 
     (doseq [spinner [sp-mm sp-mil]]
-      (.setValueFactory spinner (spinner-value-factory (field-fns spinner)))
-      (add-listener! spinner :focused (focus-listener spinner))
-      (add-listener! spinner :value invlstnr)
+      (.setValueFactory spinner (spinner-distance-value-factory (field-fns spinner)))
+      (add-listener! spinner :focused focus-listener)
+      (add-listener! spinner :value invalid-listener)
       (.setEditable spinner true)
-
+      ;;(.. spintxt getStyleClass (add "error")) ;; not necessary?
       (let [spintxt (.getEditor spinner)]
-        (add-listener! spintxt :text (err-listener spintxt))
-        ;;(.. spintxt getStyleClass (add "error")) ;; not necessary?
-        ))))
+        (add-listener! spintxt :text err-listener )))
+
+    (doseq [spinner [sp-gpm]]
+      (.setValueFactory
+       spinner
+       (javafx.scene.control.SpinnerValueFactory$IntegerSpinnerValueFactory. 2 10))))) 
 
 (defn update-names!
   "Append name to all ids in settings-pane"
@@ -177,19 +174,32 @@
   state."
   [root name state]
   (let [lu #(lookup root (join-hyph name %))
-        tgt-mm (.getValueFactory (lu "sp-major-grid-spacing-mm"))
-        tgt-mil (.getValueFactory (lu "sp-major-grid-spacing-mils"))
-        ]
-    (def tgt-mm tgt-mm)
-    (def tgt-mil tgt-mil)
+        tgt-enmajg (lu "cb-enable-major-grid")
+        tgt-enming (lu "cb-enable-minor-grid")
+        tgt-spmm (lu "sp-major-grid-spacing-mm")
+        tgt-spmmvf (.getValueFactory tgt-spmm)
+        tgt-spmil (lu "sp-major-grid-spacing-mils")
+        tgt-spmilvf (.getValueFactory tgt-spmil)
+        tgt-spgpm (lu "sp-minor-gpm")
+        tgt-spgpmvf (.getValueFactory tgt-spgpm )]
+
     ;; Mechanically go through each one for GridSettingsPane
     ;; The init values override the settings in the fxml
-    #_(bind! :var state, :init false, :keyvec [:enable-major-grid]
-             :targets [(lu "cb-enable-major-grid")]         
-             :property :selected)
-    #_(bind! :var state, :init false, :keyvec [:enable-minor-grid]
-             :targets [(lu "cb-enable-minor-grid")]
-             :property :selected)
+
+    (bind! :var state, :init false, :keyvec [:enable-major-grid]
+           :var-fn! #(if %
+                       (swap! state assoc :enable-major-grid true)
+                       (swap! state assoc :enable-major-grid false, :enable-minor-grid false))
+           :targets {tgt-enmajg {:property :selected}
+                     tgt-spmm {:property :disable, :var-to-prop-fn not}
+                     tgt-spmil {:property :disable, :var-to-prop-fn not}})
+    (bind! :var state, :init false, :keyvec [:enable-minor-grid]
+           :var-fn! #(if % ;; enable both, avoid assoc-in for now
+                       (swap! state assoc :enable-minor-grid true, :enable-major-grid true)
+                       (swap! state assoc :enable-minor-grid false))
+           :targets {tgt-enming{:property :selected}
+                     tgt-spgpm {:property :disable,
+                                :var-to-prop-fn #(not (and (:enable-major-grid @state) %))}})
     (bind! :var state, :init (um (mm 10)), :keyvec [:major-grid-spacing-um]
            ;; var-fn could set state to nil if no-action-val is left
            ;; unspecified.  By specifying no-action-val, we let the
@@ -197,13 +207,14 @@
            ;; still trigger an update on the target nodes, which
            ;; allows targets to be filled with correct model value.
            :no-action-val nil
-           ;;:var-fn! #(swap! state assoc-in [:major-grid-spacing-um] (nearest % 0.1))
            :property :value
-           :prop-to-var-fn #(let [result (nearest (um %) 0.1)]
-                              ;;(println (format "prop-to-var-fn rounding: %s -> %s" % result))
-                              result)
-           :targets {tgt-mm {:var-to-prop-fn mm}
-                     tgt-mil {:var-to-prop-fn mil}}))
+           :prop-to-var-fn #(nearest (um %) 0.1)
+           :targets {tgt-spmmvf {:var-to-prop-fn mm}
+                     tgt-spmilvf {:var-to-prop-fn mil}})
+    (bind! :var state, :init (int 2,) :keyvec [:minor-gpm]
+             :property :value
+             :targets [tgt-spgpmvf]))
+  
   root)
 
 
@@ -216,11 +227,7 @@
                  (update-sliders! name)
                  ;;(update-textfields! name)
                  (update-spinners! name)
-                 (bind-properties! name state))
-          ;;lu #(lookup root (join-hyph name %))
-          ;;#tgt-mm (lu "tf-major-grid-spacing-mm")
-          ;;tgt-mil (lu "tf-major-grid-spacing-mils")
-]
+                 (bind-properties! name state))]
       
       root)))
 
@@ -236,7 +243,7 @@
 
 
 (defn test-spinner []
-  (let [svf (spinner-value-factory mm)
+  (let [svf (spinner-distance-value-factory mm)
         sp (javafx.scene.control.Spinner. svf)]
     (def svf svf)
     (def sp sp)
