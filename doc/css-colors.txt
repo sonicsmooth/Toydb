@@ -1,0 +1,49 @@
+-fx-base
+    -fx-background
+        -fx-text-box-border
+        -fx-shadow-highlight-color
+        -fx-text-background-color
+            -fx-selection-bar-text
+    -fx-control-inner-background
+        -fx-control-inner-background-alt
+        -fx-text-inner-color
+    -fx-color
+        -fx-box-border
+        -fx-outer-border
+        -fx-inner-border
+        -fx-inner-border-horizontal
+        -fx-inner-border-bottomup
+        -fx-body-color
+        -fx-body-color-bottomup
+        -fx-body-color-to-right
+        -fx-mark-color
+        -fx-text-base-color
+        
+    -fx-hover-base
+    -fx-pressed-base
+    
+
+    
+
+-fx-mid-text-color: #333 
+
+-fx-light-text-color:white
+
+-fx-accent: #0096C9
+    -fx-selection-bar
+        -fx-cell-focus-inner-border
+        -fx-focused-text-base-color
+            -fx-focused-mark-color
+
+    
+-fx-selection-bar-nonfocused: lightgray
+-fx-default-button: #ABD8ED
+-fx-focus-color: #039ED3
+-fx-faint-focus-color: #039ED322;
+-fx-background-color: inherit
+-fx-background-radius: inherit
+-fx-background-insets: inherit
+-fx-padding: inherit
+-fx-cell-hover-color: #CCE3F4
+-fx-bullet-border: #ACACAC
+-fx-page-indicator-hover-border: #ACCEE5
