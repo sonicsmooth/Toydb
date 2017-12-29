@@ -1,8 +1,8 @@
 (ns toydb.ui.GridSettingsPane
-  (:require [jfxutils.core :refer [add-listener! app-init change-listener get-property*
+  (:require [jfxutils.core :refer [add-listener! app-init change-listener get-property* clip
                                    get-property index-of invalidation-listener
                                    get-prop-val jfxnew join-hyph load-fxml-root
-                                   lookup printexp replace-item set-exit set-prop-val!
+                                   lookup multi-assoc-in printexp replace-item set-exit set-prop-val!
                                    split-hyph stage]]
             [toydb.bind :refer [bind! dirtify!]]
             [toydb.units :refer [um mm cm m km inch mil incr decr nearest distance
@@ -56,7 +56,8 @@
       (.setMajorTickUnit 50)
       (.setMinorTickCount 10)
       (.setShowTickMarks true)
-      (.setShowTickLabels true))
+      (.setShowTickLabels true)
+      jfxutils.core/integer-slider)
     (doto major-glw
       (.setMin 0)
       (.setMax 20)
@@ -82,21 +83,81 @@
       (.setMinorTickCount 20)
       (.setShowTickLabels true))))
 
-#_(defn update-textfields!
-  "Set up text converters"
-  [root name]
-  (let [tgt-mm (lookup root (join-hyph name "tf-major-grid-spacing-mm"))
-        tgt-mil (lookup root (join-hyph name "tf-major-grid-spacing-mils"))
-        err-listener #(change-listener [oldval newval]
-                                       (.pseudoClassStateChanged
-                                        % ERROR-PSEUDO-CLASS (not (distance newval))))
-        field-fns {tgt-mm mm, tgt-mil mil}]
-    ;; Set up text formatter on each text field
-    ;; Set up error listener so text fields format red on error
-    (doseq [txtfield [tgt-mm tgt-mil]]
-      (set-prop-val! txtfield :text-formatter (distance-text-formatter (field-fns txtfield)))
-      (add-listener! txtfield :text (err-listener txtfield))
-      (.add (.getStyleClass txtfield) "error"))))
+
+;; call TextField's on-action, same as user pressing enter
+(def txt-focus-listener
+  (change-listener
+   (when-not newval
+     (.. observable getBean getEditor
+         getOnAction (handle (javafx.event.ActionEvent.))))))
+
+
+
+(defn range-check
+  "Checks if x in between mn and mx.  If yes, then returns x.
+  Otherwise, throws an exception or returns the clipped value,
+  depending on action argument."
+  [x mn mx action]
+  (if (nil? x)
+    x
+    (if (or (> x mx) (< x mn))
+      (condp = action
+        :throw (throw (NumberFormatException.))
+        :clip (clip x mn mx)
+        :else nil)
+      x)))
+
+
+(defmacro nullable-string-converter
+  "Returns a proxy of StringConverter of the type given by numtype, eg
+  Integer, Double, etc.  The presumption is that numtype is some
+  numeric type, such that min and max can be used.  If action
+  is :clip, then the string is converted to be within min and max.  If
+  action is :throw, then nil is returned.  If min, max, and action are
+  all omitted, then a 'simple' version is returned which uses the
+  numtypet's built-in MIN_VALUE and MAX_VALUE, and which returns nil
+  with out-of-range or unparsable inputs.
+
+  TODO: Return an indicator that the number has been clipped
+
+"
+  ([numtype min max action]
+   (let [cname (str "javafx.util.converter." (name numtype) "StringConverter")
+         csym (symbol cname)
+         ssfn (fn [o]
+                [(str "nullable-" (name numtype) "-string-converter Exception in .toString from")
+                 o ", of type " `(class ~o)])]
+     `(proxy [~csym] []
+        (~'toString
+         ([] ~cname) ;; need zero-arity fn for repl display
+         ([obj#]
+          (let [~'locobj obj#] ;; need to keep obj constant for passing to ssfn
+            (try (proxy-super ~'toString ~'locobj)
+                 (catch Exception e# ;; not sure what exception might be thrown
+                   (println ~(ssfn 'locobj)))))))
+        (~'fromString [s#] (try (range-check (proxy-super ~'fromString s#) ~min ~max ~action)
+                                (catch NumberFormatException e#
+                                  nil))))))
+  ([numtype]
+   (let [num-min (fn [numtype] (symbol (str numtype "/MIN_VALUE")))
+         num-max (fn [numtype] (symbol (str numtype "/MAX_VALUE")))]
+     `(nullable-string-converter ~numtype ~(num-min numtype) ~(num-max numtype) :throw))))
+
+
+;; Keep this as template for above macro
+#_(defn nullable-integer-string-converter
+  ([min max action]
+   (proxy [javafx.util.converter.IntegerStringConverter] []
+     (toString [obj]
+       (try (proxy-super toString obj)
+            (catch Exception e ;; not sure what exception might be thrown
+              (println "Caught in nullable-integer-string-converter .toString of type" (type obj) obj))))
+     (fromString [s] (try (range-check (proxy-super fromString s) min max action)
+                          (catch NumberFormatException e
+                            nil)))))
+  ([]
+   (nullable-integer-string-converter Integer/MIN_VALUE Integer/MAX_VALUE :throw)))
+
 
 (defn spinner-distance-value-factory
   "Returns proxy of SpinnerValueFactory.  Unit is the unit shown, one
@@ -104,14 +165,57 @@
   value.  The type of this value is maintained.  For example, if unit
   is mm and init is (inch 1), then each increment wil be 1 inch, but
   display will be in mm."
-  ([unit]
+  ([unit min max]
    (doto (proxy [javafx.scene.control.SpinnerValueFactory] []
            (decrement [steps] (.setValue this (decr (.getValue this))))
            (increment [steps] (.setValue this (incr (.getValue this)))))
-     (.setConverter (distance-string-converter unit))))
+     (.setConverter (distance-string-converter unit min max))))
   ([unit init]
    (doto (spinner-distance-value-factory unit)
      (.setValue (unit init)))))
+
+(defn spinner-integer-value-factory
+  "Returns an instance of SpinnerValueFactory.IntegerSpinnerValueFactory 
+  which returns nil for an improper entry instead of throwing an exception."
+  [min max action]
+  (doto (javafx.scene.control.SpinnerValueFactory$IntegerSpinnerValueFactory. min max)
+    (.setConverter (nullable-string-converter Integer min max action))))
+
+(defn update-textfields!
+  "Set up text converters"
+  [root name]
+  (let [tgt-zppu (lookup root (join-hyph name "tf-zoom-ppu"))
+        tgt-maxz (lookup root (join-hyph name "tf-zoom-range-max"))
+        tgt-minz (lookup root (join-hyph name "tf-zoom-range-min"))
+        nlsc (fn [mn mx] (nullable-string-converter Long mn mx :clip))
+        err-listener (fn [textfield]
+                       (change-listener 
+                        (let [newval-from-string (.. textfield getTextFormatter getValueConverter (fromString newval))]
+                          (printexp newval-from-string)
+                          (.pseudoClassStateChanged
+                           textfield
+                           ERROR-PSEUDO-CLASS
+                           (nil? newval-from-string)))))]
+     
+    ;; Set up error listener so text fields format red on error
+    ;; TextFormatter can deal with exceptions from
+    ;; IntegerStringConverter when user presses enter, but
+    ;; err-listener uses the StringConverter directly, which does
+    ;; throw Exceptions, so we use the nullable-long-string-converter
+    ;; (nlsc) If nlsc gets a :clip argument, then it clips an
+    ;; out-of-range value and the text box does not become red while
+    ;; typing.  If nlsc get a :throw argument, then it returns a nil
+    ;; when given an out-of-range string.  In any case the nlsc
+    ;; returns a nil when given an unparsable string.
+
+    
+    (set-prop-val! tgt-zppu :text-formatter (javafx.scene.control.TextFormatter. (nlsc    5 200)))
+    (set-prop-val! tgt-minz :text-formatter (javafx.scene.control.TextFormatter. (nlsc -400 400)))
+    (set-prop-val! tgt-maxz :text-formatter (javafx.scene.control.TextFormatter. (nlsc -400 400)))
+
+    (add-listener! tgt-zppu :text (err-listener tgt-zppu))
+    (add-listener! tgt-minz :text (err-listener tgt-minz))
+    (add-listener! tgt-maxz :text (err-listener tgt-maxz))))
 
 (defn update-spinners!
   "Set up spinners"
@@ -120,42 +224,41 @@
         sp-mil (lookup root (join-hyph name "sp-major-grid-spacing-mils"))
         sp-gpm (lookup root (join-hyph name "sp-minor-gpm"))
 
-        ;; Define listeners directly, not with make-listener style function.
         ;; The listener has all it needs to determine the Nodes, properties, etc.
+        ;; Gets called when var changes
         invalid-listener (invalidation-listener
                           ;; Force local text to update regardless of whether the underlying
-                          ;; value is the same as before
+                          ;; value is the same as before.  Assume underlying value is always valid.
                           (let [newvalue (.getValue observable)
                                 spinner (.getBean observable)
-                                converter (.. spinner getValueFactory getConverter)
-                                newstring (.toString converter newvalue)]
-                            (.setText (.getEditor spinner) newstring)))
+                                converter (.. spinner getValueFactory getConverter)]
+                            (.setText (.getEditor spinner)
+                                      (.toString converter newvalue))))
 
-        ;; call TextField's on-action, same as user pressing enter
-        focus-listener (change-listener 
-                        (when-not newval
-                          (.. observable getBean getEditor
-                              getOnAction (handle (javafx.event.ActionEvent.)))))
-
-        err-listener (change-listener [oldval newval]
-                                      (.pseudoClassStateChanged
-                                       (.. observable getBean)
-                                       ERROR-PSEUDO-CLASS (not (distance newval))))
-        field-fns {sp-mm mm, sp-mil mil}]
+        ;; Realtime error checking
+        err-listener (fn [spinner valid?]
+                       (change-listener ;; newval is a string, converted to nil or good, no Exception
+                        (let [newval-from-string (.. spinner getValueFactory getConverter (fromString newval))]
+                          (.pseudoClassStateChanged
+                           (.getBean observable)
+                           ERROR-PSEUDO-CLASS
+                           (nil? newval-from-string)))))]
 
     (doseq [spinner [sp-mm sp-mil]]
-      (.setValueFactory spinner (spinner-distance-value-factory (field-fns spinner)))
-      (add-listener! spinner :focused focus-listener)
-      (add-listener! spinner :value invalid-listener)
       (.setEditable spinner true)
-      ;;(.. spintxt getStyleClass (add "error")) ;; not necessary?
-      (let [spintxt (.getEditor spinner)]
-        (add-listener! spintxt :text err-listener )))
+      (add-listener! spinner :focused txt-focus-listener)
+      (add-listener! spinner :value invalid-listener)
+      (add-listener! (.getEditor spinner) :text (err-listener spinner some? #_#(and % (pos? (.value %))))))
 
     (doseq [spinner [sp-gpm]]
-      (.setValueFactory
-       spinner
-       (javafx.scene.control.SpinnerValueFactory$IntegerSpinnerValueFactory. 2 10))))) 
+      (.setEditable spinner true)
+      (add-listener! spinner :focused txt-focus-listener)
+      (add-listener! spinner :value invalid-listener)
+      (add-listener! (.getEditor spinner) :text (err-listener spinner some?)))
+
+    (.setValueFactory sp-mm (spinner-distance-value-factory mm 0 1000))
+    (.setValueFactory sp-mil (spinner-distance-value-factory mil 0 (.value (mil (mm 1000)))))
+    (.setValueFactory sp-gpm (spinner-integer-value-factory (int 5) (int 10) :clip))))
 
 (defn update-names!
   "Append name to all ids in settings-pane"
@@ -166,6 +269,8 @@
   root)
 
 
+
+
 (defn bind-properties!
   "Bind control properties to clojure state.  Root is some parent Node
   of the hierarchy.  name is the common name given to all the nodes of
@@ -173,47 +278,83 @@
   branch under the root.  state is the clojure atom holding the
   state."
   [root name state]
-  (let [lu #(lookup root (join-hyph name %))
+  (let [lu (fn [id] (lookup root (join-hyph name id)))
+
+        ;; Major grid controls
         tgt-enmajg (lu "cb-enable-major-grid")
-        tgt-enming (lu "cb-enable-minor-grid")
         tgt-spmm (lu "sp-major-grid-spacing-mm")
-        tgt-spmmvf (.getValueFactory tgt-spmm)
         tgt-spmil (lu "sp-major-grid-spacing-mils")
+        tgt-spmmvf (.getValueFactory tgt-spmm)
         tgt-spmilvf (.getValueFactory tgt-spmil)
+        major-grid-enable-bindings
+        (bind! :var state, :init true, :keyvec [:enable-major-grid]
+               :var-fn! #(if % ;; enable one or disable both
+                           (swap! state assoc-in [:enable-major-grid] true)
+                           (swap! state multi-assoc-in [:enable-major-grid] false, [:enable-minor-grid] false))
+               :targets {tgt-enmajg {:property :selected}
+                         tgt-spmm {:property :disable, :var-to-prop-fn not}
+                         tgt-spmil {:property :disable, :var-to-prop-fn not}})
+
+        major-grid-spacing-bindings
+        (bind! :var state, :init (um (mm 10)), :keyvec [:major-grid-spacing-um]
+               :no-action-val nil
+               :property :value
+               ;;:validator #(pos? (.value %)) ;; protects against directly changing val in var
+               :prop-to-var-fn #(nearest (um %) 0.1)
+               :targets {tgt-spmmvf {:var-to-prop-fn mm}
+                         tgt-spmilvf {:var-to-prop-fn mil}})
+
+        ;; Minor grid controls
+        tgt-enming (lu "cb-enable-minor-grid")
         tgt-spgpm (lu "sp-minor-gpm")
-        tgt-spgpmvf (.getValueFactory tgt-spgpm )]
+        tgt-spgpmvf (.getValueFactory tgt-spgpm )
+        minor-grid-enable-bindings
+        (bind! :var state, :init true, :keyvec [:enable-minor-grid]
+               :var-fn! #(if % ;; enable both or disable the one
+                           (swap! state multi-assoc-in [:enable-minor-grid] true, [:enable-major-grid] true)
+                           (swap! state assoc-in [:enable-minor-grid] false))
+               :targets {tgt-enming{:property :selected}
+                         tgt-spgpm {:property :disable,
+                                    :var-to-prop-fn #(not (and (:enable-major-grid @state) %))}})
+        minor-gpm-bindings
+        (bind! :var state, :init (int 2,) :keyvec [:minor-gpm] ;; use int because there is no LongSpinnerValueFactory
+               :no-action-val nil
+               :property :value
+               :targets [tgt-spgpmvf])
 
-    ;; Mechanically go through each one for GridSettingsPane
-    ;; The init values override the settings in the fxml
+        ;; Zoom scale controls
+        ;; Use range-fn instead of validator
+        tgt-slzppu (lu "sl-zoom-ppu")
+        tgt-tfzppu (.getTextFormatter (lu "tf-zoom-ppu"))
+        zoom-ppu-bindings
+        (bind! :var state, :init 10, :keyvec [:zoom-ppu]
+               :property :value
+               :no-action-val nil
+               :targets {tgt-tfzppu {} ;; no prop-to-var-fn because converter returns proper value or nil
+                         tgt-slzppu {:prop-to-var-fn long}})  ;; slider returns doubles, so need to convert
 
-    (bind! :var state, :init false, :keyvec [:enable-major-grid]
-           :var-fn! #(if %
-                       (swap! state assoc :enable-major-grid true)
-                       (swap! state assoc :enable-major-grid false, :enable-minor-grid false))
-           :targets {tgt-enmajg {:property :selected}
-                     tgt-spmm {:property :disable, :var-to-prop-fn not}
-                     tgt-spmil {:property :disable, :var-to-prop-fn not}})
-    (bind! :var state, :init false, :keyvec [:enable-minor-grid]
-           :var-fn! #(if % ;; enable both, avoid assoc-in for now
-                       (swap! state assoc :enable-minor-grid true, :enable-major-grid true)
-                       (swap! state assoc :enable-minor-grid false))
-           :targets {tgt-enming{:property :selected}
-                     tgt-spgpm {:property :disable,
-                                :var-to-prop-fn #(not (and (:enable-major-grid @state) %))}})
-    (bind! :var state, :init (um (mm 10)), :keyvec [:major-grid-spacing-um]
-           ;; var-fn could set state to nil if no-action-val is left
-           ;; unspecified.  By specifying no-action-val, we let the
-           ;; binding system "do nothing" to change the state, but
-           ;; still trigger an update on the target nodes, which
-           ;; allows targets to be filled with correct model value.
-           :no-action-val nil
-           :property :value
-           :prop-to-var-fn #(nearest (um %) 0.1)
-           :targets {tgt-spmmvf {:var-to-prop-fn mm}
-                     tgt-spmilvf {:var-to-prop-fn mil}})
-    (bind! :var state, :init (int 2,) :keyvec [:minor-gpm]
-             :property :value
-             :targets [tgt-spgpmvf]))
+        
+        tgt-minz (.getTextFormatter (lu "tf-zoom-range-min"))
+        zoom-range-min-bindings
+        (bind! :var state, :init -200, :keyvec [:zoom-range-min]
+               :property :value
+               :no-action-val nil
+               :targets [tgt-minz])
+
+        tgt-maxz (.getTextFormatter (lu "tf-zoom-range-max"))
+        zoom-range-max-bindings
+        (bind! :var state, :init 200, :keyvec [:zoom-range-max]
+               :property :value
+               :no-action-val nil
+               :targets [tgt-maxz])
+
+
+        ]
+
+    (def zppu tgt-slzppu))
+
+
+
   
   root)
 
@@ -225,10 +366,9 @@
     (let [root (doto (load-fxml-root "GridSettingsPane.fxml")
                  (update-names! name)
                  (update-sliders! name)
-                 ;;(update-textfields! name)
+                 (update-textfields! name)
                  (update-spinners! name)
                  (bind-properties! name state))]
-      
       root)))
 
 

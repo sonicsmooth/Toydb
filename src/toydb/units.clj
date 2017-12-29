@@ -1,5 +1,5 @@
 (ns toydb.units
-  (require [jfxutils.core :refer [printexp]]))
+  (require [jfxutils.core :refer [printexp clip]]))
 
 
 ;;(set! *warn-on-reflection* true)
@@ -257,20 +257,27 @@
 (defn distance-string-converter
   "Returns proxy of StringConverter, using function unit, which must be
   one of um, mm, cm, m, km, mil, inch."
-  [unit]
-  (proxy [javafx.util.StringConverter] []
-    (toString
-      ([] "custom string converter")
-      ([dis] (if dis
-               (format "%.7g" (.value (unit dis)))
-               "")))
-    (fromString
-      ([s]
-       ;; Without inner hint and without outer hint, takes on either microns or user-defined units (both incorrect)
-       ;; With inner hint and without outer hint, takes on either proper units (correct) or user-defined units
-       ;; Without inner hint and with outer hint, takes on either microns converted to units (incorrect), or user-defined units converted to units (correct)
-       ;; With inner hint and with outer hint, takes on correct units with or without user-defined units
-       (unit (distance s unit))))))
+  ([unit min max]
+   (proxy [javafx.util.StringConverter] []
+     (toString
+       ([] "custom string converter")
+       ([distance] (if distance
+                     (try
+                       (format "%.7g" (.value (unit distance)))
+                       (catch NullPointerException e
+                         nil))
+                     "")))
+     (fromString
+       ([s]
+        ;; Without inner hint and without outer hint, takes on either microns or user-defined units (both incorrect)
+        ;; With inner hint and without outer hint, takes on either proper units (correct) or user-defined units
+        ;; Without inner hint and with outer hint, takes on either microns converted to units (incorrect), or user-defined units converted to units (correct)
+        ;; With inner hint and with outer hint, takes on correct units with or without user-defined units
+        (let [new-unit (unit (distance s unit))
+              new-val (if new-unit (clip (.value new-unit) min max) nil)]
+          (unit new-val))))))
+  ([unit]
+     (distance-string-converter unit Double/MIN_VALUE Double/MAX_VALUE )))
 
 (defn distance-text-formatter
   "Returns new TextFormatter using a distance converter which returns

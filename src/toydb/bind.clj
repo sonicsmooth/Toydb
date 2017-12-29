@@ -75,7 +75,7 @@
   optional.  :var and :keyvec must be specified outside the :targets
   map.  By default, each property is both a sink and a source of
   change events, but can be changed to sink only, aka :terminal.  This
-  function does not return a value.
+  function returns the args as a map.
 
   :var is the var (currently only atoms are supported). 
 
@@ -94,6 +94,12 @@
   :validator is a function which returns true when value swapped into
   var is valid, and either returns false or raises an exception
   otherwise.  This argument cannot go in the :targets map.
+
+  :range-fn is a function which returns a seq of 2 values which
+  represent the minimum and maximum valid range, inclusive.  The type
+  of value in the seq must be (min...) and (max...) comparable.  The
+  state value will be clipped to be within the min and max values of
+  this vector before being swapped in.
 
   :terminal is a bool indicating whether the property should only
   accept changes and cannot generate changes.  A ChangeListener will
@@ -165,22 +171,30 @@
                  (invalidation-listener
                   (let [newval (.getValue observable)
                         p2v (or (:prop-to-var-fn properties) identity)
+                        rngfn (:range-fn properties)
+                        ;; Conversion might throw; convert to no-action-val if so
                         newreal (p2v newval)
+                        newreal (if (and newreal rngfn)
+                                  (let [[mn mx] (rngfn)]
+                                    (max (min newreal mx) mn))
+                                  newreal)
                         no-action-valid? (find properties :no-action-val)
-                        dont-swap? (= newreal (:no-action-val properties))]
+                        dont-swap? (= newreal (:no-action-val properties))
+                        validator (or (:validator properties) (constantly true))]
                     (if (and no-action-valid? dont-swap?)
-                      (dirtify! var)
-                      (try (swapper! newreal)
-                           (catch java.lang.IllegalStateException e
-                             (throw e)))))))
+                      (dirtify! var) ;; just refresh
+                      ;; Otherwise, validate, then swap and refresh
+                      (if (validator newreal)
+                        (swapper! newreal)
+                        (dirtify! var))))))
         
         ;;change-listeners (map make-change-listener target-vals)
         invalidation-listeners (map listnr target-vals)
         ;;target-vals (map #(merge %1 {:change-listener %2}) target-vals change-listeners)
         target-vals (map #(merge %1 {:change-listener %2}) target-vals invalidation-listeners)
         targets-map (let [buncha-maps (map hash-map target-keys target-vals)]
-                      (into {} buncha-maps)) ;; returns single map
-        ]
+                      (into {} buncha-maps))] ;; returns single map
+
 
     ;; Add watch to atom to update all the objects. jfx properties
     ;; won't call change listener if the value is programmatically set
@@ -198,8 +212,8 @@
     (add-watch var targets-map
                (fn [_key _ref oldmap newmap]
                  (update-targets! targets-map (get-in newmap keyvec))))
-    (when-let [vfn (:validator optionals)]
-      (set-validator! var vfn))
+    
+    ;; Validator must be set outside this bind! call
 
     ;; For each target in tuple, add listener to property of targety
     (doseq [[target {:keys [terminal property change-listener]}] targets-map]
@@ -210,8 +224,8 @@
     ;; Be careful, as there is a distinction between an :init value deliberately set false,
     ;; and a non-existent :init value
     (when-not (nil? (find optionals :init))
-      (swapper! (:init optionals)))))
-
+      (swapper! (:init optionals)))
+    opts))
 
 
 ;; Do something to validate values when they are set externally via swap
