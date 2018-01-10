@@ -91,15 +91,17 @@
   inside the :targets map, then the one in the targets map takes
   precedence.
 
+  ;; validator not implemented... maybe it'll go away
   :validator is a function which returns true when value swapped into
   var is valid, and either returns false or raises an exception
   otherwise.  This argument cannot go in the :targets map.
 
-  :range-fn is a function which returns a seq of 2 values which
-  represent the minimum and maximum valid range, inclusive.  The type
-  of value in the seq must be (min...) and (max...) comparable.  The
-  state value will be clipped to be within the min and max values of
-  this vector before being swapped in.
+  :range-fn is a combination range-clipping and validation function,
+  called after the listener receives the new value, and after
+  prop-to-var (if it exists).  range-fn takes one argument which is
+  the proposed new value, and returns the final value to be swapped
+  in.  This fn can return nil or whatever the no-action val is, or it
+  can clip the value to be within some range, or anything else.
 
   :terminal is a bool indicating whether the property should only
   accept changes and cannot generate changes.  A ChangeListener will
@@ -171,22 +173,16 @@
                  (invalidation-listener
                   (let [newval (.getValue observable)
                         p2v (or (:prop-to-var-fn properties) identity)
-                        rngfn (:range-fn properties)
-                        ;; Conversion might throw; convert to no-action-val if so
+                        rngfn (or (:range-fn properties) identity)
                         newreal (p2v newval)
-                        newreal (if (and newreal rngfn)
-                                  (let [[mn mx] (rngfn)]
-                                    (max (min newreal mx) mn))
-                                  newreal)
+                        newreal (rngfn newreal)
                         no-action-valid? (find properties :no-action-val)
-                        dont-swap? (= newreal (:no-action-val properties))
-                        validator (or (:validator properties) (constantly true))]
+                        dont-swap? (= newreal (:no-action-val properties))]
                     (if (and no-action-valid? dont-swap?)
                       (dirtify! var) ;; just refresh
                       ;; Otherwise, validate, then swap and refresh
-                      (if (validator newreal)
-                        (swapper! newreal)
-                        (dirtify! var))))))
+                      (do (swapper! newreal)
+                          (dirtify! var))))))
         
         ;;change-listeners (map make-change-listener target-vals)
         invalidation-listeners (map listnr target-vals)

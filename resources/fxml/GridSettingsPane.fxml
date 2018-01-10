@@ -110,7 +110,7 @@
                                           <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="SOMETIMES" />
                                       </rowConstraints>
                                        <children>
-                                          <Label styleClass="label-title" text="Overal zoom (px/mm at zoom=0) " GridPane.columnSpan="3">
+                                          <Label styleClass="label-title" text="Overall zoom (px/mm at zoom=0) " GridPane.columnSpan="3">
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>

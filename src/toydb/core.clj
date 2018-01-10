@@ -185,19 +185,3 @@
   (jfxutils.core/app-init)
   (jfxutils.core/set-exit true)
   (-start *out*))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
