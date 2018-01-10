@@ -1,5 +1,5 @@
 (ns toydb.ui.GridSettingsPane
-  (:require [jfxutils.core :refer [add-listener! app-init change-listener get-property* clip
+  (:require [jfxutils.core :refer [add-listener! app-init change-listener get-property* clip event-handler
                                    get-property index-of invalidation-listener
                                    get-prop-val jfxnew join-hyph load-fxml-root
                                    lookup multi-assoc-in printexp replace-item set-exit set-prop-val!
@@ -135,16 +135,15 @@ The validation function for the var will be the same function."
   :clip-and-tell Limits the number to mn or mx, and wraps it in a vector
   false otherwise"
   ([x mn mx]
-   (and (>= x mn) (<= x mx)))
+   (if (nil? x) nil
+     (and (>= x mn) (<= x mx) x)))
   ([x mn mx action]
-   (if (nil? x)
-     x
+   (if (nil? x) nil
      (if (or (> x mx) (< x mn))
        (condp = action
          :throw (throw (NumberFormatException.))
          :clip (clip x mn mx)
-         :clip-and-tell (clip x mn mx :tellme)
-         false)
+         :clip-and-tell (clip x mn mx :tellme))
        x))))
 
 (defn distance-range-check [d mn mx & args]
@@ -161,7 +160,7 @@ The validation function for the var will be the same function."
   is :clip, then the string is converted to be within min and max.  If
   action is :throw, then nil is returned.  If min, max, and action are
   all omitted, then a 'simple' version is returned which uses the
-  numtypet's built-in MIN_VALUE and MAX_VALUE, and which returns nil
+  numtype's built-in MIN_VALUE and MAX_VALUE, and which returns nil
   with out-of-range or unparsable inputs.
 
   TODO: Return an indicator that the number has been clipped
@@ -213,9 +212,11 @@ The validation function for the var will be the same function."
 (defn spinner-integer-value-factory
   "Returns an instance of SpinnerValueFactory.IntegerSpinnerValueFactory 
   which returns nil for an improper entry instead of throwing an exception."
-  [min max action]
-  (doto (javafx.scene.control.SpinnerValueFactory$IntegerSpinnerValueFactory. min max)
-    (.setConverter (nullable-string-converter Integer min max action))))
+  [min max #_action]
+  (let [mn Integer/MIN_VALUE
+        mx Integer/MAX_VALUE]
+    (doto (javafx.scene.control.SpinnerValueFactory$IntegerSpinnerValueFactory. min max)
+      (.setConverter (nullable-string-converter Integer mn mx :throw)))))
 
 (defn setup-grid-enable-checkboxes! [state lu]
   (let [tgt-enmajg (lu "cb-enable-major-grid")
@@ -257,6 +258,17 @@ The validation function for the var will be the same function."
          textfield (.getBean observable)]
      (err-range-fn! textfield newval-from-string in-range?))))
 
+(defn enable-editing-pseudostate [textfield]
+  (event-handler [event]
+                 (let [code (.getCode event)]
+                   (when (or (.isDigitKey code)
+                             (.isKeypadKey code)
+                             (.isLetterKey code)
+                             (.isWhitespaceKey code)
+                             (= javafx.scene.input.KeyCode/BACK_SPACE code)
+                             (= javafx.scene.input.KeyCode/DELETE code))
+                     (.pseudoClassStateChanged textfield EDITING-PSEUDO-CLASS true)))))
+
 (defn setup-major-grid-spacing-spinners! [state lu]
   (let [lower-um (um 100)
         upper-um (um (mm 1000))
@@ -293,20 +305,32 @@ The validation function for the var will be the same function."
     (doseq [tgt-spx [tgt-spmm tgt-spmil]]
       (.setEditable tgt-spx true)
       (let [textfield (.getEditor tgt-spx)]
-        (add-listener! textfield :focused txt-defocus-listener)
-        (add-listener! textfield :text (err-range-listener (.. tgt-spx getValueFactory getConverter) drc))
-        (set-on-key-pressed! textfield ;; we are editing  when one of these keys is pressed
-                             (let [code (.getCode event)]
-                               (when (or (.isDigitKey code)
-                                         (.isKeypadKey code)
-                                         (.isLetterKey code)
-                                         (.isWhitespaceKey code)
-                                         (= javafx.scene.input.KeyCode/BACK_SPACE code)
-                                         (= javafx.scene.input.KeyCode/DELETE code))
-                                 (.pseudoClassStateChanged textfield EDITING-PSEUDO-CLASS true))))))))
+        (add-listener! textfield :focused txt-defocus-listener) ;; disables editing pseudostate
+        (add-listener! textfield :text (err-range-listener (.. tgt-spx getValueFactory getConverter) drc)) ;; colors red or yellow
+        (.setOnKeyPressed textfield (enable-editing-pseudostate textfield)))))) ;; enables editing pseudostate (green if not red or yellow)
+
+(defn setup-minor-grid-per-major-grid-spinner! [state lu]
+  (let [lower (int 2)  ;; use int because there is no LongSpinnerValueFactory
+        upper (int 10)
+        drc #(number-range-check % lower upper)
+        drc-clip #(number-range-check % lower upper :clip)
+        tgt-spgpmvf (spinner-integer-value-factory lower upper)
+        tgt-spgpm (doto (lu "sp-minor-gpm") (.setValueFactory tgt-spgpmvf))
+
+        minor-gpm-bindings
+        (bind! :var state, :init lower, :keyvec [:minor-gpm]
+               :no-action-val nil
+               :property :value
+               :range-fn drc-clip
+               :targets [tgt-spgpmvf])]
+
+    (.setEditable tgt-spgpm true)
+    (let [textfield (.getEditor tgt-spgpm)]
+      (add-listener! textfield :focused txt-defocus-listener)
+      (add-listener! textfield :text (err-range-listener (.. tgt-spgpm getValueFactory getConverter) drc))
+      (.setOnKeyPressed textfield (enable-editing-pseudostate textfield)))))
 
 
-(defn setup-minor-grid-per-major-grid-spinner! [state lu])
 (defn setup-zoom-level-range-text! [state lu])
 (defn setup-overall-zoom-slider-and-text! [state lu])
 (defn setup-major-grid-line-width-slider-and-text! [state lu])
@@ -329,7 +353,7 @@ The validation function for the var will be the same function."
                            textfield
                            ERROR-PSEUDO-CLASS
                            (nil? newval-from-string)))))]
-     
+ 
     ;; Set up error listener so text fields format red on error
     ;; TextFormatter can deal with exceptions from
     ;; IntegerStringConverter when user presses enter, but
@@ -416,14 +440,7 @@ The validation function for the var will be the same function."
 
 
 
-        ;;tgt-spgpm (lu "sp-minor-gpm")
-        ;;tgt-spgpmvf (.getValueFactory tgt-spgpm )
 
-        ;;minor-gpm-bindings
-        #_(bind! :var state, :init (int 2,) :keyvec [:minor-gpm] ;; use int because there is no LongSpinnerValueFactory
-               :no-action-val nil
-               :property :value
-               :targets [tgt-spgpmvf])
 
         ;; Zoom scale controls
         ;; Use range-fn instead of validator
@@ -469,8 +486,8 @@ The validation function for the var will be the same function."
       ;;(update-sliders! name)
 
       (setup-grid-enable-checkboxes! state lu)
-      (setup-major-grid-spacing-spinners! state lu )
-      ;;(setup-minor-grid-per-major-grid-spinner! name state lu)
+      (setup-major-grid-spacing-spinners! state lu)
+      (setup-minor-grid-per-major-grid-spinner! state lu)
 
       ;;(setup-zoom-level-range-text! name state lu)
       ;;(setup-overall-zoom-slider-and-text! name state lu)
