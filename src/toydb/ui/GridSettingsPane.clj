@@ -75,6 +75,15 @@ The validation function for the var will be the same function."
           "tf-minor-grid-dots-width"
           "cs-minor-grid-dots-color"])
 
+(defn update-names!
+  "Append name to all ids in settings-pane"
+  [root name]
+  (doseq [id ids]
+    (when-let [node (lookup root id)]
+      (.setId node (join-hyph name id))))
+  root)
+
+
 (defn update-sliders!
   "Set up ticks, snap"
   [root name]
@@ -84,14 +93,7 @@ The validation function for the var will be the same function."
         major-gdw (lookup root (join-hyph name  "sl-major-grid-dots-width"))
         minor-glw (lookup root (join-hyph name  "sl-minor-grid-line-width"))
         minor-gdw (lookup root (join-hyph name "sl-minor-grid-dots-width"))]
-    (doto zoom-ppu
-      (.setMin 5)
-      (.setMax 200)
-      (.setMajorTickUnit 50)
-      (.setMinorTickCount 10)
-      (.setShowTickMarks true)
-      (.setShowTickLabels true)
-      jfxutils.core/integer-slider)
+
     (doto major-glw
       (.setMin 0)
       (.setMax 20)
@@ -122,55 +124,68 @@ The validation function for the var will be the same function."
 (def txt-defocus-listener
   (change-listener
    (let [bean (.getBean observable)]
-     (.. bean getOnAction (handle (javafx.event.ActionEvent.)))
      (when (false? newval)
+       (when-let [action (.getOnAction bean)]
+         (.handle action (javafx.event.ActionEvent.)))
        (.pseudoClassStateChanged bean EDITING-PSEUDO-CLASS false)))))
 
 (defn number-range-check
   "Checks if x is between mn and mx, inclusive.  If yes, then returns x.
   If x is outside the range, then the following occurs based on the
   value of action:
+  nil            Returns nil
+  :noaction      Returns x
   :throw         Throws a NumberFormatException
   :clip          Limits the number to mn or mx
-  :clip-and-tell Limits the number to mn or mx, and wraps it in a vector
-  false otherwise"
+  :clip-and-tell Limits the number to mn or mx, and wraps it in a vector"
   ([x mn mx]
    (if (nil? x) nil
      (and (>= x mn) (<= x mx) x)))
   ([x mn mx action]
    (if (nil? x) nil
-     (if (or (> x mx) (< x mn))
-       (condp = action
-         :throw (throw (NumberFormatException.))
-         :clip (clip x mn mx)
-         :clip-and-tell (clip x mn mx :tellme))
+       (if (or (> x mx) (< x mn))
+         (condp = action
+           nil nil
+           :noaction x
+           :throw (throw (NumberFormatException.))
+           :clip (clip x mn mx)
+           :clip-and-tell (clip x mn mx :tellme))
        x))))
 
-(defn distance-range-check [d mn mx & args]
+(defn distance-range-check
   "Extracts the value from d, mn, mx and runs (number-range-check)
-  with any extra args."
-  (if d
-    (apply number-range-check (.value d) (.value mn) (.value mx) args)
-    d))
+  with any extra args.  Returns a number rather than a distance type."
+  ([d mn mx action]
+   (when d
+     (number-range-check (.value d) (.value mn) (.value mx) action)))
+  ([d mn mx]
+   (distance-range-check d mn mx nil)))
 
 (defmacro nullable-string-converter
   "Returns a proxy of StringConverter of the type given by numtype, eg
   Integer, Double, etc.  The presumption is that numtype is some
-  numeric type, such that min and max can be used.  If action
-  is :clip, then the string is converted to be within min and max.  If
-  action is :throw, then nil is returned.  If min, max, and action are
-  all omitted, then a 'simple' version is returned which uses the
+  numeric type, such that min and max can be used.  If the string is
+  convertible to numtype and is within range, then that value is
+  returned.  If it is not convertible, then nil is returned.  If it is
+  convertible but out of range, then action is taken.  In this case,
+  if action is :clip, then the value is limited to min and max.  If
+  action is :noaction, then the value is returned as is.  If action
+  is :nil, then nil is returned.  If min, max, and action are all
+  omitted, then a 'simple' version is returned which uses the
   numtype's built-in MIN_VALUE and MAX_VALUE, and which returns nil
-  with out-of-range or unparsable inputs.
-
-  TODO: Return an indicator that the number has been clipped
-"
+  with out-of-range or unparsable inputs."
   ([numtype min max action]
    (let [cname (str "javafx.util.converter." (name numtype) "StringConverter")
          csym (symbol cname)
          ssfn (fn [o]
                 [(str "nullable-" (name numtype) "-string-converter Exception in .toString from")
-                 o ", of type " `(class ~o)])]
+                 o ", of type " `(class ~o)])
+         newaction ({:noaction :noaction
+                     :nil :throw ;; :nil returns nil when out of range, but the number fn requires :throw
+                     :clip :clip
+                     ;; deliberately exclude clip-and-tell because a vector
+                     ;; cannot be converted to the numtype required by the StringConverter
+                     } action)]
      `(proxy [~csym] []
         (~'toString
          ([] ~cname) ;; need zero-arity fn for repl display
@@ -179,13 +194,13 @@ The validation function for the var will be the same function."
             (try (proxy-super ~'toString ~'locobj)
                  (catch Exception e# ;; not sure what exception might be thrown
                    (println ~(ssfn 'locobj)))))))
-        (~'fromString [s#] (try (number-range-check (proxy-super ~'fromString s#) ~min ~max ~action)
+        (~'fromString [s#] (try (number-range-check (proxy-super ~'fromString s#) ~min ~max ~newaction)
                                 (catch NumberFormatException e#
                                   nil))))))
   ([numtype]
    (let [num-min (fn [numtype] (symbol (str numtype "/MIN_VALUE")))
          num-max (fn [numtype] (symbol (str numtype "/MAX_VALUE")))]
-     `(nullable-string-converter ~numtype ~(num-min numtype) ~(num-max numtype) :throw))))
+     `(nullable-string-converter ~numtype ~(num-min numtype) ~(num-max numtype) :nil))))
 
 
 (defn spinner-distance-value-factory
@@ -210,13 +225,15 @@ The validation function for the var will be the same function."
     (distance-string-converter unit min max))))
 
 (defn spinner-integer-value-factory
-  "Returns an instance of SpinnerValueFactory.IntegerSpinnerValueFactory 
-  which returns nil for an improper entry instead of throwing an exception."
-  [min max #_action]
+  "Returns an instance of
+  SpinnerValueFactory.IntegerSpinnerValueFactory.  The spinner will
+  stay within min and max, but the number converter will return any
+  proper integer, or nil if the string is unreadable."
+  [min max]
   (let [mn Integer/MIN_VALUE
         mx Integer/MAX_VALUE]
     (doto (javafx.scene.control.SpinnerValueFactory$IntegerSpinnerValueFactory. min max)
-      (.setConverter (nullable-string-converter Integer mn mx :throw)))))
+      (.setConverter (nullable-string-converter Integer mn mx :nil)))))
 
 (defn setup-grid-enable-checkboxes! [state lu]
   (let [tgt-enmajg (lu "cb-enable-major-grid")
@@ -276,10 +293,10 @@ The validation function for the var will be the same function."
         drc #(distance-range-check (prop-to-var-fn %) lower-um upper-um)
         drc-clip #(distance-range-check (prop-to-var-fn %) lower-um upper-um :clip)
 
-        ;; Listener gets called when var changes. Force local
-        ;; text to update regardless of whether the underlying value
-        ;; is the same as before.  Assume underlying value is always
-        ;; valid.
+        ;; Listener gets called when var changes. Force local text to
+        ;; update regardless of whether the underlying value is the
+        ;; same as before, eg 10mm becomes 10000um.  Assume underlying
+        ;; value is always valid.
         invalid-listener (invalidation-listener
                           (let [newvalue (.getValue observable)
                                 spinner (.getBean observable)
@@ -319,8 +336,8 @@ The validation function for the var will be the same function."
 
         minor-gpm-bindings
         (bind! :var state, :init lower, :keyvec [:minor-gpm]
-               :no-action-val nil
                :property :value
+               :no-action-val nil
                :range-fn drc-clip
                :targets [tgt-spgpmvf])]
 
@@ -330,18 +347,54 @@ The validation function for the var will be the same function."
       (add-listener! textfield :text (err-range-listener (.. tgt-spgpm getValueFactory getConverter) drc))
       (.setOnKeyPressed textfield (enable-editing-pseudostate textfield)))))
 
+(defn simple-long-converter [lower upper]
+  (nullable-string-converter Long lower upper :noaction))
+
+(defn setup-overall-zoom-slider-and-text! [state lu]
+  (let [lower 5
+        upper 200
+        slider (lu "sl-zoom-ppu")
+        textfield (lu "tf-zoom-ppu")
+        slc (simple-long-converter lower upper)
+        formatter (javafx.scene.control.TextFormatter. slc)
+        drc #(number-range-check % lower upper)
+        drc-clip #(number-range-check % lower upper :clip)]
+    (set-prop-val! textfield :text-formatter formatter)
+
+    ;; We can't rely on the slider's clipping/limiting functionality
+    ;; since the slider doesn't let us know the setValue has been clipped
+    (let [zoom-ppu-bindings
+          (bind! :var state, :init 10, :keyvec [:zoom-ppu]
+                 :property :value
+                 :no-action-val nil
+                 :range-fn drc-clip
+                 :targets {formatter {} ;; no prop-to-var-fn because converter returns proper value or nil
+                           slider {:prop-to-var-fn long}})] ;; slider returns doubles, so need to convert
+
+      (add-listener! textfield :focused txt-defocus-listener)
+      (add-listener! textfield :text (err-range-listener (.getValueConverter formatter) drc))
+      (.setOnKeyPressed textfield (enable-editing-pseudostate textfield))
+
+      (doto slider
+        (.setMin lower)
+        (.setMax upper)
+        (.setMajorTickUnit 50)
+        (.setMinorTickCount 10)
+        (.setShowTickMarks true)
+        (.setShowTickLabels true)
+        jfxutils.core/integer-slider)))
+  )
 
 (defn setup-zoom-level-range-text! [state lu])
-(defn setup-overall-zoom-slider-and-text! [state lu])
 (defn setup-major-grid-line-width-slider-and-text! [state lu])
 (defn setup-major-grid-dot-width-slider-and-text! [state lu])
 (defn setup-minor-grid-line-width-slider-and-text! [state lu])
 (defn setup-minor-grid-dot-width-slider-and-text! [state lu])
 
-(defn update-textfields!
+#_(defn update-textfields!
   "Set up text converters"
   [root name]
-  (let [tgt-zppu (lookup root (join-hyph name "tf-zoom-ppu"))
+  (let [;;tgt-zppu (lookup root (join-hyph name "tf-zoom-ppu"))
         tgt-maxz (lookup root (join-hyph name "tf-zoom-range-max"))
         tgt-minz (lookup root (join-hyph name "tf-zoom-range-min"))
         nlsc (fn [mn mx] (nullable-string-converter Long mn mx :clip))
@@ -366,7 +419,7 @@ The validation function for the var will be the same function."
     ;; returns a nil when given an unparsable string.
 
     
-    (set-prop-val! tgt-zppu :text-formatter (javafx.scene.control.TextFormatter. (nlsc    5 200)))
+    ;;(set-prop-val! tgt-zppu :text-formatter (javafx.scene.control.TextFormatter. (nlsc    5 200)))
     (set-prop-val! tgt-minz :text-formatter (javafx.scene.control.TextFormatter. (nlsc -400 400)))
     (set-prop-val! tgt-maxz :text-formatter (javafx.scene.control.TextFormatter. (nlsc -400 400)))
 
@@ -374,57 +427,8 @@ The validation function for the var will be the same function."
     (add-listener! tgt-minz :text (err-listener tgt-minz))
     (add-listener! tgt-maxz :text (err-listener tgt-maxz))))
 
-(defn update-spinners!
-  "Set up spinners"
-  [root name]
-  (let [;;sp-mm (lookup root (join-hyph name "sp-major-grid-spacing-mm"))
-        ;;sp-mil (lookup root (join-hyph name "sp-major-grid-spacing-mils"))
-        sp-gpm (lookup root (join-hyph name "sp-minor-gpm"))
-
-        ;; The listener has all it needs to determine the Nodes, properties, etc.
-        ;; Gets called when var changes
-        invalid-listener (invalidation-listener
-                          ;; Force local text to update regardless of whether the underlying
-                          ;; value is the same as before.  Assume underlying value is always valid.
-                          (let [newvalue (.getValue observable)
-                                spinner (.getBean observable)
-                                converter (.. spinner getValueFactory getConverter)]
-                            (.setText (.getEditor spinner)
-                                      (.toString converter newvalue))))
-
-        ;; Realtime error checking
-        err-listener (fn [spinner valid?]
-                       (change-listener ;; newval is a string, converted to nil or good, no Exception
-                        (let [newval-from-string (.. spinner getValueFactory getConverter (fromString newval))]
-                          (.pseudoClassStateChanged
-                           (.getBean observable)
-                           ERROR-PSEUDO-CLASS
-                           (nil? newval-from-string)))))]
-
-    #_(doseq [spinner [sp-mm sp-mil]]
-      (.setEditable spinner true)
-      (add-listener! spinner :focused txt-focus-listener)
-      (add-listener! spinner :value invalid-listener)
-      (add-listener! (.getEditor spinner) :text (err-listener spinner some? #_#(and % (pos? (.value %))))))
 
 
-    (doseq [spinner [sp-gpm]]
-      (.setEditable spinner true)
-      (add-listener! spinner :focused txt-focus-listener)
-      (add-listener! spinner :value invalid-listener)
-      (add-listener! (.getEditor spinner) :text (err-listener spinner some?)))
-
-    ;;(.setValueFactory sp-mm (spinner-distance-value-factory mm 0 1000))
-    ;;(.setValueFactory sp-mil (spinner-distance-value-factory mil 0 (.value (mil (mm 1000)))))
-    (.setValueFactory sp-gpm (spinner-integer-value-factory (int 5) (int 10) :clip))))
-
-(defn update-names!
-  "Append name to all ids in settings-pane"
-  [root name]
-  (doseq [id ids]
-    (when-let [node (lookup root id)]
-      (.setId node (join-hyph name id))))
-  root)
 
 
 
@@ -437,21 +441,6 @@ The validation function for the var will be the same function."
   state."
   [root name state]
   (let [lu (fn [id] (lookup root (join-hyph name id)))
-
-
-
-
-
-        ;; Zoom scale controls
-        ;; Use range-fn instead of validator
-        tgt-slzppu (lu "sl-zoom-ppu")
-        tgt-tfzppu (.getTextFormatter (lu "tf-zoom-ppu"))
-        zoom-ppu-bindings
-        (bind! :var state, :init 10, :keyvec [:zoom-ppu]
-               :property :value
-               :no-action-val nil
-               :targets {tgt-tfzppu {} ;; no prop-to-var-fn because converter returns proper value or nil
-                         tgt-slzppu {:prop-to-var-fn long}})  ;; slider returns doubles, so need to convert
 
         
         tgt-minz (.getTextFormatter (lu "tf-zoom-range-min"))
@@ -471,7 +460,7 @@ The validation function for the var will be the same function."
 
         ]
 
-    (def zppu tgt-slzppu))
+)
   
   root)
 
@@ -488,14 +477,14 @@ The validation function for the var will be the same function."
       (setup-grid-enable-checkboxes! state lu)
       (setup-major-grid-spacing-spinners! state lu)
       (setup-minor-grid-per-major-grid-spinner! state lu)
+      (setup-overall-zoom-slider-and-text! state lu)
+      ;;(setup-zoom-level-range-text! state lu)
+      
 
-      ;;(setup-zoom-level-range-text! name state lu)
-      ;;(setup-overall-zoom-slider-and-text! name state lu)
-
-      ;;(setup-major-grid-line-width-slider-and-text! name state lu )
-      ;;(setup-major-grid-dot-width-slider-and-text! name state lu)
-      ;;(setup-minor-grid-line-width-slider-and-text! name state lu)
-      ;;(setup-minor-grid-dot-width-slider-and-text! name state lu)
+      ;;(setup-major-grid-line-width-slider-and-text! state lu )
+      ;;(setup-major-grid-dot-width-slider-and-text! state lu)
+      ;;(setup-minor-grid-line-width-slider-and-text! state lu)
+      ;;(setup-minor-grid-dot-width-slider-and-text! state lu)
 
                  
       ;;(update-textfields! name)
