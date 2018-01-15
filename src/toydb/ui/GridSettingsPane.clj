@@ -224,7 +224,7 @@ The validation function for the var will be the same function."
    (spinner-distance-value-factory
     (distance-string-converter unit min max))))
 
-(defn spinner-integer-value-factory
+(defn integer-spinner-value-factory
   "Returns an instance of
   SpinnerValueFactory.IntegerSpinnerValueFactory.  The spinner will
   stay within min and max, but the number converter will return any
@@ -286,12 +286,39 @@ The validation function for the var will be the same function."
                              (= javafx.scene.input.KeyCode/DELETE code))
                      (.pseudoClassStateChanged textfield EDITING-PSEUDO-CLASS true)))))
 
+(defn setup-number-textfield! 
+  "Sets up properties and listeners on textfield so it shows green
+  while editing proper numerical values, yellow while editing
+  out-of-range values, and red while editing nonparsable text.
+  textfield is self-described.  Lower and upper set the valid range.
+  convspec is either an instance of a StringConverter, or a numeric
+  Type such as Long.  Rng is the range check function. Returns
+  textfield."
+  ([textfield cnvspec rngfn]
+   (let [numtype? (not (instance? javafx.util.StringConverter cnvspec))
+         converter (condp = cnvspec
+                     Integer (nullable-string-converter Integer) ;; because it's a macro...
+                     Long (nullable-string-converter Long)
+                     Double (nullable-string-converter Double)
+                     cnvspec)
+         formatter (and numtype? (javafx.scene.control.TextFormatter. converter))]
+     (when numtype?
+       (set-prop-val! textfield :text-formatter formatter))
+     (add-listener! textfield :focused txt-defocus-listener)
+     (add-listener! textfield :text (err-range-listener converter rngfn))
+     (.setOnKeyPressed textfield (enable-editing-pseudostate textfield))
+     textfield))
+  ([textfield cnvspec lower upper]
+   (let [rngfn #(number-range-check % lower upper)]
+     (setup-number-textfield! textfield cnvspec rngfn))))
+
+
 (defn setup-major-grid-spacing-spinners! [state lu]
-  (let [lower-um (um 100)
-        upper-um (um (mm 1000))
+  (let [lower (um 100)
+        upper (um (mm 1000))
         prop-to-var-fn #(nearest (um %) 0.1)
-        drc #(distance-range-check (prop-to-var-fn %) lower-um upper-um)
-        drc-clip #(distance-range-check (prop-to-var-fn %) lower-um upper-um :clip)
+        drc #(distance-range-check (prop-to-var-fn %) lower upper)
+        drc-clip #(distance-range-check (prop-to-var-fn %) lower upper :clip)
 
         ;; Listener gets called when var changes. Force local text to
         ;; update regardless of whether the underlying value is the
@@ -307,162 +334,92 @@ The validation function for the var will be the same function."
         ;; Valid range is not checked in value factory
         tgt-spmmvf (spinner-distance-value-factory mm)
         tgt-spmilvf (spinner-distance-value-factory mil)
+        tgt-spmm (lu "sp-major-grid-spacing-mm")
+        tgt-spmil (lu "sp-major-grid-spacing-mils")]
 
-        tgt-spmm (doto (lu "sp-major-grid-spacing-mm") (.setValueFactory tgt-spmmvf))
-        tgt-spmil (doto (lu "sp-major-grid-spacing-mils") (.setValueFactory tgt-spmilvf))
-        major-grid-spacing-bindings
-        (bind! :var state, :init (um (mm 10)), :keyvec [:major-grid-spacing-um]
-               :no-action-val nil
-               :property :value
-               :range-fn #(um (drc-clip %))
-               :prop-to-var-fn prop-to-var-fn
-               :targets {tgt-spmmvf {:var-to-prop-fn mm}
-                         tgt-spmilvf {:var-to-prop-fn mil}})]
+    (.setValueFactory tgt-spmm tgt-spmmvf)
+    (.setValueFactory tgt-spmil tgt-spmilvf)
+    (doseq [tgt [tgt-spmm tgt-spmil]]
+      (.setEditable tgt true)
+      (add-listener! tgt :value invalid-listener)
+      (setup-number-textfield! (.getEditor tgt) (.. tgt getValueFactory getConverter) drc))
 
-    (doseq [tgt-spx [tgt-spmm tgt-spmil]]
-      (.setEditable tgt-spx true)
-      (let [textfield (.getEditor tgt-spx)]
-        (add-listener! textfield :focused txt-defocus-listener) ;; disables editing pseudostate
-        (add-listener! textfield :text (err-range-listener (.. tgt-spx getValueFactory getConverter) drc)) ;; colors red or yellow
-        (.setOnKeyPressed textfield (enable-editing-pseudostate textfield)))))) ;; enables editing pseudostate (green if not red or yellow)
+    (bind! :var state, :init (um (mm 10)), :keyvec [:major-grid-spacing-um]
+           :no-action-val nil
+           :property :value
+           :range-fn #(um (drc-clip %))
+           :prop-to-var-fn prop-to-var-fn
+           :targets {tgt-spmmvf {:var-to-prop-fn mm}
+                     tgt-spmilvf {:var-to-prop-fn mil}})))
 
 (defn setup-minor-grid-per-major-grid-spinner! [state lu]
-  (let [lower (int 2)  ;; use int because there is no LongSpinnerValueFactory
+  (let [lower (int 2) ;; use int because there is no LongSpinnerValueFactory
         upper (int 10)
-        drc #(number-range-check % lower upper)
-        drc-clip #(number-range-check % lower upper :clip)
-        tgt-spgpmvf (spinner-integer-value-factory lower upper)
-        tgt-spgpm (doto (lu "sp-minor-gpm") (.setValueFactory tgt-spgpmvf))
-
-        minor-gpm-bindings
-        (bind! :var state, :init lower, :keyvec [:minor-gpm]
-               :property :value
-               :no-action-val nil
-               :range-fn drc-clip
-               :targets [tgt-spgpmvf])]
-
+        tgt-spgpmvf (integer-spinner-value-factory lower upper)
+        tgt-spgpm (doto (lu "sp-minor-gpm") (.setValueFactory tgt-spgpmvf))]
     (.setEditable tgt-spgpm true)
-    (let [textfield (.getEditor tgt-spgpm)]
-      (add-listener! textfield :focused txt-defocus-listener)
-      (add-listener! textfield :text (err-range-listener (.. tgt-spgpm getValueFactory getConverter) drc))
-      (.setOnKeyPressed textfield (enable-editing-pseudostate textfield)))))
-
-(defn simple-long-converter [lower upper]
-  (nullable-string-converter Long lower upper :noaction))
+    (setup-number-textfield! (.getEditor tgt-spgpm) (.getConverter tgt-spgpmvf) lower upper)
+    (bind! :var state, :init lower, :keyvec [:minor-gpm]
+           :property :value
+           :no-action-val nil
+           :range-fn #(number-range-check % lower upper :clip)
+           :targets [tgt-spgpmvf])  ))
 
 (defn setup-overall-zoom-slider-and-text! [state lu]
   (let [lower 5
         upper 200
         slider (lu "sl-zoom-ppu")
-        textfield (lu "tf-zoom-ppu")
-        slc (simple-long-converter lower upper)
-        formatter (javafx.scene.control.TextFormatter. slc)
-        drc #(number-range-check % lower upper)
-        drc-clip #(number-range-check % lower upper :clip)]
-    (set-prop-val! textfield :text-formatter formatter)
+        textfield (lu "tf-zoom-ppu")]
+    (setup-number-textfield! textfield Long lower upper)
+    (doto slider
+      (.setMin lower)
+      (.setMax upper)
+      (.setMajorTickUnit 50)
+      (.setMinorTickCount 10)
+      (.setShowTickMarks true)
+      (.setShowTickLabels true)
+      jfxutils.core/integer-slider)
 
     ;; We can't rely on the slider's clipping/limiting functionality
     ;; since the slider doesn't let us know the setValue has been clipped
-    (let [zoom-ppu-bindings
-          (bind! :var state, :init 10, :keyvec [:zoom-ppu]
-                 :property :value
-                 :no-action-val nil
-                 :range-fn drc-clip
-                 :targets {formatter {} ;; no prop-to-var-fn because converter returns proper value or nil
-                           slider {:prop-to-var-fn long}})] ;; slider returns doubles, so need to convert
+    (bind! :var state, :init 10, :keyvec [:zoom-ppu]
+           :property :value
+           :no-action-val nil
+           :range-fn #(number-range-check % lower upper :clip)
+           :targets {(get-prop-val textfield :text-formatter) {} ;; no prop-to-var-fn because converter returns proper value or nil
+                     slider {:prop-to-var-fn long}}))) ;; slider returns doubles, so need to convert
 
-      (add-listener! textfield :focused txt-defocus-listener)
-      (add-listener! textfield :text (err-range-listener (.getValueConverter formatter) drc))
-      (.setOnKeyPressed textfield (enable-editing-pseudostate textfield))
+(defn setup-zoom-level-range-text! [state lu]
+  (let [minlower -400
+        mininit -200
+        minupper 0
+        maxlower 0
+        maxinit 200
+        maxupper 400
+        max-textfield (lu "tf-zoom-range-max")
+        min-textfield (lu "tf-zoom-range-min")]
 
-      (doto slider
-        (.setMin lower)
-        (.setMax upper)
-        (.setMajorTickUnit 50)
-        (.setMinorTickCount 10)
-        (.setShowTickMarks true)
-        (.setShowTickLabels true)
-        jfxutils.core/integer-slider)))
-  )
+    (setup-number-textfield! min-textfield Long minlower minupper)
+    (setup-number-textfield! max-textfield Long maxlower maxupper)
 
-(defn setup-zoom-level-range-text! [state lu])
+    (bind! :var state, :init mininit, :keyvec [:zoom-range-min]
+           :property :value
+           :no-action-val nil
+           :range-fn #(number-range-check % minlower minupper :clip)
+           :targets [(get-prop-val min-textfield :text-formatter)])
+    
+    (bind! :var state, :init maxinit, :keyvec [:zoom-range-max]
+           :property :value
+           :no-action-val nil
+           :range-fn #(number-range-check % maxlower maxupper :clip)
+           :targets [(get-prop-val max-textfield :text-formatter)])))
+
 (defn setup-major-grid-line-width-slider-and-text! [state lu])
 (defn setup-major-grid-dot-width-slider-and-text! [state lu])
 (defn setup-minor-grid-line-width-slider-and-text! [state lu])
 (defn setup-minor-grid-dot-width-slider-and-text! [state lu])
 
-#_(defn update-textfields!
-  "Set up text converters"
-  [root name]
-  (let [;;tgt-zppu (lookup root (join-hyph name "tf-zoom-ppu"))
-        tgt-maxz (lookup root (join-hyph name "tf-zoom-range-max"))
-        tgt-minz (lookup root (join-hyph name "tf-zoom-range-min"))
-        nlsc (fn [mn mx] (nullable-string-converter Long mn mx :clip))
-        err-listener (fn [textfield]
-                       (change-listener 
-                        (let [newval-from-string (.. textfield getTextFormatter getValueConverter (fromString newval))]
-                          (printexp newval-from-string)
-                          (.pseudoClassStateChanged
-                           textfield
-                           ERROR-PSEUDO-CLASS
-                           (nil? newval-from-string)))))]
- 
-    ;; Set up error listener so text fields format red on error
-    ;; TextFormatter can deal with exceptions from
-    ;; IntegerStringConverter when user presses enter, but
-    ;; err-listener uses the StringConverter directly, which does
-    ;; throw Exceptions, so we use the nullable-long-string-converter
-    ;; (nlsc) If nlsc gets a :clip argument, then it clips an
-    ;; out-of-range value and the text box does not become red while
-    ;; typing.  If nlsc get a :throw argument, then it returns a nil
-    ;; when given an out-of-range string.  In any case the nlsc
-    ;; returns a nil when given an unparsable string.
 
-    
-    ;;(set-prop-val! tgt-zppu :text-formatter (javafx.scene.control.TextFormatter. (nlsc    5 200)))
-    (set-prop-val! tgt-minz :text-formatter (javafx.scene.control.TextFormatter. (nlsc -400 400)))
-    (set-prop-val! tgt-maxz :text-formatter (javafx.scene.control.TextFormatter. (nlsc -400 400)))
-
-    (add-listener! tgt-zppu :text (err-listener tgt-zppu))
-    (add-listener! tgt-minz :text (err-listener tgt-minz))
-    (add-listener! tgt-maxz :text (err-listener tgt-maxz))))
-
-
-
-
-
-
-
-(defn bind-properties!
-  "Bind control properties to clojure state.  Root is some parent Node
-  of the hierarchy.  name is the common name given to all the nodes of
-  a given branch to distinguish them from an otherwise identical
-  branch under the root.  state is the clojure atom holding the
-  state."
-  [root name state]
-  (let [lu (fn [id] (lookup root (join-hyph name id)))
-
-        
-        tgt-minz (.getTextFormatter (lu "tf-zoom-range-min"))
-        zoom-range-min-bindings
-        (bind! :var state, :init -200, :keyvec [:zoom-range-min]
-               :property :value
-               :no-action-val nil
-               :targets [tgt-minz])
-
-        tgt-maxz (.getTextFormatter (lu "tf-zoom-range-max"))
-        zoom-range-max-bindings
-        (bind! :var state, :init 200, :keyvec [:zoom-range-max]
-               :property :value
-               :no-action-val nil
-               :targets [tgt-maxz])
-
-
-        ]
-
-)
-  
-  root)
 
 
 
@@ -472,13 +429,12 @@ The validation function for the var will be the same function."
     (let [root (doto (load-fxml-root "GridSettingsPane.fxml"))
           lu (fn [id] (lookup root (join-hyph name id)))]
       (update-names! root name)
-      ;;(update-sliders! name)
 
       (setup-grid-enable-checkboxes! state lu)
       (setup-major-grid-spacing-spinners! state lu)
       (setup-minor-grid-per-major-grid-spinner! state lu)
       (setup-overall-zoom-slider-and-text! state lu)
-      ;;(setup-zoom-level-range-text! state lu)
+      (setup-zoom-level-range-text! state lu)
       
 
       ;;(setup-major-grid-line-width-slider-and-text! state lu )
