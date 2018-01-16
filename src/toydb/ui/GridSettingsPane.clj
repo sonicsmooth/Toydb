@@ -62,18 +62,18 @@ The validation function for the var will be the same function."
           "tf-major-grid-line-width"
           "cs-major-grid-line-color"
           "cb-major-grid-dots-visible"
-          "sl-major-grid-dots-width"
-          "tf-major-grid-dots-width"
-          "cs-major-grid-dots-color"
+          "sl-major-grid-dot-width"
+          "tf-major-grid-dot-width"
+          "cs-major-grid-dot-color"
           "cb-minor-grid-snap-to"
           "cb-minor-grid-lines-visible"
           "sl-minor-grid-line-width"
           "tf-minor-grid-line-width"
           "cs-minor-grid-line-color"
           "cb-minor-grid-dots-visible"
-          "sl-minor-grid-dots-width"
-          "tf-minor-grid-dots-width"
-          "cs-minor-grid-dots-color"])
+          "sl-minor-grid-dot-width"
+          "tf-minor-grid-dot-width"
+          "cs-minor-grid-dot-color"])
 
 (defn update-names!
   "Append name to all ids in settings-pane"
@@ -88,24 +88,12 @@ The validation function for the var will be the same function."
   "Set up ticks, snap"
   [root name]
   (let [;;minor-gpm (lookup root (join-hyph name "sl-minor-gpm"))
-        zoom-ppu (lookup root (join-hyph name "sl-zoom-ppu"))
-        major-glw (lookup root (join-hyph name "sl-major-grid-line-width"))
-        major-gdw (lookup root (join-hyph name  "sl-major-grid-dots-width"))
+        ;;zoom-ppu (lookup root (join-hyph name "sl-zoom-ppu"))
+        ;;major-glw (lookup root (join-hyph name "sl-major-grid-line-width"))
+        ;;major-gdw (lookup root (join-hyph name  "sl-major-grid-dots-width"))
         minor-glw (lookup root (join-hyph name  "sl-minor-grid-line-width"))
         minor-gdw (lookup root (join-hyph name "sl-minor-grid-dots-width"))]
 
-    (doto major-glw
-      (.setMin 0)
-      (.setMax 20)
-      (.setMajorTickUnit 1)
-      (.setMinorTickCount 20)
-      (.setShowTickLabels true))
-    (doto major-gdw
-      (.setMin 0)
-      (.setMax 20)
-      (.setMajorTickUnit 1)
-      (.setMinorTickCount 20)
-      (.setShowTickLabels true))
     (doto minor-glw
       (.setMin 0)
       (.setMax 20)
@@ -178,8 +166,8 @@ The validation function for the var will be the same function."
    (let [cname (str "javafx.util.converter." (name numtype) "StringConverter")
          csym (symbol cname)
          ssfn (fn [o]
-                [(str "nullable-" (name numtype) "-string-converter Exception in .toString from")
-                 o ", of type " `(class ~o)])
+                [(str "nullable-" (name numtype) "-string-converter Exception in .toString from \"")
+                 o "\", of type " `(class ~o)])
          newaction ({:noaction :noaction
                      :nil :throw ;; :nil returns nil when out of range, but the number fn requires :throw
                      :clip :clip
@@ -375,7 +363,7 @@ The validation function for the var will be the same function."
       (.setMin lower)
       (.setMax upper)
       (.setMajorTickUnit 50)
-      (.setMinorTickCount 10)
+      (.setMinorTickCount 9)
       (.setShowTickMarks true)
       (.setShowTickLabels true)
       jfxutils.core/integer-slider)
@@ -414,13 +402,105 @@ The validation function for the var will be the same function."
            :range-fn #(number-range-check % maxlower maxupper :clip)
            :targets [(get-prop-val max-textfield :text-formatter)])))
 
-(defn setup-major-grid-line-width-slider-and-text! [state lu])
-(defn setup-major-grid-dot-width-slider-and-text! [state lu])
-(defn setup-minor-grid-line-width-slider-and-text! [state lu])
-(defn setup-minor-grid-dot-width-slider-and-text! [state lu])
+(defn setup-major-grid-line-width-slider-and-text! [state lu]
+  (let [lower 0.1
+        upper 20.0
+        slider (lu "sl-major-grid-line-width")
+        textfield (lu "tf-major-grid-line-width")]
+    (setup-number-textfield! textfield Double lower upper)
+    (doto slider
+      (.setMin lower)
+      (.setMax upper)
+      (.setMajorTickUnit 5)
+      (.setMinorTickCount 3)
+      (.setShowTickMarks true)
+      (.setShowTickLabels true)
+      (.setBlockIncrement 1.0)
+      (jfxutils.core/decimal-slider 0.25))
 
+    ;; We can't rely on the slider's clipping/limiting functionality
+    ;; since the slider doesn't let us know the setValue has been clipped
+    (bind! :var state, :init 1.00, :keyvec [:major-glw]
+           :property :value
+           :no-action-val nil
+           :range-fn #(number-range-check % lower upper :clip)
+           :targets [(get-prop-val textfield :text-formatter)
+                     slider])))
 
+(defn setup-major-grid-dot-width-slider-and-text! [state lu]
+  (let [lower 0.1
+        upper 20.0
+        slider (lu "sl-major-grid-dot-width")
+        textfield (lu "tf-major-grid-dot-width")]
+    (setup-number-textfield! textfield Double lower upper)
+    (doto slider
+      (.setMin lower)
+      (.setMax upper)
+      (.setMajorTickUnit 5)
+      (.setMinorTickCount 3)
+      (.setShowTickMarks true)
+      (.setShowTickLabels true)
+      (.setBlockIncrement 1.0)
+      (jfxutils.core/decimal-slider 0.25))
 
+    ;; We can't rely on the slider's clipping/limiting functionality
+    ;; since the slider doesn't let us know the setValue has been clipped
+    (bind! :var state, :init 1.00, :keyvec [:major-gdw]
+           :property :value
+           :no-action-val nil
+           :range-fn #(number-range-check % lower upper :clip)
+           :targets [(get-prop-val textfield :text-formatter)
+                     slider])))
+
+(defn setup-minor-grid-line-width-slider-and-text! [state lu]
+  (let [lower 0.1
+        upper 20.0
+        slider (lu "sl-minor-grid-line-width")
+        textfield (lu "tf-minor-grid-line-width")]
+    (setup-number-textfield! textfield Double lower upper)
+    (doto slider
+      (.setMin lower)
+      (.setMax upper)
+      (.setMajorTickUnit 5)
+      (.setMinorTickCount 3)
+      (.setShowTickMarks true)
+      (.setShowTickLabels true)
+      (.setBlockIncrement 1.0)
+      (jfxutils.core/decimal-slider 0.25))
+
+    ;; We can't rely on the slider's clipping/limiting functionality
+    ;; since the slider doesn't let us know the setValue has been clipped
+    (bind! :var state, :init 1.00, :keyvec [:minor-glw]
+           :property :value
+           :no-action-val nil
+           :range-fn #(number-range-check % lower upper :clip)
+           :targets [(get-prop-val textfield :text-formatter)
+                     slider])))
+
+(defn setup-minor-grid-dot-width-slider-and-text! [state lu]
+  (let [lower 0.1
+        upper 20.0
+        slider (lu "sl-minor-grid-dot-width")
+        textfield (lu "tf-minor-grid-dot-width")]
+    (setup-number-textfield! textfield Double lower upper)
+    (doto slider
+      (.setMin lower)
+      (.setMax upper)
+      (.setMajorTickUnit 5)
+      (.setMinorTickCount 3)
+      (.setShowTickMarks true)
+      (.setShowTickLabels true)
+      (.setBlockIncrement 1.0)
+      (jfxutils.core/decimal-slider 0.25))
+
+    ;; We can't rely on the slider's clipping/limiting functionality
+    ;; since the slider doesn't let us know the setValue has been clipped
+    (bind! :var state, :init 1.00, :keyvec [:minor-gdw]
+           :property :value
+           :no-action-val nil
+           :range-fn #(number-range-check % lower upper :clip)
+           :targets [(get-prop-val textfield :text-formatter)
+                     slider])))
 
 
 (defn GridSettingsPane [name]
@@ -436,16 +516,11 @@ The validation function for the var will be the same function."
       (setup-overall-zoom-slider-and-text! state lu)
       (setup-zoom-level-range-text! state lu)
       
+      (setup-major-grid-line-width-slider-and-text! state lu )
+      (setup-major-grid-dot-width-slider-and-text! state lu)
+      (setup-minor-grid-line-width-slider-and-text! state lu)
+      (setup-minor-grid-dot-width-slider-and-text! state lu)
 
-      ;;(setup-major-grid-line-width-slider-and-text! state lu )
-      ;;(setup-major-grid-dot-width-slider-and-text! state lu)
-      ;;(setup-minor-grid-line-width-slider-and-text! state lu)
-      ;;(setup-minor-grid-dot-width-slider-and-text! state lu)
-
-                 
-      ;;(update-textfields! name)
-      ;;(update-spinners! name)
-      ;;(bind-properties! name state)
       (def root root)
       root)))
 

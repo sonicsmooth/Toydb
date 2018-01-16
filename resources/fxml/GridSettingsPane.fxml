@@ -199,8 +199,8 @@
                            <children>
                               <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
                                  <children>
-                                    <Slider id="sl-major-grid-dots-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
-                                    <TextField id="tf-major-grid-dots-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                    <Slider id="sl-major-grid-dot-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-major-grid-dot-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
                                  </children>
                               </HBox>
                            </children>
@@ -210,7 +210,7 @@
                         </VBox>
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.columnIndex="2" GridPane.rowIndex="8">
                            <children>
-                              <ColorPicker id="cs-major-grid-dots-color" />
+                              <ColorPicker id="cs-major-grid-dot-color" />
                            </children>
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
@@ -228,7 +228,7 @@
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
-                        <Label styleClass="label-title" text="Dots color" GridPane.columnIndex="2" GridPane.rowIndex="7">
+                        <Label styleClass="label-title" text="Dot color" GridPane.columnIndex="2" GridPane.rowIndex="7">
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
@@ -294,8 +294,8 @@
                            <children>
                               <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
                                  <children>
-                                    <Slider id="sl-minor-grid-dots-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
-                                    <TextField id="tf-minor-grid-dots-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                    <Slider id="sl-minor-grid-dot-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-minor-grid-dot-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
                                  </children>
                               </HBox>
                            </children>
