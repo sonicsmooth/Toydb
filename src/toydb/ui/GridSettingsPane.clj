@@ -84,29 +84,6 @@ The validation function for the var will be the same function."
   root)
 
 
-(defn update-sliders!
-  "Set up ticks, snap"
-  [root name]
-  (let [;;minor-gpm (lookup root (join-hyph name "sl-minor-gpm"))
-        ;;zoom-ppu (lookup root (join-hyph name "sl-zoom-ppu"))
-        ;;major-glw (lookup root (join-hyph name "sl-major-grid-line-width"))
-        ;;major-gdw (lookup root (join-hyph name  "sl-major-grid-dots-width"))
-        minor-glw (lookup root (join-hyph name  "sl-minor-grid-line-width"))
-        minor-gdw (lookup root (join-hyph name "sl-minor-grid-dots-width"))]
-
-    (doto minor-glw
-      (.setMin 0)
-      (.setMax 20)
-      (.setMajorTickUnit 1)
-      (.setMinorTickCount 20)
-      (.setShowTickLabels true))
-    (doto minor-gdw
-      (.setMin 0)
-      (.setMax 20)
-      (.setMajorTickUnit 1)
-      (.setMinorTickCount 20)
-      (.setShowTickLabels true))))
-
 
 ;; call TextField's on-action, same as user pressing enter
 (def txt-defocus-listener
@@ -191,7 +168,7 @@ The validation function for the var will be the same function."
      `(nullable-string-converter ~numtype ~(num-min numtype) ~(num-max numtype) :nil))))
 
 
-(defn spinner-distance-value-factory
+(defn distance-spinner-value-factory
   "Returns proxy of SpinnerValueFactory.  Unit is the unit shown, one
   of um, mm, cm, m, km, mil, or inch.  init is the initial underlying
   value.  The type of this value is maintained.  For example, if unit
@@ -206,10 +183,10 @@ The validation function for the var will be the same function."
        (doto factory (.setConverter converter-or-unit))
        (doto factory (.setConverter (distance-string-converter converter-or-unit))))))
   ([unit init]
-     (doto (spinner-distance-value-factory unit)
+     (doto (distance-spinner-value-factory unit)
        (.setValue (unit init))))
   ([unit min max]
-   (spinner-distance-value-factory
+   (distance-spinner-value-factory
     (distance-string-converter unit min max))))
 
 (defn integer-spinner-value-factory
@@ -247,21 +224,15 @@ The validation function for the var will be the same function."
                          tgt-spgpm {:property :disable,
                                     :var-to-prop-fn #(not (and (:enable-major-grid @state) %))}})]))
 
-(defn err-range-fn! [textfield newval in-range?]
-  "Sets the pseudoclass states of textfield for error and in-range.
-   For error, it checks wether newval is nil.  For in-range, it
-   evaluates newval with in-range?"
-  (.pseudoClassStateChanged textfield ERROR-PSEUDO-CLASS (nil? newval))
-  (.pseudoClassStateChanged textfield OUT-OF-RANGE-PSEUDO-CLASS (not (in-range? newval))))
-
-(defn err-range-listener [converter in-range?]
+(defn err-range-listener! [converter in-range?]
   "Returns change listener which converts the 'newval' string and runs
   it through the in-range? fn. The in-range? fn returns true if the
   converted value is within range."
   (change-listener ;; newval is a string, converted to nil or good, no Exception
    (let [newval-from-string (.fromString converter newval)
          textfield (.getBean observable)]
-     (err-range-fn! textfield newval-from-string in-range?))))
+     (.pseudoClassStateChanged textfield ERROR-PSEUDO-CLASS (nil? newval-from-string))
+     (.pseudoClassStateChanged textfield OUT-OF-RANGE-PSEUDO-CLASS (not (in-range? newval-from-string))))))
 
 (defn enable-editing-pseudostate [textfield]
   (event-handler [event]
@@ -293,7 +264,7 @@ The validation function for the var will be the same function."
      (when numtype?
        (set-prop-val! textfield :text-formatter formatter))
      (add-listener! textfield :focused txt-defocus-listener)
-     (add-listener! textfield :text (err-range-listener converter rngfn))
+     (add-listener! textfield :text (err-range-listener! converter rngfn))
      (.setOnKeyPressed textfield (enable-editing-pseudostate textfield))
      textfield))
   ([textfield cnvspec lower upper]
@@ -320,8 +291,8 @@ The validation function for the var will be the same function."
 
         ;; ValueFactories return either converted value or nil
         ;; Valid range is not checked in value factory
-        tgt-spmmvf (spinner-distance-value-factory mm)
-        tgt-spmilvf (spinner-distance-value-factory mil)
+        tgt-spmmvf (distance-spinner-value-factory mm)
+        tgt-spmilvf (distance-spinner-value-factory mil)
         tgt-spmm (lu "sp-major-grid-spacing-mm")
         tgt-spmil (lu "sp-major-grid-spacing-mils")]
 
@@ -353,154 +324,137 @@ The validation function for the var will be the same function."
            :range-fn #(number-range-check % lower upper :clip)
            :targets [tgt-spgpmvf])  ))
 
-(defn setup-overall-zoom-slider-and-text! [state lu]
-  (let [lower 5
-        upper 200
-        slider (lu "sl-zoom-ppu")
-        textfield (lu "tf-zoom-ppu")]
-    (setup-number-textfield! textfield Long lower upper)
-    (doto slider
-      (.setMin lower)
-      (.setMax upper)
-      (.setMajorTickUnit 50)
-      (.setMinorTickCount 9)
-      (.setShowTickMarks true)
-      (.setShowTickLabels true)
-      jfxutils.core/integer-slider)
-
-    ;; We can't rely on the slider's clipping/limiting functionality
-    ;; since the slider doesn't let us know the setValue has been clipped
-    (bind! :var state, :init 10, :keyvec [:zoom-ppu]
-           :property :value
-           :no-action-val nil
-           :range-fn #(number-range-check % lower upper :clip)
-           :targets {(get-prop-val textfield :text-formatter) {} ;; no prop-to-var-fn because converter returns proper value or nil
-                     slider {:prop-to-var-fn long}}))) ;; slider returns doubles, so need to convert
+(defn setup-generic-text [state lu & specs]
+  "Args is list of maps"
+  (doseq [spec specs]
+    (let [[lower upper] (:range spec)
+          textfield (lu (:textfield spec))]
+      (setup-number-textfield! textfield (:type spec) lower upper)
+      (bind! :var state, :init (:init spec), :keyvec (:keyvec spec)
+             :property :value
+             :no-action-val nil
+             :range-fn #(number-range-check % lower upper :clip)
+             :targets [(get-prop-val textfield :text-formatter)]))))
 
 (defn setup-zoom-level-range-text! [state lu]
-  (let [minlower -400
-        mininit -200
-        minupper 0
-        maxlower 0
-        maxinit 200
-        maxupper 400
-        max-textfield (lu "tf-zoom-range-max")
-        min-textfield (lu "tf-zoom-range-min")]
+  (setup-generic-text
+   state lu
+   {:textfield "tf-zoom-range-min"
+    :type Long
+    :keyvec [:zoom-range-min]
+    :range [-400 0]
+    :init -200}
+   {:textfield "tf-zoom-range-max"
+    :type Long
+    :keyvec [:zoom-range-max]
+    :range [0 400]
+    :init 200}))
 
-    (setup-number-textfield! min-textfield Long minlower minupper)
-    (setup-number-textfield! max-textfield Long maxlower maxupper)
 
-    (bind! :var state, :init mininit, :keyvec [:zoom-range-min]
-           :property :value
-           :no-action-val nil
-           :range-fn #(number-range-check % minlower minupper :clip)
-           :targets [(get-prop-val min-textfield :text-formatter)])
-    
-    (bind! :var state, :init maxinit, :keyvec [:zoom-range-max]
-           :property :value
-           :no-action-val nil
-           :range-fn #(number-range-check % maxlower maxupper :clip)
-           :targets [(get-prop-val max-textfield :text-formatter)])))
+(defn setup-generic-slider-and-text [state lu & specs]
+  "Args is list of maps such as:
+{:slider 'sl-zoom-ppu'
+ :textfield 'tf-zoom-ppu'
+ :keyvec [:zoom-ppu]
+ :type Long % or Double
+ :snap-to 0.1
+ :range [0 20]
+ :init init 
+ :major-tick-unit 50
+ :minor-tick-count 9
+ :show-tick-marks true
+ :show-tick-labels true
+ :block-increment 5
+}"
 
-(defn setup-major-grid-line-width-slider-and-text! [state lu]
-  (let [lower 0.1
-        upper 20.0
-        slider (lu "sl-major-grid-line-width")
-        textfield (lu "tf-major-grid-line-width")]
-    (setup-number-textfield! textfield Double lower upper)
-    (doto slider
-      (.setMin lower)
-      (.setMax upper)
-      (.setMajorTickUnit 5)
-      (.setMinorTickCount 3)
-      (.setShowTickMarks true)
-      (.setShowTickLabels true)
-      (.setBlockIncrement 1.0)
-      (jfxutils.core/decimal-slider 0.25))
+  (doseq [spec specs]
+    (let [[lower upper] (:range spec)
+          slider (lu (:slider spec))
+          textfield (lu (:textfield spec))
+          p2vmap (condp = (:type spec)
+                   Long {:prop-to-var-fn long}
+                   Double {})]
+      (setup-number-textfield! textfield (:type spec) lower upper)
+      (when-let [x lower] (.setMin slider x))
+      (when-let [x upper] (.setMax slider x))
+      (when-let [x (:major-tick-unit spec)] (.setMajorTickUnit slider x))
+      (when-let [x (:minor-tick-count spec)] (.setMinorTickCount slider x))
+      (when-let [x (:show-tick-marks spec)] (.setShowTickMarks slider x))
+      (when-let [x (:show-tick-labels spec)] (.setShowTickLabels slider x))
+      (when-let [x (:block-increment spec)] (.setBlockIncrement slider x))
+      (when (= (:type spec) Long) (jfxutils.core/long-slider slider))
+      (when (= (:type spec) Double) (jfxutils.core/double-slider slider (:snap-to spec)))
 
-    ;; We can't rely on the slider's clipping/limiting functionality
-    ;; since the slider doesn't let us know the setValue has been clipped
-    (bind! :var state, :init 1.00, :keyvec [:major-glw]
-           :property :value
-           :no-action-val nil
-           :range-fn #(number-range-check % lower upper :clip)
-           :targets [(get-prop-val textfield :text-formatter)
-                     slider])))
+      ;; We can't rely on the slider's clipping/limiting functionality
+      ;; since the slider doesn't let us know the setValue has been clipped
+      (bind! :var state, :init (:init spec), :keyvec (:keyvec spec)
+             :property :value
+             :no-action-val nil
+             :range-fn #(number-range-check % lower upper :clip)
+             :targets {(get-prop-val textfield :text-formatter) {} ;; no prop-to-var-fn because converter returns proper value or nil
+                       slider p2vmap}))))
 
-(defn setup-major-grid-dot-width-slider-and-text! [state lu]
-  (let [lower 0.1
-        upper 20.0
-        slider (lu "sl-major-grid-dot-width")
-        textfield (lu "tf-major-grid-dot-width")]
-    (setup-number-textfield! textfield Double lower upper)
-    (doto slider
-      (.setMin lower)
-      (.setMax upper)
-      (.setMajorTickUnit 5)
-      (.setMinorTickCount 3)
-      (.setShowTickMarks true)
-      (.setShowTickLabels true)
-      (.setBlockIncrement 1.0)
-      (jfxutils.core/decimal-slider 0.25))
-
-    ;; We can't rely on the slider's clipping/limiting functionality
-    ;; since the slider doesn't let us know the setValue has been clipped
-    (bind! :var state, :init 1.00, :keyvec [:major-gdw]
-           :property :value
-           :no-action-val nil
-           :range-fn #(number-range-check % lower upper :clip)
-           :targets [(get-prop-val textfield :text-formatter)
-                     slider])))
-
-(defn setup-minor-grid-line-width-slider-and-text! [state lu]
-  (let [lower 0.1
-        upper 20.0
-        slider (lu "sl-minor-grid-line-width")
-        textfield (lu "tf-minor-grid-line-width")]
-    (setup-number-textfield! textfield Double lower upper)
-    (doto slider
-      (.setMin lower)
-      (.setMax upper)
-      (.setMajorTickUnit 5)
-      (.setMinorTickCount 3)
-      (.setShowTickMarks true)
-      (.setShowTickLabels true)
-      (.setBlockIncrement 1.0)
-      (jfxutils.core/decimal-slider 0.25))
-
-    ;; We can't rely on the slider's clipping/limiting functionality
-    ;; since the slider doesn't let us know the setValue has been clipped
-    (bind! :var state, :init 1.00, :keyvec [:minor-glw]
-           :property :value
-           :no-action-val nil
-           :range-fn #(number-range-check % lower upper :clip)
-           :targets [(get-prop-val textfield :text-formatter)
-                     slider])))
-
-(defn setup-minor-grid-dot-width-slider-and-text! [state lu]
-  (let [lower 0.1
-        upper 20.0
-        slider (lu "sl-minor-grid-dot-width")
-        textfield (lu "tf-minor-grid-dot-width")]
-    (setup-number-textfield! textfield Double lower upper)
-    (doto slider
-      (.setMin lower)
-      (.setMax upper)
-      (.setMajorTickUnit 5)
-      (.setMinorTickCount 3)
-      (.setShowTickMarks true)
-      (.setShowTickLabels true)
-      (.setBlockIncrement 1.0)
-      (jfxutils.core/decimal-slider 0.25))
-
-    ;; We can't rely on the slider's clipping/limiting functionality
-    ;; since the slider doesn't let us know the setValue has been clipped
-    (bind! :var state, :init 1.00, :keyvec [:minor-gdw]
-           :property :value
-           :no-action-val nil
-           :range-fn #(number-range-check % lower upper :clip)
-           :targets [(get-prop-val textfield :text-formatter)
-                     slider])))
+(defn setup-sliders [state lu]
+  (setup-generic-slider-and-text
+   state lu
+   {:slider "sl-zoom-ppu"
+    :textfield "tf-zoom-ppu"
+    :keyvec [:zoom-ppu]
+    :type Long
+    :range [5 200]
+    :init 10
+    :major-tick-unit 50
+    :minor-tick-count 9
+    :show-tick-marks true
+    :show-tick-labels true}
+   {:slider "sl-major-grid-line-width"
+    :textfield "tf-major-grid-line-width"
+    :keyvec [:major-glw]
+    :type Double
+    :range [0.1 20.0]
+    :init 1.0
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.25}
+   {:slider "sl-major-grid-dot-width"
+    :textfield "tf-major-grid-dot-width"
+    :keyvec [:major-gdw]
+    :type Double
+    :range [0.1 20.0]
+    :init 1.0
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.25}
+   {:slider "sl-minor-grid-line-width"
+    :textfield "tf-minor-grid-line-width"
+    :keyvec [:minor-glw]
+    :type Double
+    :range [0.1 20.0]
+    :init 1.0
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.25}
+   {:slider "sl-minor-grid-dot-width"
+    :textfield "tf-minor-grid-dot-width"
+    :keyvec [:minor-gdw]
+    :type Double
+    :range [0.1 20.0]
+    :init 1.0
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.25}))
 
 
 (defn GridSettingsPane [name]
@@ -513,14 +467,8 @@ The validation function for the var will be the same function."
       (setup-grid-enable-checkboxes! state lu)
       (setup-major-grid-spacing-spinners! state lu)
       (setup-minor-grid-per-major-grid-spinner! state lu)
-      (setup-overall-zoom-slider-and-text! state lu)
       (setup-zoom-level-range-text! state lu)
-      
-      (setup-major-grid-line-width-slider-and-text! state lu )
-      (setup-major-grid-dot-width-slider-and-text! state lu)
-      (setup-minor-grid-line-width-slider-and-text! state lu)
-      (setup-minor-grid-dot-width-slider-and-text! state lu)
-
+      (setup-sliders state lu)
       (def root root)
       root)))
 
@@ -536,7 +484,7 @@ The validation function for the var will be the same function."
 
 
 (defn test-spinner []
-  (let [svf (spinner-distance-value-factory mm)
+  (let [svf (distance-spinner-value-factory mm)
         sp (javafx.scene.control.Spinner. svf)]
     (def svf svf)
     (def sp sp)
@@ -551,29 +499,9 @@ The validation function for the var will be the same function."
                                     converter (.. spinner getValueFactory getConverter)
                                     newstring (.toString converter newvalue)]
                                 (.setText (.getEditor spinner) newstring))))
-    #_(add-listener! svf :value (invalidation-listener
-                               (println "factory invalidated" (.getValue observable))))
-    #_(add-listener! sp :value (change-listener
-                              (println "spinner changed" (.getValue observable))))
-    #_(add-listener! svf :value (change-listener
-                               (println "factory changed" (.getValue observable))))
-    #_(add-listener! (.getEditor sp) :text (change-listener
-                                          (println "text changed")))
     (stage sp)))
 
-#_(do 
-  (def sp (javafx.scene.control.Spinner. 10 100 50))
-  (def tf (.getEditor sp))
-  (def st (stage sp))
-  (def sc (.getScene st))
-  (.setUserAgentStylesheet sc "style.css")
-  (printexp (.getStyleClass sp))
-  (printexp (.getStyleClass tf))
-  ;;(.pseudoClassStateChanged tf OUT-OF-RANGE-PSEUDO-CLASS true)  
-  ;;(.pseudoClassStateChanged tf OUT-OF-RANGE-PSEUDO-CLASS false)
-  ;;(.pseudoClassStateChanged tf ERROR-PSEUDO-CLASS true)
-  ;;(.pseudoClassStateChanged tf ERROR-PSEUDO-CLASS false)
-  (.setEditable sp true))
+
 
   
 
