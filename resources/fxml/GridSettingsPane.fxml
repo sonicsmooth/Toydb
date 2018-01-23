@@ -305,7 +305,7 @@
                         </VBox>
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.columnIndex="2" GridPane.rowIndex="8">
                            <children>
-                              <ColorPicker id="cs-minor-grid-dots-color" />
+                              <ColorPicker id="cs-minor-grid-dot-color" />
                            </children>
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />

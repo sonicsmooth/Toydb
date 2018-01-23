@@ -10,7 +10,8 @@
   #_(:require [clojure.java.io :as io])
   (:require [docks.core :as docks]
             [toydb.editor.editor :as editor]
-            [toydb.app.application-panes :as panes])
+            [toydb.app.application-panes :as panes]
+   )
   #_(:require [toydb
                ;;[db :as db]
                ;;[treeview]
@@ -106,14 +107,6 @@
                                    ;;:button (Button. "Hi Butt2")
                                    :email nil}]})
 
-(defn main-stage
-  "Place center-node in center of border-pane, then return new window
-  with border-pane as scene."
-  [border-pane center-node & [[width height]]]
-  (.setCenter border-pane center-node)
-  (if (and width height)
-    (stage border-pane [width height])
-    (stage border-pane)))
 
 (defn application [out]
   (let [width 1280
@@ -122,39 +115,40 @@
                                  :editor (atom nil),
                                  :panes (atom nil),
                                  :windows (atom nil)})
-        editor (editor/editor app )
-        ;; panes managed by top level application; does not include editor base
-        panes { ;;:app-pane (panes/application-pane app) ;; just a border pane with menubar, etc.
-               :exp-pane (panes/explorer-pane app )
-               ;;:db-pane (panes/db-pane app)
-               }
-        windows { ;;:debug (stage (console-scene *out*) [480 750])
-                 :main (main-stage (BorderPane.) ;;(:app-pane panes)
-                                   (docks/base
-                                    :center (doto (docks/node (:top-pane editor) nil)
-                                              (.setPrefSize (- width 200) height))
-                                    :left (doto (docks/node (:exp-pane panes) "Explorer pane")
-                                            (.setPrefWidth 100))
-                                    #_:right #_(doto (docks/node (:db-pane panes) "database")
-                                                 (.setPrefWidth 100))))}]
+        editor (editor/editor app)
+        editor-pane (:top-pane editor)
+        editor-behaviors (:behaviors editor)
+        app-pane (apply panes/application-pane
+                        app
+                        editor-behaviors) ;; just a border pane with menubar, etc.
+        exp-pane (panes/explorer-pane app )
+        db-pane  (panes/db-pane app)
+        main-pane (BorderPane. app-pane)
+        main-stage (stage main-pane [width height])
+        center-docknode (doto (docks/node editor-pane nil)  (.setPrefWidth (- width 200)))
+        left-docknode (doto (docks/node exp-pane "Explorer pane") (.setPrefWidth 100))
+        right-docknode (doto (docks/node db-pane  "database") (.setPrefWidth 100))
+        main-dock (docks/base
+                   :center center-docknode
+                   :left left-docknode 
+                   :right right-docknode)]
+    (run-now (.setCenter app-pane main-dock))
 
-        
-    (.setOnCloseRequest (:main windows)
-                        (event-handler [_]
-                                       (close-windows! app)
-                                       (shutdown-agents)))
+
+    (.setOnCloseRequest main-stage (event-handler [_] (close-windows! app)
+                                                  ;;(shutdown-agents)
+                                                  ))
 
     ;; Assign content to currently empty app fields
     ;;(dosync (alter (:database app) (fn [a b] b) initial-db-map))
     ;;(reset! (:editor app) editor)
     ;;(reset! (:panes app) panes)
     ;;(reset! (:windows app) windows)
-    ;;app
+    app
     ))
 
 
 (defn -start [print-writer]
-  (jfxutils.core/app-init)
   (let [app (application print-writer)
 
         ]
@@ -172,11 +166,11 @@
 
 
 
-
 (defn main
   "Gets called from lein repl and cider"
   []
   (jfxutils.core/app-init)
+  (jfxutils.core/set-exit false)
   (-start *out*))
 
 (defn -main
