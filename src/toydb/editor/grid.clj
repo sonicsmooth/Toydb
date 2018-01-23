@@ -179,9 +179,11 @@ Lines is a list with each member a list of Point2D"
   (.restore gc))
 
 (defn draw-grid!
-  "Draws grid onto canvas using provided view-data"
+  "Draws grid onto canvas using provided view-data and grid-settings,
+  or DEFAULT-GRID-SETTINGS if not provided."
   ([^Canvas canvas ^toydb.editor.viewdef.ViewDef view-data]
    (draw-grid! canvas view-data DEFAULT-GRID-SETTINGS))
+  
   ([^Canvas canvas ^toydb.editor.viewdef.ViewDef view-data grid-settings]
    (let [gst grid-settings
          lines (collect-lines (grid-specs view-data))
@@ -202,31 +204,31 @@ Lines is a list with each member a list of Point2D"
 
      (.save gc)
      (.setTransform gc mxx myx mxy myy mxt myt)
-     (when (:minor-dots-display gst)
+     (when (:minor-dots-visible gst)
        (draw-dots! gc
                    (select-values lines [:minvertical :minhorizontal])
-                   (:minor-dots-size-px gst)
-                   (:minor-dots-color gst)))
+                   (:minor-dot-width-px gst)
+                   (:minor-dot-color gst)))
 
-     (when (:minor-grid-display gst)
+     (when (:minor-lines-visible gst)
        (draw-lines! gc (select-values lines [:minvertical :minhorizontal])
                     (:minor-line-width-px gst)
                     (:minor-line-color gst)))
 
-     (when (:major-dots-display gst)
+     (when (:major-dots-visible gst)
        (draw-dots! gc  (select-values lines [:majvertical :majhorizontal])
-                   (:major-dots-size-px gst)
-                   (:major-dots-color gst)))
+                   (:major-dot-width-px gst)
+                   (:major-dot-color gst)))
 
-     (when (:major-grid-display gst)
+     (when (:major-lines-visible gst)
        (draw-lines! gc (select-values lines [:majvertical :majhorizontal])
                     (:major-line-width-px gst)
                     (:major-line-color gst)))
 
-     (when (:axis-display gst)
+     (when (:axis-visible gst)
        (draw-lines! gc (select-values lines [:axisvertical :axishorizontal])
                     (:axis-line-width-px gst)
-                    (:axis-line-colr gst)))
+                    (:axis-line-color gst)))
      
      (.restore gc))))
 

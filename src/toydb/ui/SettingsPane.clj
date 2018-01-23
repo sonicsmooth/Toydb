@@ -7,6 +7,11 @@
 
 
 ;; The way the (show) function works basically makes this a Singleton
+;; A SettingsPane is owned/operated by the top level application, but
+;; the contents of the pane are owned by each individual module.
+;; Therefore, each module is responsible for providing its panes up to
+;; the top layer as a return value when it is created
+
 (defn settings-pane [uid]
   "Load up tabbed settings pane.  Returns map with both the node and
   the states."

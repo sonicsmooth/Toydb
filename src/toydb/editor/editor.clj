@@ -30,52 +30,68 @@
 (set! *warn-on-reflection* false)
 (set! *unchecked-math* false)
 
+;; These are from the grid settings pane, which need to go into the viewdef, somehow:
+:major-spacing-um
+:minor-gpm
+:zoom-range-min
+:zoom-range-max
+:zoom-ppu
+
 
 (def EDITOR-SETTINGS1
-  (atom {:background (jfxc/background Color/ALICEBLUE Color/LIGHTBLUE)
-         :snap true
-         :grid-settings {:major-grid-display true
-                         :major-line-color Color/BLACK
-                         :major-line-width-px 0.15
+  (atom {:background (jfxc/background Color/ALICEBLUE Color/LIGHTBLUE)}))
 
-                         :minor-grid-display true
-                         :minor-line-color Color/DARKGRAY
-                         :minor-line-width-px 0.5
+(def GRID-SETTINGS1
+  (atom {:major-lines-visible true
+         :major-line-color Color/BLACK
+         :major-line-width-px 0.15
 
-                         :axis-display true
-                         :axis-line-color Color/DARKBLUE
-                         :axis-line-width-px 2
+         :major-dots-visible true
+         :major-dot-color Color/RED
+         :major-dot-width-px 2
+         :major-snap-to true
 
-                         :major-dots-display true
-                         :major-dots-color Color/RED
-                         :major-dots-size-px 2
+         :minor-lines-visible true
+         :minor-line-color Color/DARKGRAY
+         :minor-line-width-px 0.5
 
-                         :minor-dots-display true
-                         :minor-dots-color Color/PINK
-                         :minor-dots-size-px 0.5}}))
+         :minor-dots-visible true
+         :minor-dot-color Color/PINK
+         :minor-dot-width-px 0.5
+         :minor-snap-to true
+
+         :axis-visible true
+         :axis-line-color Color/DARKBLUE
+         :axis-line-width-px 2
+         }))
 
 (def EDITOR-SETTINGS2
-  (atom {:background (jfxc/background Color/ALICEBLUE Color/RED)
-         :snap true
-         :grid-settings {:major-grid-display true
-                         :major-line-color Color/BLACK
-                         :major-line-width-px 0.15
+  (atom {:background (jfxc/background Color/ALICEBLUE Color/RED)}))
 
-                         :minor-grid-display true
-                         :minor-line-color Color/DARKGRAY
-                         :minor-line-width-px 0.5
+(def GRID-SETTINGS2
+  (atom {:major-lines-visible true
+         :major-line-color Color/BLACK
+         :major-line-width-px 0.15
 
-                         :axis-display true
-                         :axis-line-color Color/DARKBLUE
-                         :axis-line-width-px 2
+         :major-dots-visible true
+         :major-dot-color Color/RED
+         :major-dot-width-px 2
+         :major-snap-to true
 
-                         :major-dots-display true
-                         :major-dots-color Color/RED
-                         :major-dots-size-px 2
+         :minor-lines-visible true
+         :minor-line-color Color/DARKGRAY
+         :minor-line-width-px 0.5
 
-                         :minor-dots-display true
-                         :minor-dots-color Color/PINK
-                         :minor-dots-size-px 0.5}}))
+         :minor-dots-visible true
+         :minor-dot-color Color/PINK
+         :minor-dot-width-px 0.5
+         :minor-snap-to true
+
+         :axis-visible true
+         :axis-line-color Color/DARKBLUE
+         :axis-line-width-px 2
+         }))
+
 
 
 (defn _make-idfn
@@ -154,7 +170,7 @@
                           (if (.isShiftDown event)   \S \_)))
               :button (.getButton event)
               :buttons (keyword ;; generates :LMB, :L__, etc.
-                        (str (if (.isPrimaryButtonDown   event) \L \_)
+                        (str (if (.isPrimaryButtonDown event)   \L \_)
                              (if (.isMiddleButtonDown event)    \M \_)
                              (if (.isSecondaryButtonDown event) \R \_)))}]
      (swap! mouse-state merge new-poses kbs))))
@@ -289,8 +305,7 @@
 
   (redraw-view! [doc]
     (when-let [canvas (lookup-node doc "grid-canvas")]
-      (toydb.editor.grid/draw-grid! canvas @(:viewdef doc)
-                                    (-> @(:settings doc) :grid-settings)))
+      (toydb.editor.grid/draw-grid! canvas @(:viewdef doc) (-> @(:grid-settings doc))))
     (transscale-entities! doc))
 
   (view-metric! [doc]
@@ -340,57 +355,57 @@
 
           ;; For display of coordinates in status bar
           move-handler (jfxc/event-handler [mouse-event]
-                                      (capture-mouse-pos-only! mouse-event mouse-state @(:viewdef doc))
-                                      (update-coordinates! doc @mouse-state))
+                                           (capture-mouse-pos-only! mouse-event mouse-state @(:viewdef doc))
+                                           (update-coordinates! doc @mouse-state))
 
           click-down-handler (jfxc/event-handler [mouse-event]
-                                            (capture-mouse! mouse-event mouse-state @(:viewdef doc))
-                                            (.requestFocus surface-pane)
-                                            (if-let [target (get-best-target mouse-event entities-group)]
-                                              (when (= (:buttons @mouse-state) :L__)
-                                                (capture-move-state! move-state target))
-                                              (clear-move-state! move-state)))
+                                                 (capture-mouse! mouse-event mouse-state @(:viewdef doc))
+                                                 (.requestFocus surface-pane)
+                                                 (if-let [target (get-best-target mouse-event entities-group)]
+                                                   (when (= (:buttons @mouse-state) :L__)
+                                                     (capture-move-state! move-state target))
+                                                   (clear-move-state! move-state)))
           click-up-handler (jfxc/event-handler [mouse-event] 
-                                          (capture-mouse! mouse-event mouse-state @(:viewdef doc))
-                                          (.requestFocus surface-pane)
-                                          ;; Select when distance from last click is zero, and LMB was cause
-                                          (when (and (= (:click-dpx @mouse-state) Point2D/ZERO)
-                                                     (= (:button @mouse-state) MouseButton/PRIMARY))))
+                                               (capture-mouse! mouse-event mouse-state @(:viewdef doc))
+                                               (.requestFocus surface-pane)
+                                               ;; Select when distance from last click is zero, and LMB was cause
+                                               (when (and (= (:click-dpx @mouse-state) Point2D/ZERO)
+                                                          (= (:button @mouse-state) MouseButton/PRIMARY))))
 
           drag-handler (jfxc/event-handler [mouse-event]
-                                      (.handle move-handler mouse-event) ;; update status bar text
-                                      (capture-mouse! mouse-event  mouse-state @(:viewdef doc))
-                                      (let [ms @mouse-state
-                                            mv @move-state]
-                                        (condp = (:buttons ms)
-                                          ;; Item moves: add movement-since-click to old position, then snap
-                                          :L__ (when mv
-                                                 (let [^Node target (:target mv)
-                                                       ^Point2D tgtxy (:old-xy mv)]
-                                                   (if (-> @(:settings doc) :snap)
-                                                     (set-pos! target (snapfn (.add tgtxy (:click-du ms))))
-                                                     (set-pos! target (.add tgtxy (:click-du ms))))))
+                                           (.handle move-handler mouse-event) ;; update status bar text
+                                           (capture-mouse! mouse-event  mouse-state @(:viewdef doc))
+                                           (let [ms @mouse-state
+                                                 mv @move-state]
+                                             (condp = (:buttons ms)
+                                               ;; Item moves: add movement-since-click to old position, then snap
+                                               :L__ (when mv
+                                                      (let [^Node target (:target mv)
+                                                            ^Point2D tgtxy (:old-xy mv)]
+                                                        (if (-> @(:grid-settings doc) :minor-snap-to)
+                                                          (set-pos! target (snapfn (.add tgtxy (:click-du ms))))
+                                                          (set-pos! target (.add tgtxy (:click-du ms))))))
 
-                                          ;; Pan: just tell the doc to move the required pixels
-                                          :__R (pan-by! doc (:move-dpx ms) )
+                                               ;; Pan: just tell the doc to move the required pixels
+                                               :__R (pan-by! doc (:move-dpx ms) )
 
-                                          ;; Zoom: just tell the doc to zoom-on-point the required amount 
-                                          :L_R (let [move-dpxy (double (.getY (:move-dpx ms)))
-                                                     ^Point2D click-px (:click-px ms)]
-                                                 (zoom-by! doc (- move-dpxy) click-px))
+                                               ;; Zoom: just tell the doc to zoom-on-point the required amount 
+                                               :L_R (let [move-dpxy (double (.getY (:move-dpx ms)))
+                                                          ^Point2D click-px (:click-px ms)]
+                                                      (zoom-by! doc (- move-dpxy) click-px))
 
-                                          ;; Otherise, do nothing
-                                          (println "Drag condition not handled"))))
+                                               ;; Otherise, do nothing
+                                               (println "Drag condition not handled"))))
           
           scroll-handler (jfxc/event-handler [scroll-event]
-                                        (let [^ScrollEvent event scroll-event
-                                              x (.getX event) ;; mouse position
-                                              y (.getY event)
-                                              dx (.getDeltaX event) ;; scroll amounts
-                                              dy (.getDeltaY event)]
-                                          (if (.isControlDown event)
-                                            (zoom-by! doc (/ dy 10.0) (Point2D. x y))
-                                            (pan-by! doc (Point2D. (/ dx 5.0) (/ dy 5.0))))))
+                                             (let [^ScrollEvent event scroll-event
+                                                   x (.getX event) ;; mouse position
+                                                   y (.getY event)
+                                                   dx (.getDeltaX event) ;; scroll amounts
+                                                   dy (.getDeltaY event)]
+                                               (if (.isControlDown event)
+                                                 (zoom-by! doc (/ dy 10.0) (Point2D. x y))
+                                                 (pan-by! doc (Point2D. (/ dx 5.0) (/ dy 5.0))))))
 
           keyboard-handler (jfxc/event-handler [key-event] (capture-kbd! key-event))
           focus-listener (jfxc/change-listener [oldval newval] nil)
@@ -423,7 +438,7 @@
         ppos (or (:last-px mouse-state) (:origin view) )
         [unit-scale unit-label] (get-print-scale-and-label doc)
         upos (viewdef/pixels-to-units view ppos)
-        snupos (if (-> @(:settings doc) :snap)
+        snupos (if (-> @(:grid-settings doc) :minor-snap-to)
                  (viewdef/pixels-to-snapped-units view ppos)
                  upos)
         snscupos (.multiply snupos unit-scale)
@@ -467,15 +482,15 @@
          segmented-inch-scale-chooser (jfxc/jfxnew SegmentedButton :buttons inch-scale-buttons)
          spring (Region.)
          tb (jfxc/jfxnew HBox
-                    :children [segmented-metric-or-inches
-                               (jfxc/jfxnew Separator :orientation Orientation/VERTICAL :pref-width 40)
-                               (jfxc/jfxnew StackPane :children [segmented-metric-scale-chooser
-                                                            segmented-inch-scale-chooser])
-                               (jfxc/jfxnew Separator :orientation Orientation/VERTICAL :pref-width 40)
-                               snap-checkbox
-                               spring
-                               (jfxc/jfxnew Button :id (idfn "reset-button") :text "reset zoom/pan")]
-                    :alignment Pos/CENTER)]
+                         :children [segmented-metric-or-inches
+                                    (jfxc/jfxnew Separator :orientation Orientation/VERTICAL :pref-width 40)
+                                    (jfxc/jfxnew StackPane :children [segmented-metric-scale-chooser
+                                                                      segmented-inch-scale-chooser])
+                                    (jfxc/jfxnew Separator :orientation Orientation/VERTICAL :pref-width 40)
+                                    snap-checkbox
+                                    spring
+                                    (jfxc/jfxnew Button :id (idfn "reset-button") :text "reset zoom/pan")]
+                         :alignment Pos/CENTER)]
 
      (HBox/setHgrow spring Priority/ALWAYS)
      ;; Hide or show the scale chooser group for metric and inches
@@ -545,7 +560,7 @@
 ;; Editor-View is a graphical thing with a grid, not some UI-less abstraction of document
 (defn editor-view
   "Make editor-view with relevant handlers"
-  [editor-settings]
+  [editor-settings grid-settings]
   (let [uid (jfxc/uuid)
         idfn (make-idfn uid)
         viewdef-atom (atom (viewdef/viewdef))
@@ -594,7 +609,8 @@
                                        :bottom (doc-status-bar uid :zoomlimits zoomlimits))
                             :uuid uid
                             :behaviors []
-                            :settings editor-settings
+                            :editor-settings editor-settings
+                            :grid-settings grid-settings
                             :mouse-state (atom nil)
                             :move-state (atom nil)})
         ^Slider zoom-slider (lookup-node doc "zoom-slider")
@@ -614,7 +630,7 @@
     ;; Probably we should change the canvas constructor to accept property arguments
     (.setId grid-canvas (idfn "grid-canvas"))
     
-    ;; ...then set the atom down here
+    ;; ...then set the atom down here, used by resize
     (reset! doc-atom doc)
 
     ;; This watch triggers a redraw whenever viewdef changes.
@@ -684,8 +700,8 @@
 
     ;; Use fancy double binding to tie internal snap setting to checkbox
     (jfxb/bind! :init true
-                :var editor-settings
-                :keyvec [:snap]
+                :var grid-settings
+                :keyvec [:minor-snap-to]
                 :property :selected
                 :targets [snap-checkbox])
 
@@ -702,7 +718,7 @@
 
 (defn doc-test []
   (let [[width height] [640 480]
-        doc (editor-view EDITOR-SETTINGS2 ) ;;width height
+        doc (editor-view EDITOR-SETTINGS1 GRID-SETTINGS1) ;;width height
         stage (jfxc/stage (:doc-pane doc) [800 800])]
     doc))
 
@@ -714,11 +730,11 @@
   ([] (editor nil))
   ([app]
    ;; Todo -- different types of docs, ie schematic and layout
-   (let [{sch-root :root sch-settings :settings} (gsp/GridSettingsPane "schematic")
-         {lay-root :root lay-settings :settings} (gsp/GridSettingsPane "layout")
+   (let [{sch-root :root schgrid-settings :settings} (gsp/GridSettingsPane "schematic")
+         {lay-root :root laygrid-settings :settings} (gsp/GridSettingsPane "layout")
 
-         doc1 (editor-view EDITOR-SETTINGS1) ;; Needs background too
-         doc2 (editor-view EDITOR-SETTINGS2)
+         doc1 (editor-view EDITOR-SETTINGS1 GRID-SETTINGS1)
+         doc2 (editor-view EDITOR-SETTINGS2 GRID-SETTINGS2)
          
          center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
                                       :right (docks/node (:doc-pane doc2) "doc2")) 

@@ -11,6 +11,18 @@
 
 
 "Todo: describe strategy for managing textfields, etc."
+"GridSettingsPane should return state for (so far) three atoms:
+1. Editor specs, currently background colors
+2. Grid specs, such as line and dots width and color
+3. Viewdef, such as minors-per-major, and grid spacing
+
+However currently it puts grid specs and a few viewdef together in one
+atom, and doesn't have editor background color or axis toggle.  Also,
+the UI has line/dot color selection, but these are not currently
+connected to the state.
+
+
+"
 
 (defn idvalid? [id-string]
   "Returns true if id is a proper name"
@@ -77,10 +89,10 @@
         tgt-spmm (lu "sp-major-grid-spacing-mm")
         tgt-spmil (lu "sp-major-grid-spacing-mils")
         major-grid-enable-bindings
-        (jfxb/bind! :var state, :init true, :keyvec [:enable-major-grid]
+        (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
                :var-fn! #(if % ;; enable one or disable both
-                           (swap! state assoc-in [:enable-major-grid] true)
-                           (swap! state jfxc/multi-assoc-in [:enable-major-grid] false, [:enable-minor-grid] false))
+                           (swap! state assoc-in [:major-lines-visible] true)
+                           (swap! state jfxc/multi-assoc-in [:major-lines-visible] false, [:minor-lines-visible] false))
                :targets {tgt-enmajg {:property :selected}
                          tgt-spmm {:property :disable, :var-to-prop-fn not}
                          tgt-spmil {:property :disable, :var-to-prop-fn not}})
@@ -88,26 +100,26 @@
         tgt-enming (lu "cb-enable-minor-grid")
         tgt-spgpm (lu "sp-minor-gpm")
         minor-grid-enable-bindings
-        (jfxb/bind! :var state, :init true, :keyvec [:enable-minor-grid]
+        (jfxb/bind! :var state, :init true, :keyvec [:minor-lines-visible]
                :var-fn! #(if % ;; enable both or disable the one
-                           (swap! state jfxc/multi-assoc-in [:enable-minor-grid] true, [:enable-major-grid] true)
-                           (swap! state assoc-in [:enable-minor-grid] false))
+                           (swap! state jfxc/multi-assoc-in [:minor-lines-visible] true, [:major-lines-visible] true)
+                           (swap! state assoc-in [:minor-lines-visible] false))
                :targets {tgt-enming{:property :selected}
                          tgt-spgpm {:property :disable,
-                                    :var-to-prop-fn #(not (and (:enable-major-grid @state) %))}})]))
+                                    :var-to-prop-fn #(not (and (:major-lines-visible @state) %))}})]))
 
 (defn setup-snap-to-checkboxes [state lu]
   (jfxui/setup-generic-checkbox
    state lu
    {:checkbox "cb-major-grid-snap-to"
-    :keyvec [:major-grid-snap-to]
+    :keyvec [:major-snap-to]
     :init false}
    {:checkbox "cb-minor-grid-snap-to"
-    :keyvec [:minor-grid-snap-to]
+    :keyvec [:minor-snap-to]
     :init false}))
 
 (defn setup-visibility-checkboxes [state lu]
-  (jfxb/bind! :var state, :init true, :keyvec [:major-grid-lines-visible]
+  (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
          :property :disable
          :var-to-prop-fn not
          :targets {(lu "cb-major-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
@@ -115,7 +127,7 @@
                    (lu "tf-major-grid-line-width") {}
                    (lu "cs-major-grid-line-color") {}})
   
-  (jfxb/bind! :var state, :init true, :keyvec [:major-grid-dots-visible]
+  (jfxb/bind! :var state, :init true, :keyvec [:major-dots-visible]
          :property :disable
          :var-to-prop-fn not
          :targets {(lu "cb-major-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
@@ -123,7 +135,7 @@
                    (lu "tf-major-grid-dot-width") {}
                    (lu "cs-major-grid-dot-color") {}})
 
-  (jfxb/bind! :var state, :init true, :keyvec [:minor-grid-lines-visible]
+  (jfxb/bind! :var state, :init true, :keyvec [:minor-lines-visible]
          :property :disable
          :var-to-prop-fn not
          :targets {(lu "cb-minor-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
@@ -131,7 +143,7 @@
                    (lu "tf-minor-grid-line-width") {}
                    (lu "cs-minor-grid-line-color") {}})
 
-  (jfxb/bind! :var state, :init true, :keyvec [:minor-grid-dots-visible]
+  (jfxb/bind! :var state, :init true, :keyvec [:minor-dots-visible]
          :property :disable
          :var-to-prop-fn not
          :targets {(lu "cb-minor-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
@@ -171,7 +183,7 @@
       (jfxc/add-listener! tgt :value invalid-listener)
       (jfxui/setup-number-textfield! (.getEditor tgt) (.. tgt getValueFactory getConverter) drc))
 
-    (jfxb/bind! :var state, :init (um (mm 10)), :keyvec [:major-grid-spacing-um]
+    (jfxb/bind! :var state, :init (um (mm 10)), :keyvec [:major-spacing-um]
            :no-action-val nil
            :property :value
            :range-fn #(um (drc-clip %))
@@ -224,7 +236,7 @@
     :show-tick-labels true}
    {:slider "sl-major-grid-line-width"
     :textfield "tf-major-grid-line-width"
-    :keyvec [:major-glw]
+    :keyvec [:major-line-width-px]
     :type Double
     :range [0.1 20.0]
     :init 1.0
@@ -236,7 +248,7 @@
     :snap-to 0.25}
    {:slider "sl-major-grid-dot-width"
     :textfield "tf-major-grid-dot-width"
-    :keyvec [:major-gdw]
+    :keyvec [:major-dot-width-px]
     :type Double
     :range [0.1 20.0]
     :init 1.0
@@ -248,7 +260,7 @@
     :snap-to 0.25}
    {:slider "sl-minor-grid-line-width"
     :textfield "tf-minor-grid-line-width"
-    :keyvec [:minor-glw]
+    :keyvec [:minor-line-width-px]
     :type Double
     :range [0.1 20.0]
     :init 1.0
@@ -260,7 +272,7 @@
     :snap-to 0.25}
    {:slider "sl-minor-grid-dot-width"
     :textfield "tf-minor-grid-dot-width"
-    :keyvec [:minor-gdw]
+    :keyvec [:minor-dot-width-px]
     :type Double
     :range [0.1 20.0]
     :init 1.0
