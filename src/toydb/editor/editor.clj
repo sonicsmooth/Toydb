@@ -49,7 +49,7 @@
          :major-dots-visible true
          :major-dot-color Color/RED
          :major-dot-width-px 2
-         :major-snap-to true
+         :major-snap true
 
          :minor-lines-visible true
          :minor-line-color Color/DARKGRAY
@@ -58,7 +58,7 @@
          :minor-dots-visible true
          :minor-dot-color Color/PINK
          :minor-dot-width-px 0.5
-         :minor-snap-to true
+         :minor-snap true
 
          :axis-visible true
          :axis-line-color Color/DARKBLUE
@@ -76,7 +76,7 @@
          :major-dots-visible true
          :major-dot-color Color/RED
          :major-dot-width-px 2
-         :major-snap-to true
+         :major-snap true
 
          :minor-lines-visible true
          :minor-line-color Color/DARKGRAY
@@ -85,7 +85,7 @@
          :minor-dots-visible true
          :minor-dot-color Color/PINK
          :minor-dot-width-px 0.5
-         :minor-snap-to true
+         :minor-snap true
 
          :axis-visible true
          :axis-line-color Color/DARKBLUE
@@ -382,7 +382,7 @@
                                                :L__ (when mv
                                                       (let [^Node target (:target mv)
                                                             ^Point2D tgtxy (:old-xy mv)]
-                                                        (if (-> @(:grid-settings doc) :minor-snap-to)
+                                                        (if (-> @(:grid-settings doc) :minor-snap)
                                                           (set-pos! target (snapfn (.add tgtxy (:click-du ms))))
                                                           (set-pos! target (.add tgtxy (:click-du ms))))))
 
@@ -438,7 +438,7 @@
         ppos (or (:last-px mouse-state) (:origin view) )
         [unit-scale unit-label] (get-print-scale-and-label doc)
         upos (viewdef/pixels-to-units view ppos)
-        snupos (if (-> @(:grid-settings doc) :minor-snap-to)
+        snupos (if (-> @(:grid-settings doc) :minor-snap)
                  (viewdef/pixels-to-snapped-units view ppos)
                  upos)
         snscupos (.multiply snupos unit-scale)
@@ -636,10 +636,12 @@
     ;; This watch triggers a redraw whenever viewdef changes.
     (add-watch viewdef-atom :main-redraw (fn [k r o n] (redraw-view! doc)))
 
-    ;; This watch triggers a redraw when one of the settings changes, primarily grid
-    (add-watch editor-settings :settings-redraw (fn [k r o n] (redraw-view! doc)))
+    ;; This watch triggers a redraw when one of the settings changes, primarily background
+    (add-watch editor-settings :editor-settings-redraw (fn [k r o n] (redraw-view! doc)))
 
-
+    ;; This watch triggers a redraw when one of the grid settings changes
+    (add-watch grid-settings :grid-settings-redraw (fn [k r o n] (redraw-view! doc)))
+    
     ;; Use fancy double-binding to tie internal zoom level with slider value and text.
     (jfxb/bind! :init 0
                 :var viewdef-atom
@@ -701,7 +703,7 @@
     ;; Use fancy double binding to tie internal snap setting to checkbox
     (jfxb/bind! :init true
                 :var grid-settings
-                :keyvec [:minor-snap-to]
+                :keyvec [:minor-snap]
                 :property :selected
                 :targets [snap-checkbox])
 
@@ -733,8 +735,10 @@
    (let [{sch-root :root schgrid-settings :settings} (gsp/GridSettingsPane "schematic")
          {lay-root :root laygrid-settings :settings} (gsp/GridSettingsPane "layout")
 
-         doc1 (editor-view EDITOR-SETTINGS1 GRID-SETTINGS1)
-         doc2 (editor-view EDITOR-SETTINGS2 GRID-SETTINGS2)
+         doc1 (editor-view EDITOR-SETTINGS1 schgrid-settings;;GRID-SETTINGS1
+                           )
+         doc2 (editor-view EDITOR-SETTINGS2 laygrid-settings;;GRID-SETTINGS2
+                           )
          
          center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
                                       :right (docks/node (:doc-pane doc2) "doc2")) 

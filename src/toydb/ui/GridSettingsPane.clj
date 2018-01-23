@@ -112,10 +112,10 @@ connected to the state.
   (jfxui/setup-generic-checkbox
    state lu
    {:checkbox "cb-major-grid-snap-to"
-    :keyvec [:major-snap-to]
+    :keyvec [:major-snap]
     :init false}
    {:checkbox "cb-minor-grid-snap-to"
-    :keyvec [:minor-snap-to]
+    :keyvec [:minor-snap]
     :init false}))
 
 (defn setup-visibility-checkboxes [state lu]
