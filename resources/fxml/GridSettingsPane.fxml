@@ -48,27 +48,27 @@
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
-                                          <CheckBox id="cb-enable-major-grid" mnemonicParsing="false" selected="true" text="Enabled" GridPane.columnIndex="3">
+                                          <CheckBox id="cb-major-grid-enable" mnemonicParsing="false" selected="true" text="Enabled" GridPane.columnIndex="3">
                            <GridPane.margin>
                               <Insets />
                            </GridPane.margin></CheckBox>
-                                          <Label styleClass="label-title" text="Enable Minor Grid" GridPane.rowIndex="2">
+                                          <Label id="la-minor-grid-enable" styleClass="label-title" text="Enable Minor Grid" GridPane.rowIndex="2">
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
-                                          <CheckBox id="cb-enable-minor-grid" mnemonicParsing="false" selected="true" text="Enabled" GridPane.columnIndex="3" GridPane.rowIndex="2">
+                                          <CheckBox id="cb-minor-grid-enable" mnemonicParsing="false" selected="true" text="Enabled" GridPane.columnIndex="3" GridPane.rowIndex="2">
                            <GridPane.margin>
                               <Insets />
                            </GridPane.margin></CheckBox>
-                                          <Label styleClass="label-title" text="Major Grid Spacing" GridPane.columnSpan="3" GridPane.rowIndex="4">
+                                          <Label id="la-major-grid-spacing" styleClass="label-title" text="Major Grid Spacing" GridPane.columnSpan="3" GridPane.rowIndex="4">
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
-                                          <Label text="millimeters" GridPane.columnIndex="3" GridPane.rowIndex="5">
+                                          <Label id="la-millimeters" text="millimeters" GridPane.columnIndex="3" GridPane.rowIndex="5">
                            <GridPane.margin>
                               <Insets />
                            </GridPane.margin></Label>
-                                          <Label text="mils (0.001&quot;)" GridPane.columnIndex="3" GridPane.rowIndex="6">
+                                          <Label id="la-mils" text="mils (0.001&quot;)" GridPane.columnIndex="3" GridPane.rowIndex="6">
                            <GridPane.margin>
                               <Insets />
                            </GridPane.margin></Label>
@@ -82,12 +82,12 @@
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin>
                         </Spinner>
-                                          <Label styleClass="label-title" text="Minor grids per major grid" GridPane.columnSpan="3" GridPane.rowIndex="9">
+                                          <Label id="la-minor-per-major" styleClass="label-title" text="Minor grids per major grid" GridPane.columnSpan="3" GridPane.rowIndex="9">
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
                         <Spinner id="sp-minor-gpm" maxWidth="1.7976931348623157E308" GridPane.rowIndex="10" />
-                        <Label text="Grid ratio" GridPane.columnIndex="3" GridPane.rowIndex="10" />
+                        <Label id="la-grid-ratio" text="Grid ratio" GridPane.columnIndex="3" GridPane.rowIndex="10" />
                                        </children>
                                     </GridPane>
                                  </content>
@@ -110,7 +110,7 @@
                                           <RowConstraints maxHeight="1.7976931348623157E308" minHeight="0.0" vgrow="SOMETIMES" />
                                       </rowConstraints>
                                        <children>
-                                          <Label styleClass="label-title" text="Overal zoom (px/mm at zoom=0) " GridPane.columnSpan="3">
+                                          <Label styleClass="label-title" text="Overall zoom (px/mm at zoom=0) " GridPane.columnSpan="3">
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
@@ -141,7 +141,7 @@
                         </VBox>
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="vbox" HBox.hgrow="SOMETIMES">
                            <children>
-            <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Major Grid" VBox.vgrow="SOMETIMES">
+            <TitledPane id="tp-major-grid" animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Major Grid" VBox.vgrow="SOMETIMES">
                <content>
                   <GridPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
                      <columnConstraints>
@@ -199,8 +199,8 @@
                            <children>
                               <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
                                  <children>
-                                    <Slider id="sl-major-grid-dots-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
-                                    <TextField id="tf-major-grid-dots-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                    <Slider id="sl-major-grid-dot-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-major-grid-dot-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
                                  </children>
                               </HBox>
                            </children>
@@ -210,7 +210,7 @@
                         </VBox>
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.columnIndex="2" GridPane.rowIndex="8">
                            <children>
-                              <ColorPicker id="cs-major-grid-dots-color" />
+                              <ColorPicker id="cs-major-grid-dot-color" />
                            </children>
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
@@ -228,7 +228,7 @@
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
-                        <Label styleClass="label-title" text="Dots color" GridPane.columnIndex="2" GridPane.rowIndex="7">
+                        <Label styleClass="label-title" text="Dot color" GridPane.columnIndex="2" GridPane.rowIndex="7">
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
                            </GridPane.margin></Label>
@@ -236,7 +236,7 @@
                   </GridPane>
                </content>
             </TitledPane>
-            <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Minor Grid" VBox.vgrow="SOMETIMES">
+            <TitledPane id="tp-minor-grid" animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Minor Grid" VBox.vgrow="SOMETIMES">
                <content>
                   <GridPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
                      <columnConstraints>
@@ -294,8 +294,8 @@
                            <children>
                               <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" VBox.vgrow="NEVER">
                                  <children>
-                                    <Slider id="sl-minor-grid-dots-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
-                                    <TextField id="tf-minor-grid-dots-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                    <Slider id="sl-minor-grid-dot-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" value="7.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-minor-grid-dot-width" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
                                  </children>
                               </HBox>
                            </children>
@@ -305,7 +305,7 @@
                         </VBox>
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" spacing="5.0" styleClass="group-vbox" GridPane.columnIndex="2" GridPane.rowIndex="8">
                            <children>
-                              <ColorPicker id="cs-minor-grid-dots-color" />
+                              <ColorPicker id="cs-minor-grid-dot-color" />
                            </children>
                            <GridPane.margin>
                               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />

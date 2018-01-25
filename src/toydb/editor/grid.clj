@@ -131,17 +131,17 @@ Lines is a list with each member a list of Point2D"
   (.setStroke gc color)
   (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
         line-width-u (* line-width-px recipscale)  ;; Divide requested linewidth down by Mxx
-        pixel-offset (* 0.5 recipscale)
-        ] ;; Half-pixel offset
+        pixel-offsetx (* 0.0 recipscale)
+        pixel-offsety (* 0.5 recipscale)]
     (.setLineWidth gc line-width-u)
     (doseq [line lines]
       (doseq [ptpair line]
         (let [p1 ^Point2D (first ptpair)
               p2 ^Point2D (second ptpair)
-              xp1 (+ pixel-offset (.getX p1))
-              xp2 (+ pixel-offset (.getX p2))
-              yp1 (+ #_pixel-offset (.getY p1))
-              yp2 (+ #_pixel-offset (.getY p2))]
+              xp1 (+ pixel-offsetx (.getX p1))
+              xp2 (+ pixel-offsetx (.getX p2))
+              yp1 (+ pixel-offsety (.getY p1))
+              yp2 (+ pixel-offsety (.getY p2))]
           (.strokeLine gc xp1 yp1 xp2 yp2)))))
   (.restore gc))
 
@@ -179,9 +179,11 @@ Lines is a list with each member a list of Point2D"
   (.restore gc))
 
 (defn draw-grid!
-  "Draws grid onto canvas using provided view-data"
+  "Draws grid onto canvas using provided view-data and grid-settings,
+  or DEFAULT-GRID-SETTINGS if not provided."
   ([^Canvas canvas ^toydb.editor.viewdef.ViewDef view-data]
    (draw-grid! canvas view-data DEFAULT-GRID-SETTINGS))
+  
   ([^Canvas canvas ^toydb.editor.viewdef.ViewDef view-data grid-settings]
    (let [gst grid-settings
          lines (collect-lines (grid-specs view-data))
@@ -202,47 +204,33 @@ Lines is a list with each member a list of Point2D"
 
      (.save gc)
      (.setTransform gc mxx myx mxy myy mxt myt)
-     (when (:minor-dots-display gst)
-       (draw-dots! gc
-                   (select-values lines [:minvertical :minhorizontal])
-                   (:minor-dots-size-px gst)
-                   (:minor-dots-color gst)))
-
-     (when (:minor-grid-display gst)
+     (when (:minor-lines-visible gst)
        (draw-lines! gc (select-values lines [:minvertical :minhorizontal])
                     (:minor-line-width-px gst)
                     (:minor-line-color gst)))
 
-     (when (:major-dots-display gst)
-       (draw-dots! gc  (select-values lines [:majvertical :majhorizontal])
-                   (:major-dots-size-px gst)
-                   (:major-dots-color gst)))
+     (when (:minor-dots-visible gst)
+       (draw-dots! gc
+                   (select-values lines [:minvertical :minhorizontal])
+                   (:minor-dot-width-px gst)
+                   (:minor-dot-color gst)))
 
-     (when (:major-grid-display gst)
+     (when (:major-lines-visible gst)
        (draw-lines! gc (select-values lines [:majvertical :majhorizontal])
                     (:major-line-width-px gst)
                     (:major-line-color gst)))
 
-     (when (:axis-display gst)
+     (when (:major-dots-visible gst)
+       (draw-dots! gc  (select-values lines [:majvertical :majhorizontal])
+                   (:major-dot-width-px gst)
+                   (:major-dot-color gst)))
+     
+     (when (:axes-visible gst)
        (draw-lines! gc (select-values lines [:axisvertical :axishorizontal])
                     (:axis-line-width-px gst)
-                    (:axis-line-colr gst)))
+                    (:axis-line-color gst)))
      
      (.restore gc))))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

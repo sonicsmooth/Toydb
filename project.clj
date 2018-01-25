@@ -5,9 +5,9 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [jfxutils "0.1.0-SNAPSHOT"]
-                 ;;[docks/docks "0.1.0-SNAPSHOT"]
+                 [docks/docks "0.1.0-SNAPSHOT"]
                  ;;[uncomplicate/neanderthal "0.14.0"]
-                 ;;[net.mikera/vectorz-clj "0.47.0"]
+                 [net.mikera/vectorz-clj "0.47.0"]
                  ;;[org.jfxtras/jfxtras-common "8.0-r5"]
                  ;;[org.jfxtras/jfxtras-fxml "8.0-r5"]
                  ;;[org.jfxtras/jfxtras-agenda "8.0-r5"]
@@ -38,7 +38,8 @@
              }
 
   ;;:aot :all
-  :main toydb.ui.GridSettingsPane
+  ;;:main toydb.ui.GridSettingsPane
+  :main toydb.core
 
 
   

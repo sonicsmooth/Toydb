@@ -62,8 +62,8 @@
 (def DEFAULT-METRIC-OR-INCHES :metric)
 (def DEFAULT-PRINT-SCALES {:metric {:um 1.0, :mm 1e-3, :cm 1e-4}
                            :inches {:inches (/ 1 igsu), :mils (/ 1000 igsu)}})
-(def DEFAULT-METRIC-SELECTION :mm)
-(def DEFAULT-INCHES-SELECTION :inches)
+(def DEFAULT-METRIC-SELECTION :mm) ;; keys from DEFAULT-PRINT-SCALES :metric
+(def DEFAULT-INCHES-SELECTION :inches) ;; keys from DEFAULT-PRINT-SCALES :inches
 (def DEFAULT-ZOOMSPECS (map->ZoomSpecs {:zoomratio DEFAULT-ZOOM-RATIO
                                         :zoomlevel DEFAULT-ZOOM-LEVEL
                                         :zoomlimits DEFAULT-ZOOM-LIMITS

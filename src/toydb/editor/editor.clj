@@ -1,12 +1,13 @@
 (ns toydb.editor.editor
   (:gen-class)
-  (:use [jfxutils.core :exclude [-main]])
+  (:require [jfxutils.core :as jfxc :refer [printexp] :exclude [-main]]
+            [jfxutils.bind :as jfxb])
   (:require [toydb.editor
              [canvas :as canvas]
              [grid :as grid]
              [viewdef :as viewdef]]
-            [toydb.bind :as bind]
             [toydb.app.menubars :as mb]
+            [toydb.ui.GridSettingsPane :as gsp]
             [docks.core :as docks]
             [clojure.core.matrix :as matrix]
             [clojure.core.matrix.operators :as matrixop])
@@ -29,37 +30,77 @@
 (set! *warn-on-reflection* false)
 (set! *unchecked-math* false)
 
+;; These are from the grid settings pane, which need to go into the viewdef, somehow:
+:major-spacing-um
+:minor-gpm
+:zoom-range-min
+:zoom-range-max
+:zoom-ppu
 
-(def EDITOR-SETTINGS
-  (atom {:background (background Color/ALICEBLUE Color/LIGHTBLUE)
-         :snap true
-         :grid-settings {:major-grid-display true
-                         :major-line-color Color/BLACK
-                         :major-line-width-px 0.15
 
-                         :minor-grid-display true
-                         :minor-line-color Color/DARKGRAY
-                         :minor-line-width-px 0.5
+(def EDITOR-SETTINGS1
+  (atom {:background (jfxc/background Color/ALICEBLUE Color/LIGHTBLUE)}))
 
-                         :axis-display true
-                         :axis-line-color Color/DARKBLUE
-                         :axis-line-width-px 2
+(def GRID-SETTINGS1
+  (atom {:major-lines-visible true
+         :major-line-color Color/BLACK
+         :major-line-width-px 0.15
 
-                         :major-dots-display true
-                         :major-dots-color Color/RED
-                         :major-dots-size-px 2
+         :major-dots-visible true
+         :major-dot-color Color/RED
+         :major-dot-width-px 2
+         :major-snap true
 
-                         :minor-dots-display true
-                         :minor-dots-color Color/PINK
-                         :minor-dots-size-px 0.5}}))
+         :minor-lines-visible true
+         :minor-line-color Color/DARKGRAY
+         :minor-line-width-px 0.5
+
+         :minor-dots-visible true
+         :minor-dot-color Color/PINK
+         :minor-dot-width-px 0.5
+         :minor-snap true
+
+         :axis-visible true
+         :axis-line-color Color/DARKBLUE
+         :axis-line-width-px 2
+         }))
+
+(def EDITOR-SETTINGS2
+  (atom {:background (jfxc/background Color/ALICEBLUE Color/RED)}))
+
+(def GRID-SETTINGS2
+  (atom {:major-lines-visible true
+         :major-line-color Color/BLACK
+         :major-line-width-px 0.15
+
+         :major-dots-visible true
+         :major-dot-color Color/RED
+         :major-dot-width-px 2
+         :major-snap true
+
+         :minor-lines-visible true
+         :minor-line-color Color/DARKGRAY
+         :minor-line-width-px 0.5
+
+         :minor-dots-visible true
+         :minor-dot-color Color/PINK
+         :minor-dot-width-px 0.5
+         :minor-snap true
+
+         :axis-visible true
+         :axis-line-color Color/DARKBLUE
+         :axis-line-width-px 2
+         }))
+
 
 
 (defn _make-idfn
-  "Returns a function that appends the given id string to another
-  given string"
-  [id]
-  (if id #(str % "-" id)
-      identity))
+  "Returns a function that appends the given 'post' string to another
+  given 'pre' string"
+  [post]
+  (if post
+    #(jfxc/join-hyph % post)
+    identity))
 
 (def make-idfn (memoize _make-idfn))
 
@@ -129,7 +170,7 @@
                           (if (.isShiftDown event)   \S \_)))
               :button (.getButton event)
               :buttons (keyword ;; generates :LMB, :L__, etc.
-                        (str (if (.isPrimaryButtonDown   event) \L \_)
+                        (str (if (.isPrimaryButtonDown event)   \L \_)
                              (if (.isMiddleButtonDown event)    \M \_)
                              (if (.isSecondaryButtonDown event) \R \_)))}]
      (swap! mouse-state merge new-poses kbs))))
@@ -148,33 +189,33 @@
 (extend-protocol ModifyProtocol
   javafx.scene.shape.Circle
   (set-pos! [node, ^Point2D newloc]
-    (set-xy! node :center newloc))
+    (jfxc/set-xy! node :center newloc))
   (get-pos [node]
-    (get-xy node :center))
+    (jfxc/get-xy node :center))
 
   javafx.scene.shape.Line
   (set-pos! [node, ^Point2D newloc]
-    (let [oldstart (get-xy node :start)
-          oldend (get-xy node :end)
+    (let [oldstart (jfxc/get-xy node :start)
+          oldend (jfxc/get-xy node :end)
           dline (.subtract oldend oldstart)
           newend (.add newloc dline)]
       (doto node
-        (set-xy! :start newloc)
-        (set-xy! :end newend))))
+        (jfxc/set-xy! :start newloc)
+        (jfxc/set-xy! :end newend))))
   (get-pos [ node]
-    (get-xy node :start))
+    (jfxc/get-xy node :start))
 
   javafx.scene.shape.Rectangle
   (set-pos! [node, ^Point2D newloc]
-    (set-xy! node newloc))
+    (jfxc/set-xy! node newloc))
   (get-pos [node]
-    (get-xy node))
+    (jfxc/get-xy node))
 
   javafx.scene.Group
   (set-pos! [node, ^Point2D newloc]
-    (set-xy! node :layout newloc))
+    (jfxc/set-xy! node :layout newloc))
   (get-pos [node]
-    (get-xy node :layout)))
+    (jfxc/get-xy node :layout)))
 
 (defn capture-move-state!
   "Remembers target's TranslateX/Y value."
@@ -187,7 +228,6 @@
   "Clear target's Translate X/Y value."
   [move-state]
   (reset! move-state nil))
-
 
 (defn get-best-target
   "Searches up the scene graph from the event's target until it
@@ -229,12 +269,13 @@
                      doc-pane ;; holds everything, including toolbar, status bar, menu
                      uuid     ;; unique identifier for this instance
                      behaviors
+                     settings
                      mouse-state ;; captures old and new mouse positions
                      move-state] ;; captures object position when moving
   DocumentProtocol
   ;; Anything with swap! leads to redraw-view! via the watch
   (lookup-node [doc id]
-    (jfxutils.core/lookup (:doc-pane doc) ((make-idfn (:uuid doc)) id)))
+    (jfxc/lookup (:doc-pane doc) ((make-idfn (:uuid doc)) id)))
 
   (reset-view! [doc]
     (let [^Canvas canvas (lookup-node doc "grid-canvas")
@@ -264,7 +305,7 @@
 
   (redraw-view! [doc]
     (when-let [canvas (lookup-node doc "grid-canvas")]
-      (toydb.editor.grid/draw-grid! canvas @(:viewdef doc) (:grid-settings @EDITOR-SETTINGS)))
+      (toydb.editor.grid/draw-grid! canvas @(:viewdef doc) (-> @(:grid-settings doc))))
     (transscale-entities! doc))
 
   (view-metric! [doc]
@@ -313,72 +354,72 @@
           
 
           ;; For display of coordinates in status bar
-          move-handler (event-handler [mouse-event]
-                                      (capture-mouse-pos-only! mouse-event mouse-state @(:viewdef doc))
-                                      (update-coordinates! doc @mouse-state))
+          move-handler (jfxc/event-handler [mouse-event]
+                                           (capture-mouse-pos-only! mouse-event mouse-state @(:viewdef doc))
+                                           (update-coordinates! doc @mouse-state))
 
-          click-down-handler (event-handler [mouse-event]
-                                            (capture-mouse! mouse-event mouse-state @(:viewdef doc))
-                                            (.requestFocus surface-pane)
-                                            (if-let [target (get-best-target mouse-event entities-group)]
-                                              (when (= (:buttons @mouse-state) :L__)
-                                                (capture-move-state! move-state target))
-                                              (clear-move-state! move-state)))
-          click-up-handler (event-handler [mouse-event] 
-                                          (capture-mouse! mouse-event mouse-state @(:viewdef doc))
-                                          (.requestFocus surface-pane)
-                                          ;; Select when distance from last click is zero, and LMB was cause
-                                          (when (and (= (:click-dpx @mouse-state) Point2D/ZERO)
-                                                     (= (:button @mouse-state) MouseButton/PRIMARY))))
+          click-down-handler (jfxc/event-handler [mouse-event]
+                                                 (capture-mouse! mouse-event mouse-state @(:viewdef doc))
+                                                 (.requestFocus surface-pane)
+                                                 (if-let [target (get-best-target mouse-event entities-group)]
+                                                   (when (= (:buttons @mouse-state) :L__)
+                                                     (capture-move-state! move-state target))
+                                                   (clear-move-state! move-state)))
+          click-up-handler (jfxc/event-handler [mouse-event] 
+                                               (capture-mouse! mouse-event mouse-state @(:viewdef doc))
+                                               (.requestFocus surface-pane)
+                                               ;; Select when distance from last click is zero, and LMB was cause
+                                               (when (and (= (:click-dpx @mouse-state) Point2D/ZERO)
+                                                          (= (:button @mouse-state) MouseButton/PRIMARY))))
 
-          drag-handler (event-handler [mouse-event]
-                                      (.handle move-handler mouse-event) ;; update status bar text
-                                      (capture-mouse! mouse-event  mouse-state @(:viewdef doc))
-                                      (let [ms @mouse-state
-                                            mv @move-state]
-                                        (condp = (:buttons ms)
-                                          ;; Item moves: add movement-since-click to old position, then snap
-                                          :L__ (when mv
-                                                 (let [^Node target (:target mv)
-                                                       ^Point2D tgtxy (:old-xy mv)]
-                                                   (if (:snap @EDITOR-SETTINGS)
-                                                     (set-pos! target (snapfn (.add tgtxy (:click-du ms))))
-                                                     (set-pos! target (.add tgtxy (:click-du ms))))))
+          drag-handler (jfxc/event-handler [mouse-event]
+                                           (.handle move-handler mouse-event) ;; update status bar text
+                                           (capture-mouse! mouse-event  mouse-state @(:viewdef doc))
+                                           (let [ms @mouse-state
+                                                 mv @move-state]
+                                             (condp = (:buttons ms)
+                                               ;; Item moves: add movement-since-click to old position, then snap
+                                               :L__ (when mv
+                                                      (let [^Node target (:target mv)
+                                                            ^Point2D tgtxy (:old-xy mv)]
+                                                        (if (-> @(:grid-settings doc) :minor-snap)
+                                                          (set-pos! target (snapfn (.add tgtxy (:click-du ms))))
+                                                          (set-pos! target (.add tgtxy (:click-du ms))))))
 
-                                          ;; Pan: just tell the doc to move the required pixels
-                                          :__R (pan-by! doc (:move-dpx ms) )
+                                               ;; Pan: just tell the doc to move the required pixels
+                                               :__R (pan-by! doc (:move-dpx ms) )
 
-                                          ;; Zoom: just tell the doc to zoom-on-point the required amount 
-                                          :L_R (let [move-dpxy (double (.getY (:move-dpx ms)))
-                                                     ^Point2D click-px (:click-px ms)]
-                                                 (zoom-by! doc (- move-dpxy) click-px))
+                                               ;; Zoom: just tell the doc to zoom-on-point the required amount 
+                                               :L_R (let [move-dpxy (double (.getY (:move-dpx ms)))
+                                                          ^Point2D click-px (:click-px ms)]
+                                                      (zoom-by! doc (- move-dpxy) click-px))
 
-                                          ;; Otherise, do nothing
-                                          (println "Drag condition not handled"))))
+                                               ;; Otherise, do nothing
+                                               (println "Drag condition not handled"))))
           
-          scroll-handler (event-handler [scroll-event]
-                                        (let [^ScrollEvent event scroll-event
-                                              x (.getX event) ;; mouse position
-                                              y (.getY event)
-                                              dx (.getDeltaX event) ;; scroll amounts
-                                              dy (.getDeltaY event)]
-                                          (if (.isControlDown event)
-                                            (zoom-by! doc (/ dy 10.0) (Point2D. x y))
-                                            (pan-by! doc (Point2D. (/ dx 5.0) (/ dy 5.0))))))
+          scroll-handler (jfxc/event-handler [scroll-event]
+                                             (let [^ScrollEvent event scroll-event
+                                                   x (.getX event) ;; mouse position
+                                                   y (.getY event)
+                                                   dx (.getDeltaX event) ;; scroll amounts
+                                                   dy (.getDeltaY event)]
+                                               (if (.isControlDown event)
+                                                 (zoom-by! doc (/ dy 10.0) (Point2D. x y))
+                                                 (pan-by! doc (Point2D. (/ dx 5.0) (/ dy 5.0))))))
 
-          keyboard-handler (event-handler [key-event] (capture-kbd! key-event))
-          focus-listener (change-listener [oldval newval] nil)
-          reset-btn-handler (event-handler [action-event] (reset-view! doc))]
+          keyboard-handler (jfxc/event-handler [key-event] (capture-kbd! key-event))
+          focus-listener (jfxc/change-listener [oldval newval] nil)
+          reset-btn-handler (jfxc/event-handler [action-event] (reset-view! doc))]
       
-      (add-event-filter! surface-pane MouseEvent/MOUSE_MOVED move-handler)
-      (add-event-filter! surface-pane MouseEvent/MOUSE_PRESSED click-down-handler)
-      (add-event-filter! surface-pane MouseEvent/MOUSE_RELEASED click-up-handler)
-      (add-event-filter! surface-pane MouseEvent/MOUSE_DRAGGED drag-handler)
-      (add-event-filter! surface-pane ScrollEvent/SCROLL scroll-handler)
-      (set-on-event-handler! surface-pane :key-pressed keyboard-handler)
-      (set-on-event-handler! surface-pane :key-released keyboard-handler)
-      (set-on-event-handler! (lookup-node doc "reset-button") :action reset-btn-handler)
-      (add-listener! surface-pane :focused focus-listener))))
+      (jfxc/add-event-filter! surface-pane MouseEvent/MOUSE_MOVED move-handler)
+      (jfxc/add-event-filter! surface-pane MouseEvent/MOUSE_PRESSED click-down-handler)
+      (jfxc/add-event-filter! surface-pane MouseEvent/MOUSE_RELEASED click-up-handler)
+      (jfxc/add-event-filter! surface-pane MouseEvent/MOUSE_DRAGGED drag-handler)
+      (jfxc/add-event-filter! surface-pane ScrollEvent/SCROLL scroll-handler)
+      (jfxc/set-on-event-handler! surface-pane :key-pressed keyboard-handler)
+      (jfxc/set-on-event-handler! surface-pane :key-released keyboard-handler)
+      (jfxc/set-on-event-handler! (lookup-node doc "reset-button") :action reset-btn-handler)
+      (jfxc/add-listener! surface-pane :focused focus-listener))))
 
 (defn- get-print-scale-and-label [doc]
   (let [view @(:viewdef doc)
@@ -397,10 +438,17 @@
         ppos (or (:last-px mouse-state) (:origin view) )
         [unit-scale unit-label] (get-print-scale-and-label doc)
         upos (viewdef/pixels-to-units view ppos)
-        snupos (if (:snap @EDITOR-SETTINGS)
+
+        snupos (if (:minor-snap @(:grid-settings doc))
                  (viewdef/pixels-to-snapped-units view ppos)
                  upos)
-        snscupos (.multiply snupos unit-scale)
+
+        snscupos (try (.multiply snupos unit-scale)
+                      (catch Exception e
+                        (println "caught at snscupos!")
+                        (printexp (str "ex" snupos))
+                        (printexp (str "ex" unit-scale))))
+
         ^Label upos-label (lookup-node doc "unit-pos-label")]
     ;; Apparently .setText calls canvas resize somehow
     (.setText upos-label (format "ux:%-5.5g %s, uy:%-5.5g %s"
@@ -412,10 +460,10 @@
   "Sets the onAction handler on each button so it can't be released
   with a mouse click.  buttons is seq of Buttons.  Returns buttons."
   [buttons]
-  (let [handler (event-handler [evt] ;; if unpressed, set back to pressed, and eat event
-                               (when (not (.. evt getSource isSelected))
-                                 (set-prop-val! (.. evt getSource) :selected true)
-                                 (.consume evt)))]
+  (let [handler (jfxc/event-handler [evt] ;; if unpressed, set back to pressed, and eat event
+                                    (when (not (.. evt getSource isSelected))
+                                      (jfxc/set-prop-val! (.. evt getSource) :selected true)
+                                      (.consume evt)))]
     (doseq [button buttons]
       (.addEventFilter button ActionEvent/ANY handler)))
   buttons)
@@ -427,36 +475,36 @@
   ([^String uid]
    (let [idfn (make-idfn uid)
          ;; not using toggle-buttons function because of idfn
-         metric-button (jfxnew ToggleButton :id (idfn "metric-button" ) :text "metric" :selected true)
-         inches-button (jfxnew ToggleButton :id (idfn "inches-button") :text "inches")
-         snap-checkbox (jfxnew CheckBox "Snap to Grid" :id (idfn "snap-checkbox") :selected true)
+         metric-button (jfxc/jfxnew ToggleButton :id (idfn "metric-button" ) :text "metric" :selected true)
+         inches-button (jfxc/jfxnew ToggleButton :id (idfn "inches-button") :text "inches")
+         snap-checkbox (jfxc/jfxnew CheckBox "Snap to Grid" :id (idfn "snap-checkbox") :selected true)
          metric-or-inches-buttons (force-down! [metric-button inches-button])
-         metric-scale-buttons (force-down! [(jfxnew ToggleButton :id (idfn "um-button") :text "um" :selected false)
-                                            (jfxnew ToggleButton :id (idfn "mm-button") :text "mm" :selected true)
-                                            (jfxnew ToggleButton :id (idfn "cm-button") :text "cm" :selected false)])
-         inch-scale-buttons (force-down! [(jfxnew ToggleButton :id (idfn "inch-button") :text "inch" :selected true)
-                                          (jfxnew ToggleButton :id (idfn "mil-button")  :text "mil" :selected false)])
-         segmented-metric-or-inches (jfxnew SegmentedButton :buttons metric-or-inches-buttons)
-         segmented-metric-scale-chooser (jfxnew SegmentedButton :buttons metric-scale-buttons)
-         segmented-inch-scale-chooser (jfxnew SegmentedButton :buttons inch-scale-buttons)
+         metric-scale-buttons (force-down! [(jfxc/jfxnew ToggleButton :id (idfn "um-button") :text "um" :selected false)
+                                            (jfxc/jfxnew ToggleButton :id (idfn "mm-button") :text "mm" :selected true)
+                                            (jfxc/jfxnew ToggleButton :id (idfn "cm-button") :text "cm" :selected false)])
+         inch-scale-buttons (force-down! [(jfxc/jfxnew ToggleButton :id (idfn "inch-button") :text "inch" :selected true)
+                                          (jfxc/jfxnew ToggleButton :id (idfn "mil-button")  :text "mil" :selected false)])
+         segmented-metric-or-inches (jfxc/jfxnew SegmentedButton :buttons metric-or-inches-buttons)
+         segmented-metric-scale-chooser (jfxc/jfxnew SegmentedButton :buttons metric-scale-buttons)
+         segmented-inch-scale-chooser (jfxc/jfxnew SegmentedButton :buttons inch-scale-buttons)
          spring (Region.)
-         tb (jfxnew HBox
-                    :children [segmented-metric-or-inches
-                               (jfxnew Separator :orientation Orientation/VERTICAL :pref-width 40)
-                               (jfxnew StackPane :children [segmented-metric-scale-chooser
-                                                            segmented-inch-scale-chooser])
-                               (jfxnew Separator :orientation Orientation/VERTICAL :pref-width 40)
-                               snap-checkbox
-                               spring
-                               (jfxnew Button :id (idfn "reset-button") :text "reset zoom/pan")]
-                    :alignment Pos/CENTER)]
+         tb (jfxc/jfxnew HBox
+                         :children [segmented-metric-or-inches
+                                    (jfxc/jfxnew Separator :orientation Orientation/VERTICAL :pref-width 40)
+                                    (jfxc/jfxnew StackPane :children [segmented-metric-scale-chooser
+                                                                      segmented-inch-scale-chooser])
+                                    (jfxc/jfxnew Separator :orientation Orientation/VERTICAL :pref-width 40)
+                                    snap-checkbox
+                                    spring
+                                    (jfxc/jfxnew Button :id (idfn "reset-button") :text "reset zoom/pan")]
+                         :alignment Pos/CENTER)]
 
      (HBox/setHgrow spring Priority/ALWAYS)
      ;; Hide or show the scale chooser group for metric and inches
-     (.bind (get-property segmented-metric-scale-chooser :visible)
-            (get-property metric-button :selected))
-     (.bind (get-property segmented-inch-scale-chooser :visible)
-            (get-property inches-button :selected) )
+     (.bind (jfxc/get-property segmented-metric-scale-chooser :visible)
+            (jfxc/get-property metric-button :selected))
+     (.bind (jfxc/get-property segmented-inch-scale-chooser :visible)
+            (jfxc/get-property inches-button :selected) )
      tb)))
 
 (defn editor-tool-bar
@@ -464,33 +512,32 @@
   ([] (editor-tool-bar nil))
   ([^String uid]
    (let [idfn (make-idfn uid)]
-     (mb/tool-bar [(jfxnew Button :id (idfn "edit-1") :text "edit-1")
-                   (jfxnew Button :id (idfn "edit-2") :text "edit-2")
-                   (jfxnew Button :id (idfn "edit-3") :text "edit-3")]))))
+     (mb/tool-bar [(jfxc/jfxnew Button :id (idfn "edit-1") :text "edit-1")
+                   (jfxc/jfxnew Button :id (idfn "edit-2") :text "edit-2")
+                   (jfxc/jfxnew Button :id (idfn "edit-3") :text "edit-3")]))))
 
 (defn doc-status-bar
   ([] (doc-status-bar nil))
   ([^String uid & {:keys [zoomlimits]}]
    (let [idfn (make-idfn uid)
-         ;;mppl (jfxnew Label "doc mouse label" :id (idfn "pixel-pos-label"))
-         mupl (jfxnew Label "doc mouse label" :id (idfn "unit-pos-label"))
+         ;;mppl (jfxc/jfxnew Label "doc mouse label" :id (idfn "pixel-pos-label"))
+         mupl (jfxc/jfxnew Label "doc mouse label" :id (idfn "unit-pos-label"))
          spring (Region.)
          zoom-min (or (first zoomlimits) -10)
          zoom-max (or (second zoomlimits) 10)
-         zoom-slider1 (jfxnew Slider zoom-min zoom-max 0.0
+         zoom-slider1 (jfxc/jfxnew Slider zoom-min zoom-max 0.0
                               :block-increment 10
                               :show-tick-marks true
                               :show-tick-labels true
                               :major-tick-unit 100
                               :pref-width 350
                               :id (idfn "zoom-slider"))
-         zoom-label-txt (jfxnew Label "Zoom Level" :id (idfn "zoom-label"))
-         zoom-value-txt (jfxnew Label "" :pref-width 50 :id (idfn "zoom-value"))]
+         zoom-label-txt (jfxc/jfxnew Label "Zoom Level" :id (idfn "zoom-label"))
+         zoom-value-txt (jfxc/jfxnew Label "" :pref-width 50 :id (idfn "zoom-value"))]
      (HBox/setHgrow spring Priority/ALWAYS)
 
      ;; Enforce integer slider positions
-     (add-listener! zoom-slider1 :value (change-listener [oldval newval]
-                                                         (.setValue zoom-slider1 (Math/round (double newval)))))
+     (jfxc/long-slider zoom-slider1)
 
      ;; Unidirectional binding between slider position and text is set in fancy bind/bind
      (mb/status-bar [#_mppl mupl spring zoom-label-txt zoom-slider1 zoom-value-txt]))))
@@ -499,7 +546,7 @@
   ([] (editor-status-bar nil))
   ([^String uid]
    (let [idfn (make-idfn uid)
-         mouse-label (jfxnew Label "editor mouse label" :id (idfn "mouse-label"))
+         mouse-label (jfxc/jfxnew Label "editor mouse label" :id (idfn "mouse-label"))
          spring (Region.)]
      (HBox/setHgrow spring Priority/ALWAYS)
      (mb/status-bar [mouse-label spring]))))
@@ -508,7 +555,7 @@
   "Creates BorderPane with top menu/toolbar, bottom status bus, and
   background only.  Center content must be set by caller"
   [& {:keys [center top bottom size]}]
-  (let [pane (jfxnew BorderPane
+  (let [pane (jfxc/jfxnew BorderPane
                      :center center
                      :top top
                      :bottom bottom)]
@@ -517,11 +564,16 @@
     pane))
 
 
-;; Doc-View is a graphical thing with a grid, not some UI-less abstraction of document
-(defn doc-view
-  "Make doc-view with relevant handlers"
-  []   
-  (let [uid (uuid)
+;; Editor-View is a graphical thing with a grid, not some UI-less
+;; abstraction of document The editor deals with the following atoms:
+;; editor-settings, grid-settings, and viewef-atom.  The first two are
+;; passed as arguments because they come from the dialog box; the
+;; third is created internally.
+
+(defn editor-view
+  "Make editor-view with relevant handlers"
+  [editor-settings grid-settings]
+  (let [uid (jfxc/uuid)
         idfn (make-idfn uid)
         viewdef-atom (atom (viewdef/viewdef))
         zoomlimits (-> @viewdef-atom :zoomspecs :zoomlimits)
@@ -532,35 +584,35 @@
         ^Canvas grid-canvas (canvas/resizable-canvas (fn [canvas, [oldw oldh] [neww newh]]
                                                        (when (or (not= oldw neww) (not= oldh newh))
                                                          (resize! @doc-atom [oldw oldh] [neww newh]))))
-        twocircles [(jfxnew Circle 0.5 0 0.25 :stroke Color/GRAY :stroke-width 0.025 :fill Color/SILVER)
-                    (jfxnew Circle 1.0 0 0.15 :stroke Color/GRAY :stroke-width 0.025 :fill Color/SILVER)
-                    (jfxnew Line 0 -0.1 0 0.1 :stroke Color/BLACK :stroke-width 0.015)
-                    (jfxnew Line -0.1 0 0.1 0 :stroke Color/BLACK :stroke-width 0.015)]
-        little-group (jfxnew Group
-                             :id (idfn "little-group")
-                             :children twocircles)
-        shapes [(jfxnew Line -1 -1 1 1 :stroke Color/GREEN :stroke-width 0.05)
-                (jfxnew Line -1 1 1 -1 :stroke Color/BLUE :stroke-width 0.05)
-                (jfxnew Circle -1 -1 0.1 :stroke Color/GREEN :stroke-width 0.05)
-                (jfxnew Circle -1 1 0.1 :stroke Color/BLUE :stroke-width 0.05)
-                (jfxnew Circle 0 0 0.1 :stroke Color/CADETBLUE :stroke-width 0.05 :fill Color/BISQUE)
-                (jfxnew Rectangle 0 0 10000 10000 :stroke Color/AQUAMARINE :stroke-width 1000 :fill nil)
-                (jfxnew Line -3 0 0 0 :stroke Color/ORANGE :stroke-width 0.1)
+        twocircles [(jfxc/jfxnew Circle 0.5 0 0.25 :stroke Color/GRAY :stroke-width 0.025 :fill Color/SILVER)
+                    (jfxc/jfxnew Circle 1.0 0 0.15 :stroke Color/GRAY :stroke-width 0.025 :fill Color/SILVER)
+                    (jfxc/jfxnew Line 0 -0.1 0 0.1 :stroke Color/BLACK :stroke-width 0.015)
+                    (jfxc/jfxnew Line -0.1 0 0.1 0 :stroke Color/BLACK :stroke-width 0.015)]
+        little-group (jfxc/jfxnew Group
+                                  :id (idfn "little-group")
+                                  :children twocircles)
+        shapes [(jfxc/jfxnew Line -1 -1 1 1 :stroke Color/GREEN :stroke-width 0.05)
+                (jfxc/jfxnew Line -1 1 1 -1 :stroke Color/BLUE :stroke-width 0.05)
+                (jfxc/jfxnew Circle -1 -1 0.1 :stroke Color/GREEN :stroke-width 0.05)
+                (jfxc/jfxnew Circle -1 1 0.1 :stroke Color/BLUE :stroke-width 0.05)
+                (jfxc/jfxnew Circle 0 0 0.1 :stroke Color/CADETBLUE :stroke-width 0.05 :fill Color/BISQUE)
+                (jfxc/jfxnew Rectangle 0 0 10000 10000 :stroke Color/AQUAMARINE :stroke-width 1000 :fill nil)
+                (jfxc/jfxnew Line -3 0 0 0 :stroke Color/ORANGE :stroke-width 0.1)
                 little-group]
 
-        entities-group (jfxnew Group
-                               :id (idfn "entities-group")
-                               :children  shapes
-                               :transforms [(Affine.)])
+        entities-group (jfxc/jfxnew Group
+                                    :id (idfn "entities-group")
+                                    :children  shapes
+                                    :transforms [(Affine.)])
         
-        entities-pane (jfxnew Pane
-                              :id (idfn "entities-pane")
-                              :children [entities-group])
+        entities-pane (jfxc/jfxnew Pane
+                                   :id (idfn "entities-pane")
+                                   :children [entities-group])
         
-        surface-pane (make-clipped! (jfxnew StackPane
-                                            :id (idfn "surface-pane")
-                                            :children [grid-canvas entities-pane]
-                                            :background (:background @EDITOR-SETTINGS)))
+        surface-pane (jfxc/make-clipped! (jfxc/jfxnew StackPane
+                                                      :id (idfn "surface-pane")
+                                                      :children [grid-canvas entities-pane]
+                                                      :background (:background @editor-settings)))
 
         doc (map->Doc-View {:viewdef viewdef-atom
                             :doc-pane (border-pane ;; holds main grid and decorations
@@ -569,8 +621,11 @@
                                        :bottom (doc-status-bar uid :zoomlimits zoomlimits))
                             :uuid uid
                             :behaviors []
+                            :editor-settings editor-settings
+                            :grid-settings grid-settings
                             :mouse-state (atom nil)
                             :move-state (atom nil)})
+        
         ^Slider zoom-slider (lookup-node doc "zoom-slider")
         ^Label zoom-label (lookup-node doc "zoom-value")
         ^ToggleButton metric-button (lookup-node doc "metric-button")
@@ -583,27 +638,27 @@
         ^CheckBox snap-checkbox (lookup-node doc "snap-checkbox")]
 
 
-
     ;; Name the canvas so we can get to it later
-    ;; Probably we should change the canvas construtor to accept property arguments
+    ;; Probably we should change the canvas constructor to accept property arguments
     (.setId grid-canvas (idfn "grid-canvas"))
     
-    ;; ...then set the atom down here
+    ;; ...then set the atom down here, used by resize
     (reset! doc-atom doc)
 
     ;; This watch triggers a redraw whenever viewdef changes.
-    (add-watch viewdef-atom :main-redraw (fn [k r o n]
-                                           (redraw-view! doc)))
+    (add-watch viewdef-atom :viewdef-redraw (fn [k r o n]
+                                              (redraw-view! doc)))
 
-    ;; This watch triggers a redraw when one of the settings changes, primarily grid
-    (add-watch EDITOR-SETTINGS :settings-redraw (fn [k r o n]
-                                                  (redraw-view! doc)))
+    ;; This watch triggers a redraw when one of the settings changes, primarily background
+    (add-watch editor-settings :editor-settings-redraw (fn [k r o n] (redraw-view! doc)))
 
-
+    ;; This watch triggers a redraw when one of the grid settings changes
+    (add-watch grid-settings :grid-settings-redraw (fn [k r o n]  (redraw-view! doc)))
+    
     ;; Use fancy double-binding to tie internal zoom level with slider value and text.
-    (bind/bind! :init 0
+    (jfxb/bind! :init 0
                 :var viewdef-atom
-                :var-fn #(zoom-to! doc %) ;; delegate swap! to this fn instead
+                :var-fn! #(zoom-to! doc %) ;; delegate swap! to this fn instead
                 :keyvec [:zoomspecs :zoomlevel]
                 :targets {zoom-slider {:property :value}
                           zoom-label {:property :text,
@@ -611,18 +666,17 @@
                                       :var-to-prop-fn str }})
 
     ;; Use fancy double-binding to tie internal metric-scale
-    ;; (true/false) with buttons Call view-metric! protocol fn, which
+    ;; (true/false) with buttons. Call view-metric! protocol fn, which
     ;; in turn calls viewdef/view-metric, because other stuff in view
     ;; besides :metric-or-inches needs to change.
-    (bind/bind! :init :metric
+    (jfxb/bind! :init :metric
                 :var viewdef-atom
-                :var-fn #(view-metric! doc %)
+                :var-fn! #(view-metric! doc %)
                 :keyvec [:metric-or-inches]
-                :targets {metric-button {:property :selected
-                                         :var-to-prop-fn viewdef/metric?
+                :property :selected
+                :targets {metric-button {:var-to-prop-fn viewdef/metric?
                                          :prop-to-var-fn {true :metric false :inches}}
-                          inches-button {:property :selected
-                                         :var-to-prop-fn viewdef/inches?
+                          inches-button {:var-to-prop-fn viewdef/inches?
                                          :prop-to-var-fn {false :metric true :inches}}})
 
     ;; Use fancy double binding to tie print scales (um/mm/cm, etc)
@@ -635,43 +689,59 @@
               (fn [propval]
                 (if propval
                   selector
-                  (:metric-selection @viewdef-atom))))]
+                  (:metric-selection @viewdef-atom))))
+
+            (inches-propfn [selector]
+              (fn [propval]
+                (if propval
+                  selector
+                  (:inches-selection @viewdef-atom))))]
       
-      (bind/bind! :init :cm
+      (jfxb/bind! :init :cm
                   :var viewdef-atom
                   :keyvec [:metric-selection]
-                  :targets {um-button {:property :selected
-                                       :var-to-prop-fn viewdef/um?
+                  :property :selected
+                  :targets {um-button {:var-to-prop-fn viewdef/um?
                                        :prop-to-var-fn (metric-propfn :um)}
-                            mm-button {:property :selected
-                                       :var-to-prop-fn viewdef/mm?
+                            mm-button {:var-to-prop-fn viewdef/mm?
                                        :prop-to-var-fn (metric-propfn :mm)}
-                            cm-button {:property :selected
-                                       :var-to-prop-fn viewdef/cm?
-                                       :prop-to-var-fn (metric-propfn :cm)}})) 
+                            cm-button {:var-to-prop-fn viewdef/cm?
+                                       :prop-to-var-fn (metric-propfn :cm)}})
+
+      (jfxb/bind! :init :inches
+                  :var viewdef-atom
+                  :keyvec [:inches-selection]
+                  :property :selected
+                  :targets {inch-button {:var-to-prop-fn viewdef/inches?
+                                         :prop-to-var-fn (inches-propfn :inches)}
+                            mil-button {:var-to-prop-fn viewdef/mils?
+                                        :prop-to-var-fn (inches-propfn :mils)}})) 
     
+
+
     ;; These fns update the coordinates when the buttons are pressed
     ;; Do this here instead of in the var-to-prop-fn and
     ;; prop-to-var-fn
-    (add-watch viewdef-atom (rand-int 10)
+    (add-watch viewdef-atom :metric-chooser
                (fn [key ref old new]
                  (when (or (not= (:metric-or-inches new)
                                  (:metric-or-inches old))
                            (not= (:metric-selection new)
-                                 (:metric-selection old)))
+                                 (:metric-selection old))
+                           (not= (:inches-selection new)
+                                 (:inches-selection old)))
                    (update-coordinates! doc @(:mouse-state doc)))))
 
-    
     ;; Use fancy double binding to tie internal snap setting to checkbox
-    (bind/bind! :init true
-                :var EDITOR-SETTINGS
-                :keyvec [:snap]
+    (jfxb/bind! :init true
+                :var grid-settings
+                :keyvec [:minor-snap]
                 :property :selected
                 :targets [snap-checkbox])
 
     ;; Use fancy double binding to tie background to editor settings
-    (bind/bind! :init (:background @EDITOR-SETTINGS)
-                :var EDITOR-SETTINGS
+    (jfxb/bind! :init (:background @editor-settings)
+                :var editor-settings
                 :terminal true
                 :keyvec [:background]
                 :property :background
@@ -682,36 +752,48 @@
 
 (defn doc-test []
   (let [[width height] [640 480]
-        doc (doc-view ) ;;width height
-        stage (jfxutils.core/stage (:doc-pane doc) [800 800])]
+        doc (editor-view EDITOR-SETTINGS1 GRID-SETTINGS1) ;;width height
+        stage (jfxc/stage (:doc-pane doc) [800 800])]
     doc))
 
-(defn drag-test []
-  (let [c1 (make-draggable! (jfxnew Circle 0 0 100 :fill Color/ORANGE :stroke Color/RED :stroke-width 20))
-        c2 (make-draggable! (jfxnew Circle 0 0 100 :fill Color/ORANGE :stroke Color/RED :stroke-width 20))
-        c3 (make-draggable! (jfxnew Circle 0 0 100 :fill Color/ORANGE :stroke Color/RED :stroke-width 20))
-        bg (gradient-background :vertical Color/LIGHTBLUE Color/ALICEBLUE)
-        mypane1 (make-clipped! (jfxnew Pane :children [c1], :background bg))
-        mypane2 (make-clipped! (jfxnew Pane :children [c2], :background bg))
-        mypane3 (make-clipped! (jfxnew Pane :children [c3], :background bg))
-        paneholder (jfxnew BorderPane :center mypane3, :left mypane1, :right mypane2)]
-    (stage paneholder [800 800])))
-
 (defn editor
-  ;; Start a new editor with a few doc-views
+  ;; Start a new editor with a few editor-views Behaviors for now are
+  ;; just GridSettingsPanes But eventually will include things like
+  ;; menu definitions and keyboard shortcuts
   ([] (editor nil))
   ([app]
-   (let [doc1 (doc-view)
-         doc2 (doc-view)
+   ;; Todo -- different types of docs, ie schematic and layout
+   (let [{sch-root :root
+          schgrid-settings :grid-settings
+          scheditor-settings :editor-settings} (gsp/GridSettingsPane "schematic")
+         {lay-root :root
+          laygrid-settings :grid-settings
+          layeditor-settings :editor-settings} (gsp/GridSettingsPane "layout")
+
+         doc1 (editor-view scheditor-settings schgrid-settings)
+         doc2 (editor-view layeditor-settings laygrid-settings)
+         
          center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
                                       :right (docks/node (:doc-pane doc2) "doc2")) 
          top-pane (border-pane
                    :center center-dock-base,
                    :top (editor-tool-bar),
                    :bottom (editor-status-bar))
+
          editor {:top-pane top-pane
                  :docs [doc1 doc2]
-                 :behaviors []}]
+                 :behaviors [{:type :settings-pane
+                              :name "Schematic Grid"
+                              :root sch-root
+                              ;;:grid-settings schgrid-settings
+                              ;;:editor-settings scheditor-settings
+                              }
+                             {:type :settings-pane
+                              :name "Layout Grid"
+                              :root lay-root
+                              ;;:grid-settings laygrid-settings
+                              ;;:editor-settings scheditor-settings
+                              }]}]
      
      ;; How it works, for each doc:
      ;; 1.  Add watch to atom which calls protocol redraw
@@ -722,43 +804,27 @@
      editor)))
 
 
-(defn animate-scale [^Node node]
-  (let [^Affine xfrm (first (.getTransforms node))]
-    (doseq [sc (concat (range 1 6 0.1) (range 6 1 -0.1))]
-      (Thread/sleep 25)
-      (doto xfrm
-        (.setMxx sc)
-        (.setMyy sc)))))
-
-(defn animate-rotate [^Node node]
-  (let [^Affine xfrm (first (.getTransforms node))]
-    (doseq [rot (concat (range 0 5) (range 5 0 -1))]
-      (Thread/sleep 25)
-      (.append xfrm (Rotate. rot)))))
-
-
-(defn zsc [^Node node sc x y]
-  ;; Changes the built-in scale[XY] and translate[XY] properties, not
-  ;; the affine transform.
-  (set-xy! node :translate (Point2D. x y))
-  (set-scale! node sc))
-
 (defn go []
-  (def docx (doc-test))
-  (def sp (lookup-node docx "surface-pane"))
-  (def gc (lookup-node docx "grid-canvas"))
-  (def ep (lookup-node docx "entities-pane"))
-  (def eg (lookup-node docx "entities-group"))
-  (def lg (lookup-node docx "little-group"))
-  (run-later (zsc eg 1 0 0))
+  (let [ed (editor)]
+    (def ed ed)
+    (def tp (:top-pane ed))
+    (def setui (get-in ed [:behaviors 0 :root]))
+    (def state (get-in ed [:behaviors 0 :grid-settings]))
+    #_(add-watch state :wha? (fn [k r o n] (let [[oa ob bo] (clojure.data/diff o n)]
+                                           (when ob (println ob)))))
+    (jfxc/stage tp [800 480])
+    (jfxc/stage setui [800 480]))
+  
+
+
   )
 
 (defn main [& args]
-  (set-exit false)
+  (jfxc/set-exit false)
   (go))
 
 (defn -main [& args]
-  (jfxutils.core/app-init)
+  (jfxc/app-init)
   (go))
 
 

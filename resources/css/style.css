@@ -1,11 +1,3 @@
-    /* 
-    Document   : login
-    Created on : May 14, 2013, 7:27:22 AM
-    Author     : mischw
-    Description:
-        Purpose of the stylesheet follows.
-*/
-
 
 
 .label-title {
@@ -23,37 +15,75 @@
 
 .hbox {
     -fx-padding: 0 10 -0 10;
-    -fx-spacing: 10;
+    -fx-spacing: 5;
 }
 .vbox {
     -fx-padding: 10 0 10 0;
-    -fx-spacing: 10;
+    -fx-spacing: 5;
 }
 .grid-pane {
-    -fx-padding: 8;
+    -fx-padding: 5;
 }
 
 .root {
-	-fx-error-highlight: #9c0006;
+	-fx-error-highlight: #9C0006;
 	-fx-error-faint-focus: #9C000622;
 	-fx-error-background: #FFC7CE;
+	
+	-fx-out-of-range-highlight: #9C5700;
+	-fx-out-of-range-faint-focus: #9C570022;
+	-fx-out-of-range-background: #FFEB9C;
+
+	-fx-editing-highlight: #006100;
+	-fx-editing-faint-focus: #00610022;
+	-fx-editing-background: #C6EFCE;
+}
+
+.text-input:editing {
+	-fx-text-fill: -fx-editing-highlight;
+	-fx-focus-color: -fx-editing-faint-focus;
+	-fx-faint-focus-color: -fx-editing-faint-focus;
+	-fx-control-inner-background: -fx-editing-background;
 }
 
 .text-input:error {
 	-fx-text-fill: -fx-error-highlight;
-	-fx-focus-color: -fx-error-highlight;
+	-fx-focus-color: -fx-error-faint-focus;
 	-fx-faint-focus-color: -fx-error-faint-focus;
 	-fx-control-inner-background: -fx-error-background;
 }
 
-.spinner:error > .text-field {
+.text-input:out-of-range {
+	-fx-text-fill: -fx-out-of-range-highlight;
+	-fx-focus-color: -fx-out-of-range-highlight;
+	-fx-faint-focus-color: -fx-out-of-range-faint-focus;
+	-fx-control-inner-background: -fx-out-of-range-background;
+}
+
+// When both states are selected
+.text-input:out-of-range:error {
 	-fx-text-fill: -fx-error-highlight;
-	-fx-focus-color: -fx-error-highlight;
+	-fx-focus-color: -fx-error-faint-focus;
 	-fx-faint-focus-color: -fx-error-faint-focus;
 	-fx-control-inner-background: -fx-error-background;
-
 }
+
+
+
+
+//.spinner:error > .text-field {
+//	-fx-text-fill: -fx-error-highlight;
+//	-fx-focus-color: -fx-error-highlight;
+//	-fx-faint-focus-color: -fx-error-faint-focus;
+//	-fx-control-inner-background: -fx-error-background;
+//}
 							 
+//.spinner:out-of-range > .text-field {
+//	-fx-text-fill: blue; -fx-out-of-range-highlight;
+//	-fx-focus-color: -fx-out-of-range-highlight;
+//	-fx-faint-focus-color: -fx-out-of-range-faint-focus;
+//	-fx-control-inner-background: -fx-out-of-range-background;
+//}
 	
 
 

@@ -1,412 +1,403 @@
 (ns toydb.ui.GridSettingsPane
-  (:require [jfxutils.core :refer [add-listener! app-init change-listener get-property* clip
-                                   get-property index-of invalidation-listener
-                                   get-prop-val jfxnew join-hyph load-fxml-root
-                                   lookup multi-assoc-in printexp replace-item set-exit set-prop-val!
-                                   split-hyph stage]]
-            [toydb.bind :refer [bind! dirtify!]]
+  (:require [jfxutils.core :as jfxc :refer [printexp lookup get-property]]
+            [jfxutils.ui :as jfxui]
+            [jfxutils.bind :as jfxb]
             [toydb.units :refer [um mm cm m km inch mil incr decr nearest distance
                                  distance-string-converter distance-text-formatter
                                  add sub]]))
 
 
-(def ERROR-PSEUDO-CLASS (javafx.css.PseudoClass/getPseudoClass "error"))
 
 
-(def ids ["cb-enable-major-grid"
-          "cb-enable-minor-grid"
-          "sp-major-grid-spacing-mm"
-          "sp-major-grid-spacing-mils"
-          "sp-minor-gpm"
-          "sl-zoom-ppu"
-          "tf-zoom-ppu"
-          "tf-zoom-range-min"
-          "tf-zoom-range-max"
-          "cb-major-grid-snap-to"
-          "cb-major-grid-lines-visible"
-          "sl-major-grid-line-width"
-          "tf-major-grid-line-width"
-          "cs-major-grid-line-color"
-          "cb-major-grid-dots-visible"
-          "sl-major-grid-dots-width"
-          "tf-major-grid-dots-width"
-          "cs-major-grid-dots-color"
-          "cb-minor-grid-snap-to"
-          "cb-minor-grid-lines-visible"
-          "sl-minor-grid-line-width"
-          "tf-minor-grid-line-width"
-          "cs-minor-grid-line-color"
-          "cb-minor-grid-dots-visible"
-          "sl-minor-grid-dots-width"
-          "tf-minor-grid-dots-width"
-          "cs-minor-grid-dots-color"])
+"Todo: describe strategy for managing textfields, etc."
+"GridSettingsPane should return state for (so far) three atoms:
+1. Editor specs, currently background colors
+2. Grid specs, such as line and dots width and color
+3. Viewdef, such as minors-per-major, and grid spacing
 
-(defn update-sliders!
-  "Set up ticks, snap"
-  [root name]
-  (let [;;minor-gpm (lookup root (join-hyph name "sl-minor-gpm"))
-        zoom-ppu (lookup root (join-hyph name "sl-zoom-ppu"))
-        major-glw (lookup root (join-hyph name "sl-major-grid-line-width"))
-        major-gdw (lookup root (join-hyph name  "sl-major-grid-dots-width"))
-        minor-glw (lookup root (join-hyph name  "sl-minor-grid-line-width"))
-        minor-gdw (lookup root (join-hyph name "sl-minor-grid-dots-width"))]
-    (doto zoom-ppu
-      (.setMin 5)
-      (.setMax 200)
-      (.setMajorTickUnit 50)
-      (.setMinorTickCount 10)
-      (.setShowTickMarks true)
-      (.setShowTickLabels true)
-      jfxutils.core/integer-slider)
-    (doto major-glw
-      (.setMin 0)
-      (.setMax 20)
-      (.setMajorTickUnit 1)
-      (.setMinorTickCount 20)
-      (.setShowTickLabels true))
-    (doto major-gdw
-      (.setMin 0)
-      (.setMax 20)
-      (.setMajorTickUnit 1)
-      (.setMinorTickCount 20)
-      (.setShowTickLabels true))
-    (doto minor-glw
-      (.setMin 0)
-      (.setMax 20)
-      (.setMajorTickUnit 1)
-      (.setMinorTickCount 20)
-      (.setShowTickLabels true))
-    (doto minor-gdw
-      (.setMin 0)
-      (.setMax 20)
-      (.setMajorTickUnit 1)
-      (.setMinorTickCount 20)
-      (.setShowTickLabels true))))
+However currently it puts grid specs and a few viewdef together in one
+atom, and doesn't have editor background color or axis toggle.  Also,
+the UI has line/dot color selection, but these are not currently
+connected to the state.
 
-
-;; call TextField's on-action, same as user pressing enter
-(def txt-focus-listener
-  (change-listener
-   (when-not newval
-     (.. observable getBean getEditor
-         getOnAction (handle (javafx.event.ActionEvent.))))))
-
-
-
-(defn range-check
-  "Checks if x in between mn and mx.  If yes, then returns x.
-  Otherwise, throws an exception or returns the clipped value,
-  depending on action argument."
-  [x mn mx action]
-  (if (nil? x)
-    x
-    (if (or (> x mx) (< x mn))
-      (condp = action
-        :throw (throw (NumberFormatException.))
-        :clip (clip x mn mx)
-        :else nil)
-      x)))
-
-
-(defmacro nullable-string-converter
-  "Returns a proxy of StringConverter of the type given by numtype, eg
-  Integer, Double, etc.  The presumption is that numtype is some
-  numeric type, such that min and max can be used.  If action
-  is :clip, then the string is converted to be within min and max.  If
-  action is :throw, then nil is returned.  If min, max, and action are
-  all omitted, then a 'simple' version is returned which uses the
-  numtypet's built-in MIN_VALUE and MAX_VALUE, and which returns nil
-  with out-of-range or unparsable inputs.
-
-  TODO: Return an indicator that the number has been clipped
 
 "
-  ([numtype min max action]
-   (let [cname (str "javafx.util.converter." (name numtype) "StringConverter")
-         csym (symbol cname)
-         ssfn (fn [o]
-                [(str "nullable-" (name numtype) "-string-converter Exception in .toString from")
-                 o ", of type " `(class ~o)])]
-     `(proxy [~csym] []
-        (~'toString
-         ([] ~cname) ;; need zero-arity fn for repl display
-         ([obj#]
-          (let [~'locobj obj#] ;; need to keep obj constant for passing to ssfn
-            (try (proxy-super ~'toString ~'locobj)
-                 (catch Exception e# ;; not sure what exception might be thrown
-                   (println ~(ssfn 'locobj)))))))
-        (~'fromString [s#] (try (range-check (proxy-super ~'fromString s#) ~min ~max ~action)
-                                (catch NumberFormatException e#
-                                  nil))))))
-  ([numtype]
-   (let [num-min (fn [numtype] (symbol (str numtype "/MIN_VALUE")))
-         num-max (fn [numtype] (symbol (str numtype "/MAX_VALUE")))]
-     `(nullable-string-converter ~numtype ~(num-min numtype) ~(num-max numtype) :throw))))
 
 
-;; Keep this as template for above macro
-#_(defn nullable-integer-string-converter
-  ([min max action]
-   (proxy [javafx.util.converter.IntegerStringConverter] []
-     (toString [obj]
-       (try (proxy-super toString obj)
-            (catch Exception e ;; not sure what exception might be thrown
-              (println "Caught in nullable-integer-string-converter .toString of type" (type obj) obj))))
-     (fromString [s] (try (range-check (proxy-super fromString s) min max action)
-                          (catch NumberFormatException e
-                            nil)))))
-  ([]
-   (nullable-integer-string-converter Integer/MIN_VALUE Integer/MAX_VALUE :throw)))
-
-
-(defn spinner-distance-value-factory
-  "Returns proxy of SpinnerValueFactory.  Unit is the unit shown, one
-  of um, mm, cm, m, km, mil, or inch.  init is the initial underlying
-  value.  The type of this value is maintained.  For example, if unit
-  is mm and init is (inch 1), then each increment wil be 1 inch, but
-  display will be in mm."
-  ([unit min max]
-   (doto (proxy [javafx.scene.control.SpinnerValueFactory] []
-           (decrement [steps] (.setValue this (decr (.getValue this))))
-           (increment [steps] (.setValue this (incr (.getValue this)))))
-     (.setConverter (distance-string-converter unit min max))))
-  ([unit init]
-   (doto (spinner-distance-value-factory unit)
-     (.setValue (unit init)))))
-
-(defn spinner-integer-value-factory
-  "Returns an instance of SpinnerValueFactory.IntegerSpinnerValueFactory 
-  which returns nil for an improper entry instead of throwing an exception."
-  [min max action]
-  (doto (javafx.scene.control.SpinnerValueFactory$IntegerSpinnerValueFactory. min max)
-    (.setConverter (nullable-string-converter Integer min max action))))
-
-(defn update-textfields!
-  "Set up text converters"
-  [root name]
-  (let [tgt-zppu (lookup root (join-hyph name "tf-zoom-ppu"))
-        tgt-maxz (lookup root (join-hyph name "tf-zoom-range-max"))
-        tgt-minz (lookup root (join-hyph name "tf-zoom-range-min"))
-        nlsc (fn [mn mx] (nullable-string-converter Long mn mx :clip))
-        err-listener (fn [textfield]
-                       (change-listener 
-                        (let [newval-from-string (.. textfield getTextFormatter getValueConverter (fromString newval))]
-                          (printexp newval-from-string)
-                          (.pseudoClassStateChanged
-                           textfield
-                           ERROR-PSEUDO-CLASS
-                           (nil? newval-from-string)))))]
-     
-    ;; Set up error listener so text fields format red on error
-    ;; TextFormatter can deal with exceptions from
-    ;; IntegerStringConverter when user presses enter, but
-    ;; err-listener uses the StringConverter directly, which does
-    ;; throw Exceptions, so we use the nullable-long-string-converter
-    ;; (nlsc) If nlsc gets a :clip argument, then it clips an
-    ;; out-of-range value and the text box does not become red while
-    ;; typing.  If nlsc get a :throw argument, then it returns a nil
-    ;; when given an out-of-range string.  In any case the nlsc
-    ;; returns a nil when given an unparsable string.
-
-    
-    (set-prop-val! tgt-zppu :text-formatter (javafx.scene.control.TextFormatter. (nlsc    5 200)))
-    (set-prop-val! tgt-minz :text-formatter (javafx.scene.control.TextFormatter. (nlsc -400 400)))
-    (set-prop-val! tgt-maxz :text-formatter (javafx.scene.control.TextFormatter. (nlsc -400 400)))
-
-    (add-listener! tgt-zppu :text (err-listener tgt-zppu))
-    (add-listener! tgt-minz :text (err-listener tgt-minz))
-    (add-listener! tgt-maxz :text (err-listener tgt-maxz))))
-
-(defn update-spinners!
-  "Set up spinners"
-  [root name]
-  (let [sp-mm (lookup root (join-hyph name "sp-major-grid-spacing-mm"))
-        sp-mil (lookup root (join-hyph name "sp-major-grid-spacing-mils"))
-        sp-gpm (lookup root (join-hyph name "sp-minor-gpm"))
-
-        ;; The listener has all it needs to determine the Nodes, properties, etc.
-        ;; Gets called when var changes
-        invalid-listener (invalidation-listener
-                          ;; Force local text to update regardless of whether the underlying
-                          ;; value is the same as before.  Assume underlying value is always valid.
-                          (let [newvalue (.getValue observable)
-                                spinner (.getBean observable)
-                                converter (.. spinner getValueFactory getConverter)]
-                            (.setText (.getEditor spinner)
-                                      (.toString converter newvalue))))
-
-        ;; Realtime error checking
-        err-listener (fn [spinner valid?]
-                       (change-listener ;; newval is a string, converted to nil or good, no Exception
-                        (let [newval-from-string (.. spinner getValueFactory getConverter (fromString newval))]
-                          (.pseudoClassStateChanged
-                           (.getBean observable)
-                           ERROR-PSEUDO-CLASS
-                           (nil? newval-from-string)))))]
-
-    (doseq [spinner [sp-mm sp-mil]]
-      (.setEditable spinner true)
-      (add-listener! spinner :focused txt-focus-listener)
-      (add-listener! spinner :value invalid-listener)
-      (add-listener! (.getEditor spinner) :text (err-listener spinner some? #_#(and % (pos? (.value %))))))
-
-    (doseq [spinner [sp-gpm]]
-      (.setEditable spinner true)
-      (add-listener! spinner :focused txt-focus-listener)
-      (add-listener! spinner :value invalid-listener)
-      (add-listener! (.getEditor spinner) :text (err-listener spinner some?)))
-
-    (.setValueFactory sp-mm (spinner-distance-value-factory mm 0 1000))
-    (.setValueFactory sp-mil (spinner-distance-value-factory mil 0 (.value (mil (mm 1000)))))
-    (.setValueFactory sp-gpm (spinner-integer-value-factory (int 5) (int 10) :clip))))
 
 (defn update-names!
   "Append name to all ids in settings-pane"
   [root name]
-  (doseq [id ids]
-    (when-let [node (lookup root id)]
-      (.setId node (join-hyph name id))))
+  (let [ids (jfxc/recurse-named-nodes root)]
+    (doseq [id ids]
+      ;;(println id)
+      (.setId (jfxc/lookup root id) (jfxc/join-hyph name id))))
   root)
 
 
+(defn distance-range-check
+  "Extracts the value from d, mn, mx and runs (number-range-check)
+  with any extra args.  Returns a number rather than a distance type."
+  ([d mn mx action]
+   (when d
+     (jfxui/number-range-check (.value d) (.value mn) (.value mx) action)))
+  ([d mn mx]
+   (distance-range-check d mn mx nil)))
+
+(defn distance-spinner-value-factory
+  "Returns proxy of SpinnerValueFactory.  Unit is the unit shown, one
+  of um, mm, cm, m, km, mil, or inch.  init is the initial underlying
+  value.  The type of this value is maintained.  For example, if unit
+  is mm and init is (inch 1), then each increment will be 1 inch, but
+  display will be in mm. converter-or-unit is either a StringConverter
+  or unit."
+  ([converter-or-unit]
+   (let [factory (proxy [javafx.scene.control.SpinnerValueFactory] []
+                   (decrement [steps] (.setValue this (decr (.getValue this))))
+                   (increment [steps] (.setValue this (incr (.getValue this)))))]
+     (if (instance? javafx.util.StringConverter converter-or-unit)
+       (doto factory (.setConverter converter-or-unit))
+       (doto factory (.setConverter (distance-string-converter converter-or-unit))))))
+  ([unit init]
+     (doto (distance-spinner-value-factory unit)
+       (.setValue (unit init))))
+  ([unit min max]
+   (distance-spinner-value-factory
+    (distance-string-converter unit min max))))
 
 
-(defn bind-properties!
-  "Bind control properties to clojure state.  Root is some parent Node
-  of the hierarchy.  name is the common name given to all the nodes of
-  a given branch to distinguish them from an otherwise identical
-  branch under the root.  state is the clojure atom holding the
-  state."
-  [root name state]
-  (let [lu (fn [id] (lookup root (join-hyph name id)))
+(defn setup-grid-enable-checkboxes! [state lu]
+  (let [ ;; TitledPanes
+        tpmaj (lu "tp-major-grid")
+        tpmin (lu "tp-minor-grid")
 
-        ;; Major grid controls
-        tgt-enmajg (lu "cb-enable-major-grid")
-        tgt-spmm (lu "sp-major-grid-spacing-mm")
-        tgt-spmil (lu "sp-major-grid-spacing-mils")
-        tgt-spmmvf (.getValueFactory tgt-spmm)
-        tgt-spmilvf (.getValueFactory tgt-spmil)
+        ;; GridPanes
+        gpmaj (lu "gp-major-grid-elements")
+        gpmin (lu "gp-minor-grid-elements")
+
+        ;; Corner checkboxes
+        enmaj (.getGraphic tpmaj)
+        enmin (.getGraphic tpmin)
+
         major-grid-enable-bindings
-        (bind! :var state, :init true, :keyvec [:enable-major-grid]
-               :var-fn! #(if % ;; enable one or disable both
-                           (swap! state assoc-in [:enable-major-grid] true)
-                           (swap! state multi-assoc-in [:enable-major-grid] false, [:enable-minor-grid] false))
-               :targets {tgt-enmajg {:property :selected}
-                         tgt-spmm {:property :disable, :var-to-prop-fn not}
-                         tgt-spmil {:property :disable, :var-to-prop-fn not}})
+        (jfxb/bind! :var state, :init true, :keyvec [:major-grid-enable]
+                    :targets {enmaj {:property :selected}
+                              gpmaj {:property :disable, :var-to-prop-fn not}
+                              tpmin {:property :disable, :var-to-prop-fn not}
+                              })
 
-        major-grid-spacing-bindings
-        (bind! :var state, :init (um (mm 10)), :keyvec [:major-grid-spacing-um]
-               :no-action-val nil
-               :property :value
-               ;;:validator #(pos? (.value %)) ;; protects against directly changing val in var
-               :prop-to-var-fn #(nearest (um %) 0.1)
-               :targets {tgt-spmmvf {:var-to-prop-fn mm}
-                         tgt-spmilvf {:var-to-prop-fn mil}})
-
-        ;; Minor grid controls
-        tgt-enming (lu "cb-enable-minor-grid")
-        tgt-spgpm (lu "sp-minor-gpm")
-        tgt-spgpmvf (.getValueFactory tgt-spgpm )
         minor-grid-enable-bindings
-        (bind! :var state, :init true, :keyvec [:enable-minor-grid]
-               :var-fn! #(if % ;; enable both or disable the one
-                           (swap! state multi-assoc-in [:enable-minor-grid] true, [:enable-major-grid] true)
-                           (swap! state assoc-in [:enable-minor-grid] false))
-               :targets {tgt-enming{:property :selected}
-                         tgt-spgpm {:property :disable,
-                                    :var-to-prop-fn #(not (and (:enable-major-grid @state) %))}})
-        minor-gpm-bindings
-        (bind! :var state, :init (int 2,) :keyvec [:minor-gpm] ;; use int because there is no LongSpinnerValueFactory
-               :no-action-val nil
-               :property :value
-               :targets [tgt-spgpmvf])
+        (jfxb/bind! :var state, :init true, :keyvec [:minor-grid-enable]
+                      :targets {enmin {:property :selected}
+                                gpmin {:property :disable, :var-to-prop-fn not}})]
 
-        ;; Zoom scale controls
-        ;; Use range-fn instead of validator
-        tgt-slzppu (lu "sl-zoom-ppu")
-        tgt-tfzppu (.getTextFormatter (lu "tf-zoom-ppu"))
-        zoom-ppu-bindings
-        (bind! :var state, :init 10, :keyvec [:zoom-ppu]
-               :property :value
-               :no-action-val nil
-               :targets {tgt-tfzppu {} ;; no prop-to-var-fn because converter returns proper value or nil
-                         tgt-slzppu {:prop-to-var-fn long}})  ;; slider returns doubles, so need to convert
+    ;; Adjust checkbox positions to the far right, adding 20px to avoid ellipsis
+    (doseq [tgt [tpmaj tpmin]]
+      (.bind (jfxc/get-property tgt :graphic-text-gap)
+             (.subtract (get-property tgt :width)
+                        (.add (get-property (.getGraphic tgt) :width)
+                              (+ (.. (doto (javafx.scene.text.Text. (.getText tgt)) .applyCss)
+                                     getLayoutBounds getWidth) 20)))))))
 
-        
-        tgt-minz (.getTextFormatter (lu "tf-zoom-range-min"))
-        zoom-range-min-bindings
-        (bind! :var state, :init -200, :keyvec [:zoom-range-min]
-               :property :value
-               :no-action-val nil
-               :targets [tgt-minz])
+(defn setup-major-grid-spacing-spinners! [state lu]
+  (let [lower (um 100)
+        upper (um (mm 1000))
+        prop-to-var-fn #(nearest (um %) 0.1)
+        drc #(distance-range-check (prop-to-var-fn %) lower upper)
+        drc-clip #(distance-range-check (prop-to-var-fn %) lower upper :clip)
 
-        tgt-maxz (.getTextFormatter (lu "tf-zoom-range-max"))
-        zoom-range-max-bindings
-        (bind! :var state, :init 200, :keyvec [:zoom-range-max]
-               :property :value
-               :no-action-val nil
-               :targets [tgt-maxz])
+        ;; Listener gets called when var changes. Force local text to
+        ;; update regardless of whether the underlying value is the
+        ;; same as before, eg 10mm becomes 10000um.  Assume underlying
+        ;; value is always valid.
+        invalid-listener (jfxc/invalidation-listener
+                          (let [newvalue (.getValue observable)
+                                spinner (.getBean observable)
+                                converter (.. spinner getValueFactory getConverter)]
+                            (.setText (.getEditor spinner) (.toString converter newvalue))))
 
+        ;; ValueFactories return either converted value or nil
+        ;; Valid range is not checked in value factory
+        tgt-spmmvf (distance-spinner-value-factory mm)
+        tgt-spmilvf (distance-spinner-value-factory mil)
+        tgt-spmm (lu "sp-major-grid-spacing-mm")
+        tgt-spmil (lu "sp-major-grid-spacing-mils")]
 
-        ]
+    (.setValueFactory tgt-spmm tgt-spmmvf)
+    (.setValueFactory tgt-spmil tgt-spmilvf)
+    (doseq [tgt [tgt-spmm tgt-spmil]]
+      (.setEditable tgt true)
+      (jfxc/add-listener! tgt :value invalid-listener)
+      (jfxui/setup-number-textfield! (.getEditor tgt) (.. tgt getValueFactory getConverter) drc))
 
-    (def zppu tgt-slzppu))
+    (jfxb/bind! :var state, :init (um (mm 10)), :keyvec [:major-spacing-um]
+           :no-action-val nil
+           :property :value
+           :range-fn #(um (drc-clip %))
+           :prop-to-var-fn prop-to-var-fn
+           :targets {tgt-spmmvf {:var-to-prop-fn mm}
+                     tgt-spmilvf {:var-to-prop-fn mil}})))
 
+(defn setup-minor-grid-per-major-grid-spinner! [state lu]
+  (let [lower (int 2) ;; use int because there is no LongSpinnerValueFactory
+        upper (int 10)
+        tgt-spgpmvf (jfxui/integer-spinner-value-factory lower upper)
+        tgt-spgpm (doto (lu "sp-minor-grid-ratio") (.setValueFactory tgt-spgpmvf))]
+    (.setEditable tgt-spgpm true)
+    (jfxui/setup-number-textfield! (.getEditor tgt-spgpm) (.getConverter tgt-spgpmvf) lower upper)
+    (jfxb/bind! :var state, :init lower, :keyvec [:minor-gpm]
+           :property :value
+           :no-action-val nil
+           :range-fn #(jfxui/number-range-check % lower upper :clip)
+           :targets [tgt-spgpmvf])  ))
 
+(defn setup-zoom-level-range-text! [state lu]
+  (jfxui/setup-generic-text
+   state lu
+   {:textfield "tf-zoom-range-min"
+    :type Long
+    :keyvec [:zoom-range-min]
+    :range [-400 0]
+    :init -200}
+   {:textfield "tf-zoom-range-max"
+    :type Long
+    :keyvec [:zoom-range-max]
+    :range [0 400]
+    :init 200}))
 
+(defn setup-sliders [state lu]
+  (jfxui/setup-generic-slider-and-text
+   state lu
+   {:slider "sl-axis-line-width"
+    :textfield "tf-axis-line-width"
+    :keyvec [:axis-line-width-px]
+    :type Double
+    :range [0.01 5.0]
+    :init 1.0
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.01}
+   {:slider "sl-zoom-ppu"
+    :textfield "tf-zoom-ppu"
+    :keyvec [:zoom-ppu]
+    :type Long
+    :range [5 200] 
+    :init 10
+    :major-tick-unit 50
+    :minor-tick-count 9
+    :show-tick-marks true
+    :show-tick-labels true}
+   {:slider "sl-major-grid-line-width"
+    :textfield "tf-major-grid-line-width"
+    :keyvec [:major-line-width-px]
+    :type Double
+    :range [0.01 8.0]
+    :init 0.25
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.01}
+   {:slider "sl-major-grid-dot-width"
+    :textfield "tf-major-grid-dot-width"
+    :keyvec [:major-dot-width-px]
+    :type Double
+    :range [0.01 10.0]
+    :init 2.0
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.01}
+   {:slider "sl-minor-grid-line-width"
+    :textfield "tf-minor-grid-line-width"
+    :keyvec [:minor-line-width-px]
+    :type Double
+    :range [0.01 8.0]
+    :init 0.025
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.01}
+   {:slider "sl-minor-grid-dot-width"
+    :textfield "tf-minor-grid-dot-width"
+    :keyvec [:minor-dot-width-px]
+    :type Double
+    :range [0.01 10.0]
+    :init 0.2
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.01}))
+
+(defn setup-snap-to-checkboxes [state lu]
+  (jfxui/setup-generic-checkbox
+   state lu
+   {:checkbox "cb-major-grid-snap-to"
+    :keyvec [:major-snap]
+    :init false}
+   {:checkbox "cb-minor-grid-snap-to"
+    :keyvec [:minor-snap]
+    :init false}))
+
+(defn setup-visibility-checkboxes [state lu]
+  (jfxb/bind! :var state, :init true, :keyvec [:axes-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-axes-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-axis-line-width") {}
+                        (lu "tf-axis-line-width") {}
+                        (lu "col-axis-line-color") {}})
   
-  root)
+  (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-major-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-major-grid-line-width") {}
+                        (lu "tf-major-grid-line-width") {}
+                        (lu "col-major-grid-line-color") {}})
+  
+  (jfxb/bind! :var state, :init true, :keyvec [:major-dots-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-major-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-major-grid-dot-width") {}
+                        (lu "tf-major-grid-dot-width") {}
+                        (lu "col-major-grid-dot-color") {}})
+
+  (jfxb/bind! :var state, :init true, :keyvec [:minor-lines-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-minor-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-minor-grid-line-width") {}
+                        (lu "tf-minor-grid-line-width") {}
+                        (lu "col-minor-grid-line-color") {}})
+
+  (jfxb/bind! :var state, :init true, :keyvec [:minor-dots-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-minor-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-minor-grid-dot-width") {}
+                        (lu "tf-minor-grid-dot-width") {}
+                        (lu "col-minor-grid-dot-color") {}}))
+
+(defn setup-generic-color-selector [state lu & specs]
+  "Args is list of maps with :color, :keyvec, init"
+  (doseq [spec specs]
+    (jfxb/bind! :var state, :init (:init spec), :keyvec (:keyvec spec)
+                :property :value
+                :no-action-val nil
+                :targets [(lu (:picker spec))])))
+
+(defn setup-background-color-selectors [state lu]
+  "Because :background is the final property used, we must create it
+  separately and swap it in for initialization."
+  (let [top-init (javafx.scene.paint.Color/web "F9FCFF")
+        bot-init (javafx.scene.paint.Color/web "E1F2FF")
+        swap-background! (fn [top bot]
+                           (swap! state assoc :background
+                                  (jfxc/background top bot)))]
+    (setup-generic-color-selector
+     state lu
+     {:picker "col-bg-top"
+      :keyvec [:background-color-top]
+      :init top-init}
+     {:picker "col-bg-bot"
+      :keyvec [:background-color-bot]
+      :init bot-init})
+
+    ;; Create a new background when relevant color changes occur
+    (add-watch state :background-changer
+               (fn [k r o n]
+                 (when (or (not= (:background-color-top o)
+                                 (:background-color-top n))
+                           (not= (:background-color-bot o)
+                                 (:background-color-bot n)))
+                   (swap-background!
+                    (:background-color-top n)
+                    (:background-color-bot n)))))
+    (swap-background! top-init bot-init)))
+
+(defn setup-other-color-selectors [state lu]
+  (let [idpairs ["col-axis-line-color" [:axis-line-color]
+                 "col-major-grid-line-color" [:major-line-color]
+                 "col-major-grid-dot-color" [:major-dot-color]
+                 "col-minor-grid-line-color" [:minor-line-color]
+                 "col-minor-grid-dot-color" [:minor-dot-color]]]
+    (apply setup-generic-color-selector
+           state lu
+           (map #(hash-map :picker (first %)
+                           :keyvec (second %)
+                           :init javafx.scene.paint.Color/BLACK)
+                (partition 2 idpairs)))))
 
 
 
 (defn GridSettingsPane [name]
-  (let [state (atom {})]
-    (def v state) ;; for use in repl
-    (let [root (doto (load-fxml-root "GridSettingsPane.fxml")
-                 (update-names! name)
-                 (update-sliders! name)
-                 (update-textfields! name)
-                 (update-spinners! name)
-                 (bind-properties! name state))]
-      root)))
-
-
+  "Load up GridSettingsPane.  Returns a map with both the node and the
+  state. "
+  (let [grid-settings (atom {})
+        editor-settings (atom {})]
+    (let [root (doto (jfxc/load-fxml-root "GridSettingsPane2.fxml"))
+          lu (fn [id] (if-let [result (jfxc/lookup root id)]
+                        result
+                        (throw (Exception. (str "Could not find " id)))))
+          #_(fn [id] (let [fqn (jfxc/join-hyph name id)]
+                     (if-let [result (jfxc/lookup root fqn)]
+                       result
+                       (throw (Exception. (str "Could not find " fqn))))))]
+      ;;(update-names! root "")
+      (def root root)
+      (def lu lu)
+      (setup-grid-enable-checkboxes! grid-settings lu)
+      (setup-major-grid-spacing-spinners! grid-settings lu)
+      (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
+      (setup-zoom-level-range-text! grid-settings lu)
+      (setup-sliders grid-settings lu)
+      (setup-snap-to-checkboxes grid-settings lu)
+      (setup-visibility-checkboxes grid-settings lu)
+      (setup-background-color-selectors editor-settings lu)
+      (setup-other-color-selectors grid-settings lu)
+      {:root root
+       :grid-settings grid-settings
+       :editor-settings editor-settings
+       })))
 
 (defn main []
-  (set-exit false)
-  (stage (GridSettingsPane "demo") [800 600]))
+  (jfxc/set-exit false)
+  (let [{:keys [root grid-settings editor-settings]} (GridSettingsPane "demo")]
+     (jfxc/stage root [800 600])))
 
 (defn -main []
-  (app-init)
-  (stage (GridSettingsPane "demo") [800 600]))
+  (jfxc/app-init)
+  (jfxc/stage (GridSettingsPane "demo") [800 600]))
 
 
-(defn test-spinner []
-  (let [svf (spinner-distance-value-factory mm)
-        sp (javafx.scene.control.Spinner. svf)]
-    (def svf svf)
-    (def sp sp)
-    (.setEditable sp true)
-    (.setFont (.getEditor sp) (javafx.scene.text.Font. 48))
-    (.setValue svf (mm 100))
-    (add-listener! sp :value (invalidation-listener
-                              ;; Force local text to update regardless of whether the underlying
-                              ;; value is the same as before
-                              (let [newvalue (.getValue observable)
-                                    spinner (.getBean observable)
-                                    converter (.. spinner getValueFactory getConverter)
-                                    newstring (.toString converter newvalue)]
-                                (.setText (.getEditor spinner) newstring))))
-    #_(add-listener! svf :value (invalidation-listener
-                               (println "factory invalidated" (.getValue observable))))
-    #_(add-listener! sp :value (change-listener
-                              (println "spinner changed" (.getValue observable))))
-    #_(add-listener! svf :value (change-listener
-                               (println "factory changed" (.getValue observable))))
-    #_(add-listener! (.getEditor sp) :text (change-listener
-                                          (println "text changed")))
-    (stage sp)))
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
 
 
 
