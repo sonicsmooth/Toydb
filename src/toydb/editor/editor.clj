@@ -1,6 +1,6 @@
 (ns toydb.editor.editor
   (:gen-class)
-  (:require [jfxutils.core :as jfxc :exclude [-main]]
+  (:require [jfxutils.core :as jfxc :refer [printexp] :exclude [-main]]
             [jfxutils.bind :as jfxb])
   (:require [toydb.editor
              [canvas :as canvas]
@@ -438,10 +438,17 @@
         ppos (or (:last-px mouse-state) (:origin view) )
         [unit-scale unit-label] (get-print-scale-and-label doc)
         upos (viewdef/pixels-to-units view ppos)
-        snupos (if (-> @(:grid-settings doc) :minor-snap)
+
+        snupos (if (:minor-snap @(:grid-settings doc))
                  (viewdef/pixels-to-snapped-units view ppos)
                  upos)
-        snscupos (.multiply snupos unit-scale)
+
+        snscupos (try (.multiply snupos unit-scale)
+                      (catch Exception e
+                        (println "caught at snscupos!")
+                        (printexp (str "ex" snupos))
+                        (printexp (str "ex" unit-scale))))
+
         ^Label upos-label (lookup-node doc "unit-pos-label")]
     ;; Apparently .setText calls canvas resize somehow
     (.setText upos-label (format "ux:%-5.5g %s, uy:%-5.5g %s"
@@ -557,7 +564,12 @@
     pane))
 
 
-;; Editor-View is a graphical thing with a grid, not some UI-less abstraction of document
+;; Editor-View is a graphical thing with a grid, not some UI-less
+;; abstraction of document The editor deals with the following atoms:
+;; editor-settings, grid-settings, and viewef-atom.  The first two are
+;; passed as arguments because they come from the dialog box; the
+;; third is created internally.
+
 (defn editor-view
   "Make editor-view with relevant handlers"
   [editor-settings grid-settings]
@@ -613,6 +625,7 @@
                             :grid-settings grid-settings
                             :mouse-state (atom nil)
                             :move-state (atom nil)})
+        
         ^Slider zoom-slider (lookup-node doc "zoom-slider")
         ^Label zoom-label (lookup-node doc "zoom-value")
         ^ToggleButton metric-button (lookup-node doc "metric-button")
@@ -625,7 +638,6 @@
         ^CheckBox snap-checkbox (lookup-node doc "snap-checkbox")]
 
 
-
     ;; Name the canvas so we can get to it later
     ;; Probably we should change the canvas constructor to accept property arguments
     (.setId grid-canvas (idfn "grid-canvas"))
@@ -634,13 +646,14 @@
     (reset! doc-atom doc)
 
     ;; This watch triggers a redraw whenever viewdef changes.
-    (add-watch viewdef-atom :main-redraw (fn [k r o n] (redraw-view! doc)))
+    (add-watch viewdef-atom :viewdef-redraw (fn [k r o n]
+                                              (redraw-view! doc)))
 
     ;; This watch triggers a redraw when one of the settings changes, primarily background
     (add-watch editor-settings :editor-settings-redraw (fn [k r o n] (redraw-view! doc)))
 
     ;; This watch triggers a redraw when one of the grid settings changes
-    (add-watch grid-settings :grid-settings-redraw (fn [k r o n] (redraw-view! doc)))
+    (add-watch grid-settings :grid-settings-redraw (fn [k r o n]  (redraw-view! doc)))
     
     ;; Use fancy double-binding to tie internal zoom level with slider value and text.
     (jfxb/bind! :init 0
@@ -676,7 +689,13 @@
               (fn [propval]
                 (if propval
                   selector
-                  (:metric-selection @viewdef-atom))))]
+                  (:metric-selection @viewdef-atom))))
+
+            (inches-propfn [selector]
+              (fn [propval]
+                (if propval
+                  selector
+                  (:inches-selection @viewdef-atom))))]
       
       (jfxb/bind! :init :cm
                   :var viewdef-atom
@@ -687,17 +706,30 @@
                             mm-button {:var-to-prop-fn viewdef/mm?
                                        :prop-to-var-fn (metric-propfn :mm)}
                             cm-button {:var-to-prop-fn viewdef/cm?
-                                       :prop-to-var-fn (metric-propfn :cm)}})) 
+                                       :prop-to-var-fn (metric-propfn :cm)}})
+
+      (jfxb/bind! :init :inches
+                  :var viewdef-atom
+                  :keyvec [:inches-selection]
+                  :property :selected
+                  :targets {inch-button {:var-to-prop-fn viewdef/inches?
+                                         :prop-to-var-fn (inches-propfn :inches)}
+                            mil-button {:var-to-prop-fn viewdef/mils?
+                                        :prop-to-var-fn (inches-propfn :mils)}})) 
     
+
+
     ;; These fns update the coordinates when the buttons are pressed
     ;; Do this here instead of in the var-to-prop-fn and
     ;; prop-to-var-fn
-    (add-watch viewdef-atom (rand-int 10)
+    (add-watch viewdef-atom :metric-chooser
                (fn [key ref old new]
                  (when (or (not= (:metric-or-inches new)
                                  (:metric-or-inches old))
                            (not= (:metric-selection new)
-                                 (:metric-selection old)))
+                                 (:metric-selection old))
+                           (not= (:inches-selection new)
+                                 (:inches-selection old)))
                    (update-coordinates! doc @(:mouse-state doc)))))
 
     ;; Use fancy double binding to tie internal snap setting to checkbox
@@ -724,7 +756,6 @@
         stage (jfxc/stage (:doc-pane doc) [800 800])]
     doc))
 
-
 (defn editor
   ;; Start a new editor with a few editor-views Behaviors for now are
   ;; just GridSettingsPanes But eventually will include things like
@@ -732,13 +763,15 @@
   ([] (editor nil))
   ([app]
    ;; Todo -- different types of docs, ie schematic and layout
-   (let [{sch-root :root schgrid-settings :settings} (gsp/GridSettingsPane "schematic")
-         {lay-root :root laygrid-settings :settings} (gsp/GridSettingsPane "layout")
+   (let [{sch-root :root
+          schgrid-settings :grid-settings
+          scheditor-settings :editor-settings} (gsp/GridSettingsPane "schematic")
+         {lay-root :root
+          laygrid-settings :grid-settings
+          layeditor-settings :editor-settings} (gsp/GridSettingsPane "layout")
 
-         doc1 (editor-view EDITOR-SETTINGS1 schgrid-settings;;GRID-SETTINGS1
-                           )
-         doc2 (editor-view EDITOR-SETTINGS2 laygrid-settings;;GRID-SETTINGS2
-                           )
+         doc1 (editor-view scheditor-settings schgrid-settings)
+         doc2 (editor-view layeditor-settings laygrid-settings)
          
          center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
                                       :right (docks/node (:doc-pane doc2) "doc2")) 
@@ -751,10 +784,16 @@
                  :docs [doc1 doc2]
                  :behaviors [{:type :settings-pane
                               :name "Schematic Grid"
-                              :root sch-root}
+                              :root sch-root
+                              ;;:grid-settings schgrid-settings
+                              ;;:editor-settings scheditor-settings
+                              }
                              {:type :settings-pane
                               :name "Layout Grid"
-                              :root lay-root}]}]
+                              :root lay-root
+                              ;;:grid-settings laygrid-settings
+                              ;;:editor-settings scheditor-settings
+                              }]}]
      
      ;; How it works, for each doc:
      ;; 1.  Add watch to atom which calls protocol redraw
@@ -765,37 +804,19 @@
      editor)))
 
 
-#_(defn animate-scale [^Node node]
-  (let [^Affine xfrm (first (.getTransforms node))]
-    (doseq [sc (concat (range 1 6 0.1) (range 6 1 -0.1))]
-      (Thread/sleep 25)
-      (doto xfrm
-        (.setMxx sc)
-        (.setMyy sc)))))
-
-#_(defn animate-rotate [^Node node]
-  (let [^Affine xfrm (first (.getTransforms node))]
-    (doseq [rot (concat (range 0 5) (range 5 0 -1))]
-      (Thread/sleep 25)
-      (.append xfrm (Rotate. rot)))))
-
-
-#_(defn zsc [^Node node sc x y]
-  ;; Changes the built-in scale[XY] and translate[XY] properties, not
-  ;; the affine transform.
-  (set-xy! node :translate (Point2D. x y))
-  (set-scale! node sc))
-
 (defn go []
-  (def docx (doc-test))
-  (def vda (:viewdef docx))
-  (def zs (:zoomspecs @vda))
-  (def sp (lookup-node docx "surface-pane"))
-  (def gc (lookup-node docx "grid-canvas"))
-  (def ep (lookup-node docx "entities-pane"))
-  (def eg (lookup-node docx "entities-group"))
-  (def lg (lookup-node docx "little-group"))
-;;  (run-later (zsc eg 1 0 0))
+  (let [ed (editor)]
+    (def ed ed)
+    (def tp (:top-pane ed))
+    (def setui (get-in ed [:behaviors 0 :root]))
+    (def state (get-in ed [:behaviors 0 :grid-settings]))
+    #_(add-watch state :wha? (fn [k r o n] (let [[oa ob bo] (clojure.data/diff o n)]
+                                           (when ob (println ob)))))
+    (jfxc/stage tp [800 480])
+    (jfxc/stage setui [800 480]))
+  
+
+
   )
 
 (defn main [& args]

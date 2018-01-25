@@ -1,8 +1,7 @@
 (ns toydb.ui.GridSettingsPane
-  (:require [jfxutils.core :as jfxc]
+  (:require [jfxutils.core :as jfxc :refer [printexp lookup get-property]]
             [jfxutils.ui :as jfxui]
             [jfxutils.bind :as jfxb]
-            ;;[toydb.bind :refer [bind! dirtify!]]
             [toydb.units :refer [um mm cm m km inch mil incr decr nearest distance
                                  distance-string-converter distance-text-formatter
                                  add sub]]))
@@ -24,31 +23,14 @@ connected to the state.
 
 "
 
-(defn idvalid? [id-string]
-  "Returns true if id is a proper name"
-  (and (not (empty? id-string)) ;; captures both nil and ""
-       (not (.startsWith id-string "arrow"))))
-
-(defn recurse-named-nodes [node]
-  "Return flattened list of all named subnodes of node"
-  (letfn [(inner-dump [n]
-            (let [id (.getId n)
-                  idvalid (idvalid? id)
-                  children (jfxc/subnodes n)
-                  get-child-ids #(remove nil? (map inner-dump children))]
-              (cond
-                (and (not idvalid) (nil? children)) nil
-                (and (not idvalid) children) (get-child-ids)
-                (and idvalid (nil? children)) id
-                (and idvalid children) (cons id (get-child-ids)))))]
-    (flatten (inner-dump node))))
 
 
 (defn update-names!
   "Append name to all ids in settings-pane"
   [root name]
-  (let [ids (recurse-named-nodes root)]
+  (let [ids (jfxc/recurse-named-nodes root)]
     (doseq [id ids]
+      ;;(println id)
       (.setId (jfxc/lookup root id) (jfxc/join-hyph name id))))
   root)
 
@@ -85,72 +67,37 @@ connected to the state.
 
 
 (defn setup-grid-enable-checkboxes! [state lu]
-  (let [tgt-enmajg (lu "cb-enable-major-grid")
-        tgt-spmm (lu "sp-major-grid-spacing-mm")
-        tgt-spmil (lu "sp-major-grid-spacing-mils")
+  (let [ ;; TitledPanes
+        tpmaj (lu "tp-major-grid")
+        tpmin (lu "tp-minor-grid")
+
+        ;; GridPanes
+        gpmaj (lu "gp-major-grid-elements")
+        gpmin (lu "gp-minor-grid-elements")
+
+        ;; Corner checkboxes
+        enmaj (.getGraphic tpmaj)
+        enmin (.getGraphic tpmin)
+
         major-grid-enable-bindings
-        (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
-               :var-fn! #(if % ;; enable one or disable both
-                           (swap! state assoc-in [:major-lines-visible] true)
-                           (swap! state jfxc/multi-assoc-in [:major-lines-visible] false, [:minor-lines-visible] false))
-               :targets {tgt-enmajg {:property :selected}
-                         tgt-spmm {:property :disable, :var-to-prop-fn not}
-                         tgt-spmil {:property :disable, :var-to-prop-fn not}})
+        (jfxb/bind! :var state, :init true, :keyvec [:major-grid-enable]
+                    :targets {enmaj {:property :selected}
+                              gpmaj {:property :disable, :var-to-prop-fn not}
+                              tpmin {:property :disable, :var-to-prop-fn not}
+                              })
 
-        tgt-enming (lu "cb-enable-minor-grid")
-        tgt-spgpm (lu "sp-minor-gpm")
         minor-grid-enable-bindings
-        (jfxb/bind! :var state, :init true, :keyvec [:minor-lines-visible]
-               :var-fn! #(if % ;; enable both or disable the one
-                           (swap! state jfxc/multi-assoc-in [:minor-lines-visible] true, [:major-lines-visible] true)
-                           (swap! state assoc-in [:minor-lines-visible] false))
-               :targets {tgt-enming{:property :selected}
-                         tgt-spgpm {:property :disable,
-                                    :var-to-prop-fn #(not (and (:major-lines-visible @state) %))}})]))
+        (jfxb/bind! :var state, :init true, :keyvec [:minor-grid-enable]
+                      :targets {enmin {:property :selected}
+                                gpmin {:property :disable, :var-to-prop-fn not}})]
 
-(defn setup-snap-to-checkboxes [state lu]
-  (jfxui/setup-generic-checkbox
-   state lu
-   {:checkbox "cb-major-grid-snap-to"
-    :keyvec [:major-snap]
-    :init false}
-   {:checkbox "cb-minor-grid-snap-to"
-    :keyvec [:minor-snap]
-    :init false}))
-
-(defn setup-visibility-checkboxes [state lu]
-  (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
-         :property :disable
-         :var-to-prop-fn not
-         :targets {(lu "cb-major-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
-                   (lu "sl-major-grid-line-width") {}
-                   (lu "tf-major-grid-line-width") {}
-                   (lu "cs-major-grid-line-color") {}})
-  
-  (jfxb/bind! :var state, :init true, :keyvec [:major-dots-visible]
-         :property :disable
-         :var-to-prop-fn not
-         :targets {(lu "cb-major-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
-                   (lu "sl-major-grid-dot-width") {}
-                   (lu "tf-major-grid-dot-width") {}
-                   (lu "cs-major-grid-dot-color") {}})
-
-  (jfxb/bind! :var state, :init true, :keyvec [:minor-lines-visible]
-         :property :disable
-         :var-to-prop-fn not
-         :targets {(lu "cb-minor-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
-                   (lu "sl-minor-grid-line-width") {}
-                   (lu "tf-minor-grid-line-width") {}
-                   (lu "cs-minor-grid-line-color") {}})
-
-  (jfxb/bind! :var state, :init true, :keyvec [:minor-dots-visible]
-         :property :disable
-         :var-to-prop-fn not
-         :targets {(lu "cb-minor-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
-                   (lu "sl-minor-grid-dot-width") {}
-                   (lu "tf-minor-grid-dot-width") {}
-                   (lu "cs-minor-grid-dot-color") {}}))
-
+    ;; Adjust checkbox positions to the far right, adding 20px to avoid ellipsis
+    (doseq [tgt [tpmaj tpmin]]
+      (.bind (jfxc/get-property tgt :graphic-text-gap)
+             (.subtract (get-property tgt :width)
+                        (.add (get-property (.getGraphic tgt) :width)
+                              (+ (.. (doto (javafx.scene.text.Text. (.getText tgt)) .applyCss)
+                                     getLayoutBounds getWidth) 20)))))))
 
 (defn setup-major-grid-spacing-spinners! [state lu]
   (let [lower (um 100)
@@ -191,13 +138,11 @@ connected to the state.
            :targets {tgt-spmmvf {:var-to-prop-fn mm}
                      tgt-spmilvf {:var-to-prop-fn mil}})))
 
-
-
 (defn setup-minor-grid-per-major-grid-spinner! [state lu]
   (let [lower (int 2) ;; use int because there is no LongSpinnerValueFactory
         upper (int 10)
         tgt-spgpmvf (jfxui/integer-spinner-value-factory lower upper)
-        tgt-spgpm (doto (lu "sp-minor-gpm") (.setValueFactory tgt-spgpmvf))]
+        tgt-spgpm (doto (lu "sp-minor-grid-ratio") (.setValueFactory tgt-spgpmvf))]
     (.setEditable tgt-spgpm true)
     (jfxui/setup-number-textfield! (.getEditor tgt-spgpm) (.getConverter tgt-spgpmvf) lower upper)
     (jfxb/bind! :var state, :init lower, :keyvec [:minor-gpm]
@@ -205,7 +150,6 @@ connected to the state.
            :no-action-val nil
            :range-fn #(jfxui/number-range-check % lower upper :clip)
            :targets [tgt-spgpmvf])  ))
-
 
 (defn setup-zoom-level-range-text! [state lu]
   (jfxui/setup-generic-text
@@ -224,6 +168,18 @@ connected to the state.
 (defn setup-sliders [state lu]
   (jfxui/setup-generic-slider-and-text
    state lu
+   {:slider "sl-axis-line-width"
+    :textfield "tf-axis-line-width"
+    :keyvec [:axis-line-width-px]
+    :type Double
+    :range [0.01 5.0]
+    :init 1.0
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.01}
    {:slider "sl-zoom-ppu"
     :textfield "tf-zoom-ppu"
     :keyvec [:zoom-ppu]
@@ -238,121 +194,185 @@ connected to the state.
     :textfield "tf-major-grid-line-width"
     :keyvec [:major-line-width-px]
     :type Double
-    :range [0.1 20.0]
-    :init 1.0
+    :range [0.01 4.0]
+    :init 0.25
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
     :show-tick-labels true
     :block-increment 1.0
-    :snap-to 0.25}
+    :snap-to 0.01}
    {:slider "sl-major-grid-dot-width"
     :textfield "tf-major-grid-dot-width"
     :keyvec [:major-dot-width-px]
     :type Double
-    :range [0.1 20.0]
-    :init 1.0
+    :range [0.01 4.0]
+    :init 2.0
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
     :show-tick-labels true
     :block-increment 1.0
-    :snap-to 0.25}
+    :snap-to 0.01}
    {:slider "sl-minor-grid-line-width"
     :textfield "tf-minor-grid-line-width"
     :keyvec [:minor-line-width-px]
     :type Double
-    :range [0.1 20.0]
-    :init 1.0
+    :range [0.01 2.0]
+    :init 0.025
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
     :show-tick-labels true
     :block-increment 1.0
-    :snap-to 0.25}
+    :snap-to 0.01}
    {:slider "sl-minor-grid-dot-width"
     :textfield "tf-minor-grid-dot-width"
     :keyvec [:minor-dot-width-px]
     :type Double
-    :range [0.1 20.0]
-    :init 1.0
+    :range [0.01 2.0]
+    :init 0.2
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
     :show-tick-labels true
     :block-increment 1.0
-    :snap-to 0.25}))
+    :snap-to 0.01}))
+
+(defn setup-snap-to-checkboxes [state lu]
+  (jfxui/setup-generic-checkbox
+   state lu
+   {:checkbox "cb-major-grid-snap-to"
+    :keyvec [:major-snap]
+    :init false}
+   {:checkbox "cb-minor-grid-snap-to"
+    :keyvec [:minor-snap]
+    :init false}))
+
+(defn setup-visibility-checkboxes [state lu]
+  (jfxb/bind! :var state, :init true, :keyvec [:axes-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-axes-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-axis-line-width") {}
+                        (lu "tf-axis-line-width") {}
+                        (lu "col-axis-line-color") {}})
+  
+  (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-major-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-major-grid-line-width") {}
+                        (lu "tf-major-grid-line-width") {}
+                        (lu "col-major-grid-line-color") {}})
+  
+  (jfxb/bind! :var state, :init true, :keyvec [:major-dots-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-major-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-major-grid-dot-width") {}
+                        (lu "tf-major-grid-dot-width") {}
+                        (lu "col-major-grid-dot-color") {}})
+
+  (jfxb/bind! :var state, :init true, :keyvec [:minor-lines-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-minor-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-minor-grid-line-width") {}
+                        (lu "tf-minor-grid-line-width") {}
+                        (lu "col-minor-grid-line-color") {}})
+
+  (jfxb/bind! :var state, :init true, :keyvec [:minor-dots-visible]
+              :property :disable
+              :var-to-prop-fn not
+              :targets {(lu "cb-minor-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
+                        (lu "sl-minor-grid-dot-width") {}
+                        (lu "tf-minor-grid-dot-width") {}
+                        (lu "col-minor-grid-dot-color") {}}))
+
+(defn setup-generic-color-selector [state lu & specs]
+  "Args is list of maps with :color, :keyvec, init"
+  (doseq [spec specs]
+    (jfxb/bind! :var state, :init (:init spec), :keyvec (:keyvec spec)
+                :property :value
+                :no-action-val nil
+                :targets [(lu (:picker spec))])))
+
+(defn setup-background-color-selectors [state lu]
+  "Because :background is the final property used, we must create it
+  separately and swap it in for initialization."
+  (let [top-init (javafx.scene.paint.Color/web "F9FCFF")
+        bot-init (javafx.scene.paint.Color/web "E1F2FF")
+        swap-background! (fn [top bot]
+                           (swap! state assoc :background
+                                  (jfxc/background top bot)))]
+    (setup-generic-color-selector
+     state lu
+     {:picker "col-bg-top"
+      :keyvec [:background-color-top]
+      :init top-init}
+     {:picker "col-bg-bot"
+      :keyvec [:background-color-bot]
+      :init bot-init})
+
+    ;; Create a new background when relevant color changes occur
+    (add-watch state :background-changer
+               (fn [k r o n]
+                 (when (or (not= (:background-color-top o)
+                                 (:background-color-top n))
+                           (not= (:background-color-bot o)
+                                 (:background-color-bot n)))
+                   (swap-background!
+                    (:background-color-top n)
+                    (:background-color-bot n)))))
+    (swap-background! top-init bot-init)))
+
+(defn setup-other-color-selectors [state lu]
+  (setup-generic-color-selector
+   state lu
+   {:picker "col-axis-line-color"
+    :keyvec [:axis-line-color]
+    :init javafx.scene.paint.Color/BLACK}
+)
+)
 
 
 
 (defn GridSettingsPane [name]
   "Load up GridSettingsPane.  Returns a map with both the node and the
   state. "
-  (let [state (atom {})]
-    (let [root (doto (jfxc/load-fxml-root "GridSettingsPane.fxml"))
+  (let [grid-settings (atom {})
+        editor-settings (atom {})]
+    (let [root (doto (jfxc/load-fxml-root "GridSettingsPane2.fxml"))
           lu (fn [id] (jfxc/lookup root (jfxc/join-hyph name id)))]
       (update-names! root name)
-      (setup-grid-enable-checkboxes! state lu)
-      (setup-major-grid-spacing-spinners! state lu)
-      (setup-minor-grid-per-major-grid-spinner! state lu)
-      (setup-zoom-level-range-text! state lu)
-      (setup-sliders state lu)
-      (setup-snap-to-checkboxes state lu)
-      (setup-visibility-checkboxes state lu)
-      {:root root :settings state})))
+      (def root root)
+      (def lu lu)
+      (setup-grid-enable-checkboxes! grid-settings lu)
+      (setup-major-grid-spacing-spinners! grid-settings lu)
+      (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
+      (setup-zoom-level-range-text! grid-settings lu)
+      (setup-sliders grid-settings lu)
+      (setup-snap-to-checkboxes grid-settings lu)
+      (setup-visibility-checkboxes grid-settings lu)
+      (setup-background-color-selectors editor-settings lu)
+      (setup-other-color-selectors grid-settings lu)
+      {:root root
+       :grid-settings grid-settings
+       :editor-settings editor-settings
+       })))
 
 (defn main []
   (jfxc/set-exit false)
-  (let [{:keys [root state]} (GridSettingsPane "demo") 
-        st (jfxc/stage root [800 600])
-        
-        #_root #_(stage (jfxnew javafx.scene.layout.HBox
-                            :id "hb"
-                            :stylesheets [(str (clojure.java.io/resource "style.css"))]
-                            :children [(jfxnew javafx.scene.control.Slider :id "other-slider")
-                                       (jfxnew javafx.scene.control.TextField :id "other-textfield")]
-                            :alignment javafx.geometry.Pos/CENTER) [400 100])
-        ;;lu (fn [id] (lookup root id))
-        ;;sc (.getScene root)
-        ]
-
-    #_(jfxutils.core/run-later
-     (setup-generic-slider-and-text
-      v lu
-      {:slider "other-slider"
-       :textfield "other-textfield"
-       :keyvec [:zoom-ppu]
-       :type Long
-       :range [5 200] 
-       :init 30
-       :major-tick-unit 50
-       :minor-tick-count 9
-       :show-tick-marks true
-       :show-tick-labels true}))
-    ))
+  (let [{:keys [root grid-settings editor-settings]} (GridSettingsPane "demo")]
+     (jfxc/stage root [800 600])))
 
 (defn -main []
   (jfxc/app-init)
   (jfxc/stage (GridSettingsPane "demo") [800 600]))
 
 
-(defn test-spinner []
-  (let [svf (distance-spinner-value-factory mm)
-        sp (javafx.scene.control.Spinner. svf)]
-    (def svf svf)
-    (def sp sp)
-    (.setEditable sp true)
-    (.setFont (.getEditor sp) (javafx.scene.text.Font. 48))
-    (.setValue svf (mm 100))
-    (jfxc/add-listener! sp :value (jfxc/invalidation-listener
-                                   ;; Force local text to update regardless of whether the underlying
-                                   ;; value is the same as before
-                                   (let [newvalue (.getValue observable)
-                                         spinner (.getBean observable)
-                                         converter (.. spinner getValueFactory getConverter)
-                                         newstring (.toString converter newvalue)]
-                                     (.setText (.getEditor spinner) newstring))))
-    (jfxc/stage sp)))
+
 
 
 

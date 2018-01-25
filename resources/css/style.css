@@ -15,14 +15,14 @@
 
 .hbox {
     -fx-padding: 0 10 -0 10;
-    -fx-spacing: 10;
+    -fx-spacing: 5;
 }
 .vbox {
     -fx-padding: 10 0 10 0;
-    -fx-spacing: 10;
+    -fx-spacing: 5;
 }
 .grid-pane {
-    -fx-padding: 8;
+    -fx-padding: 5;
 }
 
 .root {

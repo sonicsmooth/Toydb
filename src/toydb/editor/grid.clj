@@ -131,17 +131,17 @@ Lines is a list with each member a list of Point2D"
   (.setStroke gc color)
   (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
         line-width-u (* line-width-px recipscale)  ;; Divide requested linewidth down by Mxx
-        pixel-offset (* 0.5 recipscale)
-        ] ;; Half-pixel offset
+        pixel-offsetx (* 0.0 recipscale)
+        pixel-offsety (* 0.5 recipscale)]
     (.setLineWidth gc line-width-u)
     (doseq [line lines]
       (doseq [ptpair line]
         (let [p1 ^Point2D (first ptpair)
               p2 ^Point2D (second ptpair)
-              xp1 (+ pixel-offset (.getX p1))
-              xp2 (+ pixel-offset (.getX p2))
-              yp1 (+ #_pixel-offset (.getY p1))
-              yp2 (+ #_pixel-offset (.getY p2))]
+              xp1 (+ pixel-offsetx (.getX p1))
+              xp2 (+ pixel-offsetx (.getX p2))
+              yp1 (+ pixel-offsety (.getY p1))
+              yp2 (+ pixel-offsety (.getY p2))]
           (.strokeLine gc xp1 yp1 xp2 yp2)))))
   (.restore gc))
 
@@ -225,7 +225,7 @@ Lines is a list with each member a list of Point2D"
                     (:major-line-width-px gst)
                     (:major-line-color gst)))
 
-     (when (:axis-visible gst)
+     (when (:axes-visible gst)
        (draw-lines! gc (select-values lines [:axisvertical :axishorizontal])
                     (:axis-line-width-px gst)
                     (:axis-line-color gst)))
