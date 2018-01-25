@@ -194,7 +194,7 @@ connected to the state.
     :textfield "tf-major-grid-line-width"
     :keyvec [:major-line-width-px]
     :type Double
-    :range [0.01 4.0]
+    :range [0.01 8.0]
     :init 0.25
     :major-tick-unit 5
     :minor-tick-count 3
@@ -206,7 +206,7 @@ connected to the state.
     :textfield "tf-major-grid-dot-width"
     :keyvec [:major-dot-width-px]
     :type Double
-    :range [0.01 4.0]
+    :range [0.01 10.0]
     :init 2.0
     :major-tick-unit 5
     :minor-tick-count 3
@@ -218,7 +218,7 @@ connected to the state.
     :textfield "tf-minor-grid-line-width"
     :keyvec [:minor-line-width-px]
     :type Double
-    :range [0.01 2.0]
+    :range [0.01 8.0]
     :init 0.025
     :major-tick-unit 5
     :minor-tick-count 3
@@ -230,7 +230,7 @@ connected to the state.
     :textfield "tf-minor-grid-dot-width"
     :keyvec [:minor-dot-width-px]
     :type Double
-    :range [0.01 2.0]
+    :range [0.01 10.0]
     :init 0.2
     :major-tick-unit 5
     :minor-tick-count 3
@@ -328,13 +328,17 @@ connected to the state.
     (swap-background! top-init bot-init)))
 
 (defn setup-other-color-selectors [state lu]
-  (setup-generic-color-selector
-   state lu
-   {:picker "col-axis-line-color"
-    :keyvec [:axis-line-color]
-    :init javafx.scene.paint.Color/BLACK}
-)
-)
+  (let [idpairs ["col-axis-line-color" [:axis-line-color]
+                 "col-major-grid-line-color" [:major-line-color]
+                 "col-major-grid-dot-color" [:major-dot-color]
+                 "col-minor-grid-line-color" [:minor-line-color]
+                 "col-minor-grid-dot-color" [:minor-dot-color]]]
+    (apply setup-generic-color-selector
+           state lu
+           (map #(hash-map :picker (first %)
+                           :keyvec (second %)
+                           :init javafx.scene.paint.Color/BLACK)
+                (partition 2 idpairs)))))
 
 
 
@@ -344,8 +348,14 @@ connected to the state.
   (let [grid-settings (atom {})
         editor-settings (atom {})]
     (let [root (doto (jfxc/load-fxml-root "GridSettingsPane2.fxml"))
-          lu (fn [id] (jfxc/lookup root (jfxc/join-hyph name id)))]
-      (update-names! root name)
+          lu (fn [id] (if-let [result (jfxc/lookup root id)]
+                        result
+                        (throw (Exception. (str "Could not find " id)))))
+          #_(fn [id] (let [fqn (jfxc/join-hyph name id)]
+                     (if-let [result (jfxc/lookup root fqn)]
+                       result
+                       (throw (Exception. (str "Could not find " fqn))))))]
+      ;;(update-names! root "")
       (def root root)
       (def lu lu)
       (setup-grid-enable-checkboxes! grid-settings lu)
