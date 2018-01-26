@@ -1,11 +1,11 @@
 (ns toydb.editor.viewdef
   (:require [clojure.core.matrix :as matrix]
             [clojure.core.matrix.operators :as matrixop]
-            [jfxutils.core :refer [defmemo]])
+            [jfxutils.core :as jfxc])
   (:import [javafx.geometry Point2D]))
 
 (set! *warn-on-reflection* false)
-(set! *unchecked-math* false) ;;:warn-on-boxed
+(set! *unchecked-math* :false) ;;:warn-on-boxed
 (matrix/set-current-implementation :vectorz)
 
 ;; Separate zoom from pan (aka origin) and the rest of it
@@ -50,8 +50,6 @@
 (def metric-kgpu (/ 1 mgsu)) ;; 1 grid/10 mm = 1 grid/10000um = .0001 grids/unit
 (def inch-kgpu (/ 1 igsu))
 
-;;(def metric-print-scales )
-;;(def inch-print-scales )
 
 (def DEFAULT-ZOOM-RATIO 100) ;; How many zoom levels for each minor/major replacement
 (def DEFAULT-ZOOM-LEVEL 0)
@@ -61,7 +59,7 @@
 (def DEFAULT-GRIDS-PER-UNIT metric-kgpu)
 (def DEFAULT-METRIC-OR-INCHES :metric)
 (def DEFAULT-PRINT-SCALES {:metric {:um 1.0, :mm 1e-3, :cm 1e-4}
-                           :inches {:inches (/ 1 igsu), :mils (/ 1000 igsu)}})
+                           :inches {:inches (/ 1.0 igsu), :mils (/ 1000.0 igsu)}})
 (def DEFAULT-METRIC-SELECTION :mm) ;; keys from DEFAULT-PRINT-SCALES :metric
 (def DEFAULT-INCHES-SELECTION :inches) ;; keys from DEFAULT-PRINT-SCALES :inches
 (def DEFAULT-ZOOMSPECS (map->ZoomSpecs {:zoomratio DEFAULT-ZOOM-RATIO
@@ -144,19 +142,20 @@
      (Math/pow oldkmpm (/ (- new-zoomlevel oldzl) oldzr)))))
 
 
-(defmemo compute-maj-spacing
+(defn _compute-maj-spacing
   "Computes major grid spacing for both grid and snap-to functionality"
-  [^ZoomSpecs zoomspecs]
-  (let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
-        kgpu (.kgpu zoomspecs)
-        kmpm (.kmpm zoomspecs)
-        majgpu (* kgpu (Math/pow kmpm zoom_exp_step))]  ; major grids per unit after zoom
-    (/ 1 majgpu)))
+  (^double [^ZoomSpecs zoomspecs]
+   (let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
+         kgpu (.kgpu zoomspecs)
+         kmpm (.kmpm zoomspecs)
+         majgpu (* kgpu (Math/pow kmpm zoom_exp_step))]  ; major grids per unit after zoom
+     (/ 1 majgpu))))
+(def compute-maj-spacing (memoize _compute-maj-spacing))
 
 ;; This should be optimized further so a mere pan doesn't cause a new
 ;; compute-min-spacing
 
-(defmemo compute-min-spacing
+(defn _compute-min-spacing
   "Computes minor gridspacing for both grid and snap-to functionality"
   (^double [^ZoomSpecs zoomspecs]
    (let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
@@ -164,7 +163,7 @@
          kmpm (.kmpm zoomspecs)
          mingpu (* kgpu (Math/pow kmpm (+ zoom_exp_step 1)))] ;; minor grids per unit after zoom
      (/ 1 mingpu))))
-
+(def compute-min-spacing (memoize _compute-min-spacing))
 
 (defn pan-to
   "Return new Viewdef based on pan coordinates, including updated transform"
@@ -254,15 +253,17 @@
   "Returns a point in unit space, snapped to the nearest minor grid,
   given a point in unit space.  If arg is a Point2D, returns a
   Point2D.  If arg is a vector of two doubles, returns a vector of two
-  doubles."
+  doubles.  Specify :major or :minor grid"
 
-  (^Point2D [^ViewDef view, ^Point2D ptu]
+  (^Point2D [^ViewDef view, ^Point2D ptu, whichgrid]
    (let [[x y] [(.getX ptu) (.getY ptu)]
-         [snx sny] (units-to-snapped-units view x y)]
+         [snx sny] (units-to-snapped-units view x y whichgrid)]
      (Point2D. snx sny)))
 
-  ([^ViewDef view, ^double ux, ^double uy]
-   (let [spacing (double (compute-min-spacing (:zoomspecs view)))
+  ([^ViewDef view, ^double ux, ^double uy, whichgrid]
+   (let [spacing (double (condp = whichgrid
+                           :minor (compute-min-spacing (:zoomspecs view))
+                           :major (compute-maj-spacing (:zoomspecs view))))
          quantx (Math/round (/ ux spacing))
          quanty (Math/round (/ uy spacing))
          snapx (* spacing quantx)
@@ -271,7 +272,7 @@
 
 
 (defn pixels-to-units 
-  "Returns a Point2D in unit space, given a point in pixel space"
+  "Returns a Point2D in unit space, given a point in pixel space."
 
   (^Point2D [^ViewDef view, ^Point2D ptpx]
    (pixels-to-units view (.getX ptpx) (.getY ptpx)))
@@ -284,17 +285,17 @@
 
 (defn pixels-to-snapped-units
   "Returns a Point2D in unit space, snapped to the nearest minor grid,
-  given a point in pixel space"
+  given a point in pixel space.  Specify :major or :minor grid."
 
-  (^Point2D [^ViewDef view, ^Point2D ptpx]
-   (pixels-to-snapped-units view (.getX ptpx) (.getY ptpx)))
+  (^Point2D [^ViewDef view, ^Point2D ptpx, whichgrid]
+   (pixels-to-snapped-units view (.getX ptpx) (.getY ptpx) whichgrid))
 
-  (^Point2D [^ViewDef view, ^double x, ^double y]
+  (^Point2D [^ViewDef view, ^double x, ^double y, whichgrid]
    (let [m (matrix/matrix [x y 1])
          mupos (matrix/mmul (:inv-transform view) m)
          ux (double (matrix/mget mupos 0))
          uy (double (matrix/mget mupos 1))
-         [snapx snapy] (units-to-snapped-units view ux uy)]
+         [snapx snapy] (units-to-snapped-units view ux uy whichgrid)]
      (Point2D. snapx snapy))))
 
 

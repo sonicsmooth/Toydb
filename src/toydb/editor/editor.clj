@@ -269,7 +269,8 @@
                      doc-pane ;; holds everything, including toolbar, status bar, menu
                      uuid     ;; unique identifier for this instance
                      behaviors
-                     settings
+                     editor-settings
+                     grid-settings
                      mouse-state ;; captures old and new mouse positions
                      move-state] ;; captures object position when moving
   DocumentProtocol
@@ -333,12 +334,14 @@
   
   (init-handlers! [doc]
     ;; Add mouse events to deal with pan, zoom, drag
-    (let [^Node surface-pane (lookup-node doc "surface-pane" )
+    (let [lookup-node (memoize lookup-node)
+          ^Node surface-pane (lookup-node doc "surface-pane" )
           ^Node entities-pane (lookup-node doc "entities-pane")
           ^Node entities-group (lookup-node doc "entities-group")
           mouse-state (:mouse-state doc)
           move-state (:move-state doc)
-          snapfn #(viewdef/units-to-snapped-units @(:viewdef doc) %)
+          minor-snapfn #(viewdef/units-to-snapped-units @(:viewdef doc) % :minor)
+          major-snapfn #(viewdef/units-to-snapped-units @(:viewdef doc) % :major)
 
           ;; keyboard state is probably not necessary since modifier
           ;; keys are available with every mouse event.
@@ -350,7 +353,7 @@
                                 :shift (.isShiftDown event)
                                 :alt (.isAltDown event)))
           idfn (make-idfn (:uuid doc))
-          lookup-node (memoize lookup-node)
+
           
 
           ;; For display of coordinates in status bar
@@ -381,10 +384,16 @@
                                                ;; Item moves: add movement-since-click to old position, then snap
                                                :L__ (when mv
                                                       (let [^Node target (:target mv)
-                                                            ^Point2D tgtxy (:old-xy mv)]
-                                                        (if (-> @(:grid-settings doc) :minor-snap)
-                                                          (set-pos! target (snapfn (.add tgtxy (:click-du ms))))
-                                                          (set-pos! target (.add tgtxy (:click-du ms))))))
+                                                            ^Point2D tgtxy (:old-xy mv)
+                                                            es @(:editor-settings doc)
+                                                            gs @(:grid-settings doc)
+                                                            newpos (.add tgtxy (:click-du ms))
+                                                            newpos (cond (and (:minor-snap-allowed gs)
+                                                                              (:snap es)) (minor-snapfn newpos)
+                                                                         (and (:major-snap-allowed gs)
+                                                                              (:snap es)) (major-snapfn newpos)
+                                                                         :else newpos)]
+                                                        (set-pos! target newpos)))
 
                                                ;; Pan: just tell the doc to move the required pixels
                                                :__R (pan-by! doc (:move-dpx ms) )
@@ -438,17 +447,11 @@
         ppos (or (:last-px mouse-state) (:origin view) )
         [unit-scale unit-label] (get-print-scale-and-label doc)
         upos (viewdef/pixels-to-units view ppos)
-
         snupos (if (:minor-snap @(:grid-settings doc))
-                 (viewdef/pixels-to-snapped-units view ppos)
+                 (viewdef/pixels-to-snapped-units view ppos :minor)
                  upos)
 
-        snscupos (try (.multiply snupos unit-scale)
-                      (catch Exception e
-                        (println "caught at snscupos!")
-                        (printexp (str "ex" snupos))
-                        (printexp (str "ex" unit-scale))))
-
+        snscupos (.multiply snupos unit-scale)
         ^Label upos-label (lookup-node doc "unit-pos-label")]
     ;; Apparently .setText calls canvas resize somehow
     (.setText upos-label (format "ux:%-5.5g %s, uy:%-5.5g %s"
@@ -733,11 +736,19 @@
                    (update-coordinates! doc @(:mouse-state doc)))))
 
     ;; Use fancy double binding to tie internal snap setting to checkbox
+    ;; The unqualified ":snap" key here is used elsewhere, qualified with
+    ;; :minor-snap and/or :major-snap.
     (jfxb/bind! :init true
-                :var grid-settings
-                :keyvec [:minor-snap]
+                :var editor-settings
+                :keyvec [:snap]
                 :property :selected
                 :targets [snap-checkbox])
+
+    (jfxb/bind! :init (:any-snap-allowed @grid-settings)
+                :var grid-settings
+                :keyvec [:any-snap-allowed]
+                :targets {snap-checkbox {:property :disable, :terminal true}}
+                :var-to-prop-fn not)
 
     ;; Use fancy double binding to tie background to editor settings
     (jfxb/bind! :init (:background @editor-settings)
@@ -771,24 +782,26 @@
           layeditor-settings :editor-settings} (gsp/GridSettingsPane "layout")
 
          doc1 (editor-view scheditor-settings schgrid-settings)
-         doc2 (editor-view layeditor-settings laygrid-settings)
+         ;;doc2 (editor-view layeditor-settings laygrid-settings)
          
          center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
-                                      :right (docks/node (:doc-pane doc2) "doc2")) 
+                                      ;;:right (docks/node (:doc-pane doc2) "doc2")
+                                      ) 
          top-pane (border-pane
                    :center center-dock-base,
                    :top (editor-tool-bar),
                    :bottom (editor-status-bar))
 
          editor {:top-pane top-pane
-                 :docs [doc1 doc2]
+                 :docs [doc1 ;;doc2
+                        ]
                  :behaviors [{:type :settings-pane
                               :name "Schematic Grid"
                               :root sch-root
                               ;;:grid-settings schgrid-settings
                               ;;:editor-settings scheditor-settings
                               }
-                             {:type :settings-pane
+                             #_{:type :settings-pane
                               :name "Layout Grid"
                               :root lay-root
                               ;;:grid-settings laygrid-settings
