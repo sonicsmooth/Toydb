@@ -20,6 +20,14 @@ atom, and doesn't have editor background color or axis toggle.  Also,
 the UI has line/dot color selection, but these are not currently
 connected to the state.
 
+Todo: 
+Reduce axis to some origin marker
+Snap-to for large and small
+Disables for large and small
+Rectangular grid
+Position/scale overlay
+keys for pan/zoom
+
 
 "
 
@@ -28,10 +36,8 @@ connected to the state.
 (defn update-names!
   "Append name to all ids in settings-pane"
   [root name]
-  (let [ids (jfxc/recurse-named-nodes root)]
-    (doseq [id ids]
-      ;;(println id)
-      (.setId (jfxc/lookup root id) (jfxc/join-hyph name id))))
+  (doseq [id (jfxc/recurse-named-nodes root)]
+    (.setId (jfxc/lookup root id) (jfxc/join-hyph name id)))
   root)
 
 
@@ -165,7 +171,7 @@ connected to the state.
     :range [0 400]
     :init 200}))
 
-(defn setup-sliders [state lu]
+(defn setup-sliders! [state lu]
   (jfxui/setup-generic-slider-and-text
    state lu
    {:slider "sl-axis-line-width"
@@ -239,7 +245,7 @@ connected to the state.
     :block-increment 1.0
     :snap-to 0.01}))
 
-(defn setup-snap-to-checkboxes [state lu]
+(defn setup-snap-to-checkboxes! [state lu]
   (jfxui/setup-generic-checkbox
    state lu
    {:checkbox "cb-major-grid-snap-to"
@@ -249,7 +255,7 @@ connected to the state.
     :keyvec [:minor-snap]
     :init false}))
 
-(defn setup-visibility-checkboxes [state lu]
+(defn setup-visibility-checkboxes! [state lu]
   (jfxb/bind! :var state, :init true, :keyvec [:axes-visible]
               :property :disable
               :var-to-prop-fn not
@@ -290,7 +296,7 @@ connected to the state.
                         (lu "tf-minor-grid-dot-width") {}
                         (lu "col-minor-grid-dot-color") {}}))
 
-(defn setup-generic-color-selector [state lu & specs]
+(defn setup-generic-color-selector! [state lu & specs]
   "Args is list of maps with :color, :keyvec, init"
   (doseq [spec specs]
     (jfxb/bind! :var state, :init (:init spec), :keyvec (:keyvec spec)
@@ -298,7 +304,7 @@ connected to the state.
                 :no-action-val nil
                 :targets [(lu (:picker spec))])))
 
-(defn setup-background-color-selectors [state lu]
+(defn setup-background-color-selectors! [state lu]
   "Because :background is the final property used, we must create it
   separately and swap it in for initialization."
   (let [top-init (javafx.scene.paint.Color/web "F9FCFF")
@@ -327,20 +333,17 @@ connected to the state.
                     (:background-color-bot n)))))
     (swap-background! top-init bot-init)))
 
-(defn setup-other-color-selectors [state lu]
-  (let [idpairs ["col-axis-line-color" [:axis-line-color]
+(defn setup-other-color-selectors! [state lu]
+  (let [idpairs ["col-axis-line-color"       [:axis-line-color ]
                  "col-major-grid-line-color" [:major-line-color]
-                 "col-major-grid-dot-color" [:major-dot-color]
+                 "col-major-grid-dot-color"  [:major-dot-color ]
                  "col-minor-grid-line-color" [:minor-line-color]
-                 "col-minor-grid-dot-color" [:minor-dot-color]]]
-    (apply setup-generic-color-selector
-           state lu
+                 "col-minor-grid-dot-color"  [:minor-dot-color ]]]
+    (apply setup-generic-color-selector state lu
            (map #(hash-map :picker (first %)
                            :keyvec (second %)
                            :init javafx.scene.paint.Color/BLACK)
                 (partition 2 idpairs)))))
-
-
 
 (defn GridSettingsPane [name]
   "Load up GridSettingsPane.  Returns a map with both the node and the
@@ -362,11 +365,11 @@ connected to the state.
       (setup-major-grid-spacing-spinners! grid-settings lu)
       (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
       (setup-zoom-level-range-text! grid-settings lu)
-      (setup-sliders grid-settings lu)
-      (setup-snap-to-checkboxes grid-settings lu)
-      (setup-visibility-checkboxes grid-settings lu)
-      (setup-background-color-selectors editor-settings lu)
-      (setup-other-color-selectors grid-settings lu)
+      (setup-sliders! grid-settings lu)
+      (setup-snap-to-checkboxes! grid-settings lu)
+      (setup-visibility-checkboxes! grid-settings lu)
+      (setup-background-color-selectors! editor-settings lu)
+      (setup-other-color-selectors! grid-settings lu)
       {:root root
        :grid-settings grid-settings
        :editor-settings editor-settings
