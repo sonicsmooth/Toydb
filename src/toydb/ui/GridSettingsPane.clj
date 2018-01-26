@@ -83,19 +83,16 @@ keys for pan/zoom
 
         ;; Corner checkboxes
         enmaj (.getGraphic tpmaj)
-        enmin (.getGraphic tpmin)
+        enmin (.getGraphic tpmin)]
 
-        major-grid-enable-bindings
-        (jfxb/bind! :var state, :init true, :keyvec [:major-grid-enable]
-                    :targets {enmaj {:property :selected}
-                              gpmaj {:property :disable, :var-to-prop-fn not}
-                              tpmin {:property :disable, :var-to-prop-fn not}
-                              })
+    (jfxb/bind! :var state, :init true, :keyvec [:major-grid-enable]
+                :targets {enmaj {:property :selected}
+                          gpmaj {:property :disable, :var-to-prop-fn not}
+                          tpmin {:property :disable, :var-to-prop-fn not}})
 
-        minor-grid-enable-bindings
-        (jfxb/bind! :var state, :init true, :keyvec [:minor-grid-enable]
-                      :targets {enmin {:property :selected}
-                                gpmin {:property :disable, :var-to-prop-fn not}})]
+    (jfxb/bind! :var state, :init true, :keyvec [:minor-grid-enable]
+                :targets {enmin {:property :selected}
+                          gpmin {:property :disable, :var-to-prop-fn not}})
 
     ;; Adjust checkbox positions to the far right, adding 20px to avoid ellipsis
     (doseq [tgt [tpmaj tpmin]]
@@ -246,14 +243,47 @@ keys for pan/zoom
     :snap-to 0.01}))
 
 (defn setup-snap-to-checkboxes! [state lu]
+  "Bind major and minor snap-to checkboxes, and also create a
+  derivative var entry which is the and of a bunch of stuff, similar
+  to how the background colors works."
   (jfxui/setup-generic-checkbox
    state lu
    {:checkbox "cb-major-grid-snap-to"
     :keyvec [:major-snap]
-    :init false}
+    :init true}
    {:checkbox "cb-minor-grid-snap-to"
     :keyvec [:minor-snap]
-    :init false}))
+    :init true})
+
+  (let [major-snap-qual #(and (:major-grid-enable %)
+                              (:major-snap %))
+        minor-snap-qual #(and (:major-grid-enable %)
+                              (:minor-grid-enable %)
+                              (:minor-snap %))
+        swap-snap! #(let [majsq (major-snap-qual %)
+                          minsq (minor-snap-qual %)
+                          anysq (or majsq minsq)]
+                      (swap! state assoc
+                             :major-snap-allowed majsq
+                             :minor-snap-allowed minsq
+                             :any-snap-allowed anysq)
+                      ;;(printexp (:major-grid-enable @state))
+                      ;;(printexp (:minor-grid-enable @state))
+                      ;;(printexp (:minor-snap @state))
+                      ;;(printexp (:major-snap @state))
+                      ;;(printexp (:major-snap-allowed @state))
+                      ;;(printexp (:minor-snap-allowed @state))
+                      (printexp (:any-snap-allowed @state))
+                      )]
+    
+    (add-watch state :snap-enabler
+               (fn [k r o n]
+                 (when (or (not= (minor-snap-qual o)
+                                 (minor-snap-qual n))
+                           (not= (major-snap-qual o)
+                                 (major-snap-qual n)))
+                   (swap-snap! n))))
+    (swap-snap! @state)))
 
 (defn setup-visibility-checkboxes! [state lu]
   (jfxb/bind! :var state, :init true, :keyvec [:axes-visible]
@@ -312,7 +342,7 @@ keys for pan/zoom
         swap-background! (fn [top bot]
                            (swap! state assoc :background
                                   (jfxc/background top bot)))]
-    (setup-generic-color-selector
+    (setup-generic-color-selector!
      state lu
      {:picker "col-bg-top"
       :keyvec [:background-color-top]
@@ -339,7 +369,7 @@ keys for pan/zoom
                  "col-major-grid-dot-color"  [:major-dot-color ]
                  "col-minor-grid-line-color" [:minor-line-color]
                  "col-minor-grid-dot-color"  [:minor-dot-color ]]]
-    (apply setup-generic-color-selector state lu
+    (apply setup-generic-color-selector! state lu
            (map #(hash-map :picker (first %)
                            :keyvec (second %)
                            :init javafx.scene.paint.Color/BLACK)
