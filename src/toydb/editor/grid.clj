@@ -199,11 +199,13 @@ Lines is a list with each member a list of Point2D"
          myy (nth xvals 4)
          myt (nth xvals 5)]
      
-     ;; Background
+     ;; Draw a clear rectangle to expose the Pane background
      (.clearRect gc 0 0 width height)
 
      (.save gc)
      (.setTransform gc mxx myx mxy myy mxt myt)
+     
+     ;; Draw minor first if enabled, then major if enabled, then axes if enabled
      (when  (:major-grid-enable gst)
        (when (:minor-grid-enable gst)
          (when (:minor-lines-visible gst)

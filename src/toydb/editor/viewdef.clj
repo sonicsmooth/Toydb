@@ -1,7 +1,7 @@
 (ns toydb.editor.viewdef
   (:require [clojure.core.matrix :as matrix]
             [clojure.core.matrix.operators :as matrixop]
-            [jfxutils.core :refer [defn-memo]])
+            [jfxutils.core :refer [defmemo]])
   (:import [javafx.geometry Point2D]))
 
 (set! *warn-on-reflection* false)
@@ -73,7 +73,6 @@
 
 (defn compute-ppu
   "Compute pixels per unit given parameters"
-
   ([^long zoomlevel, ^long zoomratio, ^double kppu, ^long kmpm]
    (let [zoom-exp (/ zoomlevel zoomratio)]
      (* kppu (Math/pow kmpm zoom-exp))))
@@ -145,7 +144,7 @@
      (Math/pow oldkmpm (/ (- new-zoomlevel oldzl) oldzr)))))
 
 
-(defn- _compute-maj-spacing
+(defmemo compute-maj-spacing
   "Computes major grid spacing for both grid and snap-to functionality"
   [^ZoomSpecs zoomspecs]
   (let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
@@ -153,12 +152,11 @@
         kmpm (.kmpm zoomspecs)
         majgpu (* kgpu (Math/pow kmpm zoom_exp_step))]  ; major grids per unit after zoom
     (/ 1 majgpu)))
-(def compute-maj-spacing (memoize _compute-maj-spacing))
 
 ;; This should be optimized further so a mere pan doesn't cause a new
 ;; compute-min-spacing
 
-(defn- _compute-min-spacing
+(defmemo compute-min-spacing
   "Computes minor gridspacing for both grid and snap-to functionality"
   (^double [^ZoomSpecs zoomspecs]
    (let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
@@ -166,7 +164,6 @@
          kmpm (.kmpm zoomspecs)
          mingpu (* kgpu (Math/pow kmpm (+ zoom_exp_step 1)))] ;; minor grids per unit after zoom
      (/ 1 mingpu))))
-(def compute-min-spacing (memoize _compute-min-spacing))
 
 
 (defn pan-to
@@ -255,9 +252,9 @@
 
 (defn units-to-snapped-units
   "Returns a point in unit space, snapped to the nearest minor grid,
-  given a point in unit space.  If arg is a Point2D, return is a
-  Point2D.  If arg is a vector of two doubles, return is a vector of
-  two doubles."
+  given a point in unit space.  If arg is a Point2D, returns a
+  Point2D.  If arg is a vector of two doubles, returns a vector of two
+  doubles."
 
   (^Point2D [^ViewDef view, ^Point2D ptu]
    (let [[x y] [(.getX ptu) (.getY ptu)]
