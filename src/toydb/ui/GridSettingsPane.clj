@@ -21,13 +21,14 @@ the UI has line/dot color selection, but these are not currently
 connected to the state.
 
 Todo: 
-Reduce axis to some origin marker
-Snap-to for large and small
-Disables for large and small
+Reduce axis to some origin marker -- cross or circle
+* Snap-to for large and small
+* Disables for large and small
 Rectangular grid
 Position/scale overlay
 keys for pan/zoom
-
+Enable/disable dynamic scale
+Save/load values
 
 "
 
@@ -266,15 +267,7 @@ keys for pan/zoom
                       (swap! state assoc
                              :major-snap-allowed majsq
                              :minor-snap-allowed minsq
-                             :any-snap-allowed anysq)
-                      ;;(printexp (:major-grid-enable @state))
-                      ;;(printexp (:minor-grid-enable @state))
-                      ;;(printexp (:minor-snap @state))
-                      ;;(printexp (:major-snap @state))
-                      ;;(printexp (:major-snap-allowed @state))
-                      ;;(printexp (:minor-snap-allowed @state))
-                      (printexp (:any-snap-allowed @state))
-                      )]
+                             :any-snap-allowed anysq))]
     
     (add-watch state :snap-enabler
                (fn [k r o n]

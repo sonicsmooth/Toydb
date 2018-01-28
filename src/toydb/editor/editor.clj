@@ -1,7 +1,8 @@
 (ns toydb.editor.editor
   (:gen-class)
   (:require [jfxutils.core :as jfxc :refer [printexp] :exclude [-main]]
-            [jfxutils.bind :as jfxb])
+            [jfxutils.bind :as jfxb]
+            [jfxutils.ui :as jfxui])
   (:require [toydb.editor
              [canvas :as canvas]
              [grid :as grid]
@@ -14,7 +15,7 @@
   (:import [javafx.scene Group Node]
            [javafx.scene.canvas Canvas]
            [javafx.scene.control Button ToggleButton ToggleGroup
-            Slider Label TextFormatter Separator CheckBox]
+            Slider Label TextField TextFormatter Separator CheckBox]
            [javafx.geometry Point2D Insets Orientation Pos]
            [javafx.scene.input MouseEvent MouseButton ScrollEvent KeyEvent]
            [javafx.event ActionEvent]
@@ -521,22 +522,15 @@
 
 (defn doc-status-bar
   ([] (doc-status-bar nil))
-  ([^String uid & {:keys [zoomlimits]}]
+  ([^String uid]
    (let [idfn (make-idfn uid)
          ;;mppl (jfxc/jfxnew Label "doc mouse label" :id (idfn "pixel-pos-label"))
          mupl (jfxc/jfxnew Label "doc mouse label" :id (idfn "unit-pos-label"))
          spring (Region.)
-         zoom-min (or (first zoomlimits) -10)
-         zoom-max (or (second zoomlimits) 10)
-         zoom-slider1 (jfxc/jfxnew Slider zoom-min zoom-max 0.0
-                              :block-increment 10
-                              :show-tick-marks true
-                              :show-tick-labels true
-                              :major-tick-unit 100
-                              :pref-width 350
-                              :id (idfn "zoom-slider"))
+         zoom-slider1 (jfxc/jfxnew Slider :id (idfn "zoom-slider"))
          zoom-label-txt (jfxc/jfxnew Label "Zoom Level" :id (idfn "zoom-label"))
-         zoom-value-txt (jfxc/jfxnew Label "" :pref-width 50 :id (idfn "zoom-value"))]
+         zoom-value-txt (jfxc/jfxnew TextField "" :pref-width 50 :id (idfn "zoom-value"))]
+
      (HBox/setHgrow spring Priority/ALWAYS)
 
      ;; Enforce integer slider positions
@@ -554,18 +548,6 @@
      (HBox/setHgrow spring Priority/ALWAYS)
      (mb/status-bar [mouse-label spring]))))
 
-(defn border-pane
-  "Creates BorderPane with top menu/toolbar, bottom status bus, and
-  background only.  Center content must be set by caller"
-  [& {:keys [center top bottom size]}]
-  (let [pane (jfxc/jfxnew BorderPane
-                     :center center
-                     :top top
-                     :bottom bottom)]
-    (when (first size) (.setPrefWidth pane (first size)))
-    (when (second size) (.setPrefHeight pane (second size)))
-    pane))
-
 
 ;; Editor-View is a graphical thing with a grid, not some UI-less
 ;; abstraction of document The editor deals with the following atoms:
@@ -579,7 +561,7 @@
   (let [uid (jfxc/uuid)
         idfn (make-idfn uid)
         viewdef-atom (atom (viewdef/viewdef))
-        zoomlimits (-> @viewdef-atom :zoomspecs :zoomlimits)
+        zoomlimits (get-in @viewdef-atom [:zoomspecs :zoomlimits])
         ;; The doc contains the canvas, but the canvas resize
         ;; callback refers to the doc, so we have a circular
         ;; reference so make a quick atom...
@@ -618,10 +600,10 @@
                                                       :background (:background @editor-settings)))
 
         doc (map->Doc-View {:viewdef viewdef-atom
-                            :doc-pane (border-pane ;; holds main grid and decorations
-                                       :center surface-pane
-                                       :top (doc-tool-bar uid),
-                                       :bottom (doc-status-bar uid :zoomlimits zoomlimits))
+                            :doc-pane (jfxc/jfxnew BorderPane
+                                                   :center surface-pane
+                                                   :top (doc-tool-bar uid)
+                                                   :bottom (doc-status-bar uid))
                             :uuid uid
                             :behaviors []
                             :editor-settings editor-settings
@@ -630,7 +612,7 @@
                             :move-state (atom nil)})
         
         ^Slider zoom-slider (lookup-node doc "zoom-slider")
-        ^Label zoom-label (lookup-node doc "zoom-value")
+        ^TextField zoom-value (lookup-node doc "zoom-value")
         ^ToggleButton metric-button (lookup-node doc "metric-button")
         ^ToggleButton inches-button (lookup-node doc "inches-button")
         ^ToggleButton um-button (lookup-node doc "um-button")
@@ -659,14 +641,19 @@
     (add-watch grid-settings :grid-settings-redraw (fn [k r o n]  (redraw-view! doc)))
     
     ;; Use fancy double-binding to tie internal zoom level with slider value and text.
-    (jfxb/bind! :init 0
-                :var viewdef-atom
-                :var-fn! #(zoom-to! doc %) ;; delegate swap! to this fn instead
-                :keyvec [:zoomspecs :zoomlevel]
-                :targets {zoom-slider {:property :value}
-                          zoom-label {:property :text,
-                                      :terminal true,
-                                      :var-to-prop-fn str }})
+    (jfxui/setup-generic-slider-and-text viewdef-atom
+                                         (partial lookup-node doc)
+                                         {:slider "zoom-slider"
+                                          :textfield "zoom-value"
+                                          :keyvec [:zoomspecs :zoomlevel]
+                                          :var-fn! (partial zoom-to! doc )
+                                          :type Long
+                                          :range [-400 400]
+                                          :major-tick-unit 50
+                                          :minor-tick-count 10
+                                          :show-tick-marks true
+                                          :show-tick-labels true
+                                          :block-incremnt 10})
 
     ;; Use fancy double-binding to tie internal metric-scale
     ;; (true/false) with buttons. Call view-metric! protocol fn, which
@@ -720,8 +707,6 @@
                             mil-button {:var-to-prop-fn viewdef/mils?
                                         :prop-to-var-fn (inches-propfn :mils)}})) 
     
-
-
     ;; These fns update the coordinates when the buttons are pressed
     ;; Do this here instead of in the var-to-prop-fn and
     ;; prop-to-var-fn
@@ -786,11 +771,13 @@
          
          center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
                                       ;;:right (docks/node (:doc-pane doc2) "doc2")
-                                      ) 
-         top-pane (border-pane
+                                      )
+         
+         top-pane (jfxc/jfxnew BorderPane
                    :center center-dock-base,
                    :top (editor-tool-bar),
-                   :bottom (editor-status-bar))
+                   :bottom (editor-status-bar)
+                   :stylesheets ["css/style.css"])
 
          editor {:top-pane top-pane
                  :docs [doc1 ;;doc2
@@ -802,11 +789,11 @@
                               ;;:editor-settings scheditor-settings
                               }
                              #_{:type :settings-pane
-                              :name "Layout Grid"
-                              :root lay-root
-                              ;;:grid-settings laygrid-settings
-                              ;;:editor-settings scheditor-settings
-                              }]}]
+                                :name "Layout Grid"
+                                :root lay-root
+                                ;;:grid-settings laygrid-settings
+                                ;;:editor-settings scheditor-settings
+                                }]}]
      
      ;; How it works, for each doc:
      ;; 1.  Add watch to atom which calls protocol redraw
@@ -824,7 +811,8 @@
     (def setui (get-in ed [:behaviors 0 :root]))
     (def state (get-in ed [:behaviors 0 :grid-settings]))
     #_(add-watch state :wha? (fn [k r o n] (let [[oa ob bo] (clojure.data/diff o n)]
-                                           (when ob (println ob)))))
+                                             (when ob (println ob)))))
+    (docks/init-style)
     (jfxc/stage tp [800 480])
     (jfxc/stage setui [800 480]))
   
