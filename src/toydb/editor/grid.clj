@@ -173,10 +173,23 @@ TODO: Reduce nesting by one."
               (.fillOval gc
                          (- x center-offset-u)
                          (- y center-offset-u)
-                         
                          dot-width-u
                          dot-width-u))))))
+  (.restore gc))
 
+(defn draw-center-circle!
+  [^GraphicsContext gc,
+   ^double line-width-px,
+   ^Color color]
+  (.save gc)
+
+  (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
+        line-width-u (* line-width-px recipscale)
+        circ-dia-u (* 10.0 recipscale)
+        -circ-dia-u (- circ-dia-u)]
+    (.setLineWidth gc line-width-u)
+    (.setStroke gc color)
+    (.strokeOval gc -circ-dia-u -circ-dia-u (* 2.0 circ-dia-u) (* 2.0 circ-dia-u)))
   (.restore gc))
 
 (defn draw-grid!
@@ -236,29 +249,30 @@ TODO: Reduce nesting by one."
                     (:axis-line-color gst)))
 
      (when (:origin-enable gst)
-       (let [du (/ 10.0 mxx)]
+       (let [du (/ 10.0 mxx)
+             -du (- du)]
          (condp = (:origin-marker gst)
            :crosshair
-           (draw-lines! gc [[[(Point2D. 0 (- du)) (Point2D. 0 du)]
-                             [(Point2D. (- du) 0)     (Point2D. du 0)]]]
+           (draw-lines! gc [[[(Point2D. 0 -du) (Point2D. 0 du)]
+                             [(Point2D. -du 0) (Point2D. du 0)]]]
                         (:origin-line-width-px gst)
                         (:origin-line-color gst))
            
            :diag-crosshair
-           (draw-lines! gc [[[(Point2D. (- du) (- du)) (Point2D. du du)]
-                             [(Point2D. (- du) du)     (Point2D. du (- du))]]]
+           (draw-lines! gc [[[(Point2D. -du -du) (Point2D. du du)]
+                             [(Point2D. -du du)  (Point2D. du -du)]]]
                         (:origin-line-width-px gst)
                         (:origin-line-color gst))
 
            :circle
-           (draw-lines! gc (select-values lines [:axisvertical :axishorizontal])
-                        (:origin-line-width-px gst)
-                        (:origin-line-color gst))))
-       )
-
-     
+           (draw-center-circle! gc
+                                (:origin-line-width-px gst)
+                                (:origin-line-color gst)))))
      
      (.restore gc))))
+
+
+
 
 
 
