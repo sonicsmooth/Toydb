@@ -21,7 +21,7 @@ the UI has line/dot color selection, but these are not currently
 connected to the state.
 
 Todo: 
-Reduce axis to some origin marker -- cross or circle
+* Reduce axis to some origin marker -- cross or circle
 * Snap-to for large and small
 * Disables for large and small
 Rectangular grid
@@ -262,6 +262,7 @@ Save/load values
     :keyvec [:minor-snap]
     :init true})
 
+  
   (let [major-snap-qual #(and (:major-grid-enable %)
                               (:major-snap %))
         minor-snap-qual #(and (:major-grid-enable %)
@@ -270,10 +271,10 @@ Save/load values
         swap-snap! #(let [majsq (major-snap-qual %)
                           minsq (minor-snap-qual %)
                           anysq (or majsq minsq)]
-                      (swap! state assoc
-                             :major-snap-allowed majsq
-                             :minor-snap-allowed minsq
-                             :any-snap-allowed anysq))]
+                      (swap! state jfxc/multi-assoc-in
+                             [:calculated :major-snap-allowed] majsq
+                             [:calculated :minor-snap-allowed] minsq
+                             [:calculated :any-snap-allowed] anysq))]
     
     (add-watch state :snap-enabler
                (fn [k r o n]
@@ -359,12 +360,12 @@ Save/load values
                 :targets [(lu (:picker spec))])))
 
 (defn setup-background-color-selectors! [state lu]
-  "Because :background is the final property used, we must create it
+  "Because [:calculated :background] is the final property used, we must create it
   separately and swap it in for initialization."
   (let [top-init (javafx.scene.paint.Color/web "F9FCFF")
         bot-init (javafx.scene.paint.Color/web "E1F2FF")
         swap-background! (fn [top bot]
-                           (swap! state assoc :background
+                           (swap! state assoc-in [:calculated :background]
                                   (jfxc/background top bot)))]
     (setup-generic-color-selector!
      state lu
@@ -410,12 +411,7 @@ Save/load values
     (let [root (doto (jfxc/load-fxml-root "GridSettingsPane2.fxml"))
           lu (fn [id] (if-let [result (jfxc/lookup root id)]
                         result
-                        (throw (Exception. (str "Could not find " id)))))
-          #_(fn [id] (let [fqn (jfxc/join-hyph name id)]
-                     (if-let [result (jfxc/lookup root fqn)]
-                       result
-                       (throw (Exception. (str "Could not find " fqn))))))]
-      ;;(update-names! root "")
+                        (throw (Exception. (str "Could not find " id)))))]
       (def root root)
       (def lu lu)
       (setup-grid-enable-checkboxes! grid-settings lu)

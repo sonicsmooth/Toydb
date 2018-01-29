@@ -389,9 +389,9 @@
                                                             es @(:editor-settings doc)
                                                             gs @(:grid-settings doc)
                                                             newpos (.add tgtxy (:click-du ms))
-                                                            newpos (cond (and (:minor-snap-allowed gs)
+                                                            newpos (cond (and (get-in gs [:calculated :minor-snap-allowed])
                                                                               (:snap es)) (minor-snapfn newpos)
-                                                                         (and (:major-snap-allowed gs)
+                                                                         (and (get-in gs [:calculated :major-snap-allowed])
                                                                               (:snap es)) (major-snapfn newpos)
                                                                          :else newpos)]
                                                         (set-pos! target newpos)))
@@ -597,7 +597,7 @@
         surface-pane (jfxc/make-clipped! (jfxc/jfxnew StackPane
                                                       :id (idfn "surface-pane")
                                                       :children [grid-canvas entities-pane]
-                                                      :background (:background @editor-settings)))
+                                                      :background (get-in @editor-settings [:calculated :background])))
 
         doc (map->Doc-View {:viewdef viewdef-atom
                             :doc-pane (jfxc/jfxnew BorderPane
@@ -730,17 +730,18 @@
                 :property :selected
                 :targets [snap-checkbox])
 
-    (jfxb/bind! :init (:any-snap-allowed @grid-settings)
+    
+    (jfxb/bind! :init (get-in @grid-settings [:calculated :any-snap-allowed])
                 :var grid-settings
-                :keyvec [:any-snap-allowed]
+                :keyvec [:calculated :any-snap-allowed]
                 :targets {snap-checkbox {:property :disable, :terminal true}}
                 :var-to-prop-fn not)
 
     ;; Use fancy double binding to tie background to editor settings
-    (jfxb/bind! :init (:background @editor-settings)
+    (jfxb/bind! :init (get-in @editor-settings [:calculated :background])
                 :var editor-settings
                 :terminal true
-                :keyvec [:background]
+                :keyvec [:calculated :background]
                 :property :background
                 :targets [surface-pane])
 
