@@ -91,7 +91,7 @@
         pane (jfxc/jfxnew BorderPane ;; center is set in (main-window...)
                           :top app-menu-bar
                           :bottom app-status-bar
-                          ;; Set ugly vertical gray gradient
+                          ;; Set ugly horizontal gray gradient
                           :background (jfxc/gradient-background :horizontal (Color/web "#222222") (Color/web "#cccccc")))]
 
     ;; Implement tabs, menus and stuff from behaviors

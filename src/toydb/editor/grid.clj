@@ -122,11 +122,9 @@ The points are located spacing units apart, and are on the integer
      :axisvertical   (collect-pts [0.0] bot top :vertical)
      :axishorizontal (collect-pts [0.0] left right :horizontal))))
 
-
 (defn draw-lines!
   "Put lines on the canvas using the current transform.
-Lines is a list with each member a 2-list of Point2D.
-TODO: Reduce nesting by one."
+Lines is a list with each member a pair of Point2D."
   [^GraphicsContext gc lines ^double line-width-px ^Color color]
   (.save gc)
   (.setStroke gc color)
@@ -136,18 +134,20 @@ TODO: Reduce nesting by one."
         pixel-offsety (* 0.5 recipscale)]
     (.setLineWidth gc line-width-u)
     (doseq [line lines]
-      (doseq [ptpair line]
-        (let [p1 ^Point2D (first ptpair)
-              p2 ^Point2D (second ptpair)
-              xp1 (+ pixel-offsetx (.getX p1))
-              xp2 (+ pixel-offsetx (.getX p2))
-              yp1 (+ pixel-offsety (.getY p1))
-              yp2 (+ pixel-offsety (.getY p2))]
-          (.strokeLine gc xp1 yp1 xp2 yp2)))))
+      (let [p1 ^Point2D (first line)
+            p2 ^Point2D (second line)
+            xp1 (+ pixel-offsetx (.getX p1))
+            xp2 (+ pixel-offsetx (.getX p2))
+            yp1 (+ pixel-offsety (.getY p1))
+            yp2 (+ pixel-offsety (.getY p2))]
+        (.strokeLine gc xp1 yp1 xp2 yp2))))
   (.restore gc))
 
+
 (defn draw-dots!
-  ;;(count lines) must be exactly 2
+  "Put dots on the canvas using the current transform.  lines is a
+  2-vector with each element a list, with each member a
+  pair of Point2D."
   [^GraphicsContext gc lines ^double dot-width-px ^Color color]
   (.save gc)
   (.setFill gc color)
@@ -158,12 +158,6 @@ TODO: Reduce nesting by one."
         ;;pixel-offset 0.0 ;;(* 0.5 recipscale)
         vlines (first lines)
         hlines (second lines)]
-    ;;(.setLineWidth gc dot-width-u)
-
-    ;; These both work...
-    #_(doseq [pt (for [vline vlines, hline hlines]
-                 (Point2D. (.getX ^Point2D (first vline)) (.getY ^Point2D (first hline))))]
-      (.strokeOval gc (.getX ^Point2D pt) (.getY ^Point2D pt) dot-width-u dot-width-u))
     
     ;; But this one is slightly more explicit
     (doseq [vline vlines] ;; get X from this
@@ -221,46 +215,48 @@ TODO: Reduce nesting by one."
      
      ;; Draw minor first if enabled, then major if enabled, then axes if enabled
      (when  (:major-grid-enable gst)
-       (when (:minor-grid-enable gst)
-         (when (:minor-lines-visible gst)
-           (draw-lines! gc (select-values lines [:minvertical :minhorizontal])
-                        (:minor-line-width-px gst)
-                        (:minor-line-color gst)))
+       (let [ac (partial apply concat)
+             selcat (comp ac select-values)]
+         (when (:minor-grid-enable gst)
+           (when (:minor-lines-visible gst)
+             (draw-lines! gc (selcat lines [:minvertical :minhorizontal 3])
+                          (:minor-line-width-px gst)
+                          (:minor-line-color gst)))
 
-         (when (:minor-dots-visible gst)
-           (draw-dots! gc
-                       (select-values lines [:minvertical :minhorizontal])
-                       (:minor-dot-width-px gst)
-                       (:minor-dot-color gst))))
+           (when (:minor-dots-visible gst)
+             (draw-dots! gc
+                         (select-values lines [:minvertical :minhorizontal])
+                         (:minor-dot-width-px gst)
+                         (:minor-dot-color gst))))
 
-       (when (:major-lines-visible gst)
-         (draw-lines! gc (select-values lines [:majvertical :majhorizontal])
-                      (:major-line-width-px gst)
-                      (:major-line-color gst)))
+         (when (:major-lines-visible gst)
+           (draw-lines! gc (selcat lines [:majvertical :majhorizontal])
+                        (:major-line-width-px gst)
+                        (:major-line-color gst)))
 
-       (when (:major-dots-visible gst)
-         (draw-dots! gc  (select-values lines [:majvertical :majhorizontal])
-                     (:major-dot-width-px gst)
-                     (:major-dot-color gst))))
-     
-     (when (:axes-visible gst)
-       (draw-lines! gc (select-values lines [:axisvertical :axishorizontal])
-                    (:axis-line-width-px gst)
-                    (:axis-line-color gst)))
+         (when (:major-dots-visible gst)
+           (draw-dots! gc (select-values lines [:majvertical :majhorizontal])
+                       (:major-dot-width-px gst)
+                       (:major-dot-color gst)))
+         
+         (when (:axes-visible gst)
+           (draw-lines! gc (selcat lines [:axisvertical :axishorizontal])
+                        (:axis-line-width-px gst)
+                        (:axis-line-color gst)))))
 
      (when (:origin-enable gst)
        (let [du (/ 10.0 mxx)
              -du (- du)]
          (condp = (:origin-marker gst)
            :crosshair
-           (draw-lines! gc [[[(Point2D. 0 -du) (Point2D. 0 du)]
-                             [(Point2D. -du 0) (Point2D. du 0)]]]
+           (draw-lines! gc [[(Point2D. 0 -du) (Point2D. 0 du)]
+                            [(Point2D. -du 0) (Point2D. du 0)]]
                         (:origin-line-width-px gst)
                         (:origin-line-color gst))
            
            :diag-crosshair
-           (draw-lines! gc [[[(Point2D. -du -du) (Point2D. du du)]
-                             [(Point2D. -du du)  (Point2D. du -du)]]]
+           (draw-lines! gc [[(Point2D. -du -du) (Point2D. du du)]
+                            [(Point2D. -du du)  (Point2D. du -du)]]
                         (:origin-line-width-px gst)
                         (:origin-line-color gst))
 

@@ -9,7 +9,7 @@
 
 
 .tab-pane {
-    -fx-background-color: linear-gradient(#eeeeee, #dddddd);
+    -fx-background-color: #dddddd; //linear-gradient(#eeeeee, #eeeeee);
 }
 
 .dialog-button {
