@@ -29,7 +29,7 @@ Position/scale overlay
 keys for pan/zoom
 Enable/disable dynamic scale
 Save/load values
-
+:derivative key for background and snap-allowed
 "
 
 
@@ -77,14 +77,17 @@ Save/load values
   (let [ ;; TitledPanes
         tpmaj (lu "tp-major-grid")
         tpmin (lu "tp-minor-grid")
+        tporig (lu "tp-origin")
 
         ;; GridPanes
         gpmaj (lu "gp-major-grid-elements")
         gpmin (lu "gp-minor-grid-elements")
+        gporig (lu "gp-orig-elements")
 
         ;; Corner checkboxes
         enmaj (.getGraphic tpmaj)
-        enmin (.getGraphic tpmin)]
+        enmin (.getGraphic tpmin)
+        enorig (.getGraphic tporig)]
 
     (jfxb/bind! :var state, :init true, :keyvec [:major-grid-enable]
                 :targets {enmaj {:property :selected}
@@ -95,8 +98,12 @@ Save/load values
                 :targets {enmin {:property :selected}
                           gpmin {:property :disable, :var-to-prop-fn not}})
 
+    (jfxb/bind! :var state, :init true, :keyvec [:origin-enable]
+                :targets {enorig {:property :selected}
+                          gporig {:property :disable, :var-to-prop-fn not}})
+
     ;; Adjust checkbox positions to the far right, adding 20px to avoid ellipsis
-    (doseq [tgt [tpmaj tpmin]]
+    (doseq [tgt [tpmaj tpmin tporig]]
       (.bind (jfxc/get-property tgt :graphic-text-gap)
              (.subtract (get-property tgt :width)
                         (.add (get-property (.getGraphic tgt) :width)
@@ -155,20 +162,6 @@ Save/load values
            :range-fn #(jfxui/number-range-check % lower upper :clip)
            :targets [tgt-spgpmvf])  ))
 
-(defn setup-zoom-level-range-text! [state lu]
-  (jfxui/setup-generic-text
-   state lu
-   {:textfield "tf-zoom-range-min"
-    :type Long
-    :keyvec [:zoom-range-min]
-    :range [-400 0]
-    :init -200}
-   {:textfield "tf-zoom-range-max"
-    :type Long
-    :keyvec [:zoom-range-max]
-    :range [0 400]
-    :init 200}))
-
 (defn setup-sliders! [state lu]
   (jfxui/setup-generic-slider-and-text
    state lu
@@ -178,6 +171,18 @@ Save/load values
     :type Double
     :range [0.01 5.0]
     :init 1.0
+    :major-tick-unit 5
+    :minor-tick-count 3
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 1.0
+    :snap-to 0.01}
+   {:slider "sl-origin-line-width"
+    :textfield "tf-origin-line-width"
+    :keyvec [:origin-line-width-px]
+    :type Double
+    :range [0.01 5.0]
+    :init 3.0
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -243,10 +248,11 @@ Save/load values
     :block-increment 1.0
     :snap-to 0.01}))
 
-(defn setup-snap-to-checkboxes! [state lu]
+(defn setup-snap-to-checkboxes!
   "Bind major and minor snap-to checkboxes, and also create a
   derivative var entry which is the and of a bunch of stuff, similar
   to how the background colors works."
+  [state lu]
   (jfxui/setup-generic-checkbox
    state lu
    {:checkbox "cb-major-grid-snap-to"
@@ -286,7 +292,7 @@ Save/load values
                         (lu "sl-axis-line-width") {}
                         (lu "tf-axis-line-width") {}
                         (lu "col-axis-line-color") {}})
-  
+
   (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
               :property :disable
               :var-to-prop-fn not
@@ -318,6 +324,31 @@ Save/load values
                         (lu "sl-minor-grid-dot-width") {}
                         (lu "tf-minor-grid-dot-width") {}
                         (lu "col-minor-grid-dot-color") {}}))
+
+(defn setup-origin-marker-selection!
+  "Sets up origin marker selection.  Similar to
+  setup-visibility-checkboxes! but uses a ComboBox (aka drop-downlist)
+  instead.  Sets up the ComboBox."
+  [state lu]
+
+  (let [combo (lu "dd-origin-marker")
+        callb (jfxc/callback [value]
+                             (proxy [javafx.scene.control.ListCell] []
+                               (updateItem [item empty]
+                                 (proxy-super updateItem item empty)
+                                 (when item
+                                   (.setText this (.toString (.getConverter combo) item))))))
+        conv (proxy [javafx.util.StringConverter] []
+               (fromString [s] (keyword s))
+               (toString [k] (clojure.string/capitalize (name k))))]
+    (jfxc/set-items! combo [:crosshair :diag-crosshair :circle])
+    (doto combo
+      (.setCellFactory callb)
+      (.setConverter conv))
+
+    (jfxb/bind! :var state, :init :diag-crosshair, :keyvec [:origin-marker]
+                :property :value
+                :targets [(lu "dd-origin-marker")])))
 
 (defn setup-generic-color-selector! [state lu & specs]
   "Args is list of maps with :color, :keyvec, init"
@@ -358,6 +389,7 @@ Save/load values
 
 (defn setup-other-color-selectors! [state lu]
   (let [idpairs ["col-axis-line-color"       [:axis-line-color ]
+                 "col-origin-line-color"     [:origin-line-color]
                  "col-major-grid-line-color" [:major-line-color]
                  "col-major-grid-dot-color"  [:major-dot-color ]
                  "col-minor-grid-line-color" [:minor-line-color]
@@ -367,6 +399,8 @@ Save/load values
                            :keyvec (second %)
                            :init javafx.scene.paint.Color/BLACK)
                 (partition 2 idpairs)))))
+
+
 
 (defn GridSettingsPane [name]
   "Load up GridSettingsPane.  Returns a map with both the node and the
@@ -387,10 +421,10 @@ Save/load values
       (setup-grid-enable-checkboxes! grid-settings lu)
       (setup-major-grid-spacing-spinners! grid-settings lu)
       (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
-      (setup-zoom-level-range-text! grid-settings lu)
       (setup-sliders! grid-settings lu)
       (setup-snap-to-checkboxes! grid-settings lu)
       (setup-visibility-checkboxes! grid-settings lu)
+      (setup-origin-marker-selection! grid-settings lu)
       (setup-background-color-selectors! editor-settings lu)
       (setup-other-color-selectors! grid-settings lu)
       {:root root
@@ -406,31 +440,6 @@ Save/load values
 (defn -main []
   (jfxc/app-init)
   (jfxc/stage (GridSettingsPane "demo") [800 600]))
-
-
-
-
-
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

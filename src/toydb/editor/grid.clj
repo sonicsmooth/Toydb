@@ -77,7 +77,7 @@ The points are located spacing units apart, and are on the integer
   "Returns a GridSpecs structure with enough stuff to draw a grid"
   [^toydb.editor.viewdef.ViewDef view]
   (let [;; Feed the known pixel values to the inverse transform to get the points
-        ;; for the upper left and bottom right corners of the canvas ,in units, not pixels
+        ;; for the upper left and bottom right corners of the canvas in units, not pixels
         invt (.inv-transform view)
         left_top_vec_px (matrix/matrix [0 0 1])
         right_bottom_vec_px (matrix/matrix [(- (.width view) 1) (- (.height view) 1) 1])
@@ -125,7 +125,8 @@ The points are located spacing units apart, and are on the integer
 
 (defn draw-lines!
   "Put lines on the canvas using the current transform.
-Lines is a list with each member a list of Point2D"
+Lines is a list with each member a 2-list of Point2D.
+TODO: Reduce nesting by one."
   [^GraphicsContext gc lines ^double line-width-px ^Color color]
   (.save gc)
   (.setStroke gc color)
@@ -192,12 +193,12 @@ Lines is a list with each member a list of Point2D"
          height (.getHeight canvas)
          xfrm (.transform view-data)
          xvals (apply seq (matrix/reshape xfrm [1 9]))
-         mxx (nth xvals 0)
-         mxy (nth xvals 1)
-         mxt (nth xvals 2)
-         myx (nth xvals 3)
-         myy (nth xvals 4)
-         myt (nth xvals 5)]
+         mxx (double (nth xvals 0))
+         mxy (double (nth xvals 1))
+         mxt (double (nth xvals 2))
+         myx (double (nth xvals 3))
+         myy (double (nth xvals 4))
+         myt (double (nth xvals 5))]
      
      ;; Draw a clear rectangle to expose the Pane background
      (.clearRect gc 0 0 width height)
@@ -233,6 +234,29 @@ Lines is a list with each member a list of Point2D"
        (draw-lines! gc (select-values lines [:axisvertical :axishorizontal])
                     (:axis-line-width-px gst)
                     (:axis-line-color gst)))
+
+     (when (:origin-enable gst)
+       (let [du (/ 10.0 mxx)]
+         (condp = (:origin-marker gst)
+           :crosshair
+           (draw-lines! gc [[[(Point2D. 0 (- du)) (Point2D. 0 du)]
+                             [(Point2D. (- du) 0)     (Point2D. du 0)]]]
+                        (:origin-line-width-px gst)
+                        (:origin-line-color gst))
+           
+           :diag-crosshair
+           (draw-lines! gc [[[(Point2D. (- du) (- du)) (Point2D. du du)]
+                             [(Point2D. (- du) du)     (Point2D. du (- du))]]]
+                        (:origin-line-width-px gst)
+                        (:origin-line-color gst))
+
+           :circle
+           (draw-lines! gc (select-values lines [:axisvertical :axishorizontal])
+                        (:origin-line-width-px gst)
+                        (:origin-line-color gst))))
+       )
+
+     
      
      (.restore gc))))
 

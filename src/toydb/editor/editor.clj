@@ -646,8 +646,9 @@
                                          {:slider "zoom-slider"
                                           :textfield "zoom-value"
                                           :keyvec [:zoomspecs :zoomlevel]
-                                          :var-fn! (partial zoom-to! doc )
+                                          :var-fn! #(zoom-to! doc %)
                                           :type Long
+                                          :init 0
                                           :range [-400 400]
                                           :major-tick-unit 50
                                           :minor-tick-count 10
@@ -661,7 +662,7 @@
     ;; besides :metric-or-inches needs to change.
     (jfxb/bind! :init :metric
                 :var viewdef-atom
-                :var-fn! #(view-metric! doc %)
+                :var-fn! (partial view-metric! doc)
                 :keyvec [:metric-or-inches]
                 :property :selected
                 :targets {metric-button {:var-to-prop-fn viewdef/metric?

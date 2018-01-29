@@ -9,12 +9,12 @@
 
 <BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" prefHeight="600.0" prefWidth="800.0" stylesheets="@../css/style.css" xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1">
    <bottom>
-      <HBox alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" spacing="20.0" style="-fx-padding: 16;" BorderPane.alignment="CENTER">
+      <HBox alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" spacing="5.0" styleClass="dialog-hbox" BorderPane.alignment="CENTER">
          <children>
-            <Button maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="26.0" prefWidth="91.0" text="Revert" HBox.hgrow="ALWAYS" />
+            <Button maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="26.0" prefWidth="91.0" styleClass="dialog-button" text="Revert" HBox.hgrow="NEVER" />
             <Region maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" prefHeight="0.0" prefWidth="480.0" HBox.hgrow="ALWAYS" />
-            <Button defaultButton="true" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="26.0" prefWidth="91.0" text="Close" HBox.hgrow="ALWAYS" />
-            <Button cancelButton="true" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="26.0" prefWidth="91.0" text="Cancel" HBox.hgrow="ALWAYS" />
+            <Button defaultButton="true" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" styleClass="dialog-button" text="Close" HBox.hgrow="NEVER" />
+            <Button cancelButton="true" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="26.0" prefWidth="91.0" styleClass="dialog-button" text="Cancel" HBox.hgrow="NEVER" />
          </children>
          <opaqueInsets>
             <Insets />
