@@ -263,6 +263,8 @@
   (pan-by! [this dpoint2d])                           ;; mutates view, triggers watch
   (zoom-to! [this zoom-level] [this zoom-level pt])   ;; mutates view, triggers watch
   (zoom-by! [this dzoom-level] [this dzoom-level pt]) ;; mutates view, triggers watch
+  (change-zoom-scale! [this new-scale])               ;; mutates view, triggers watch
+  (change-minor-grid-ratio! [this new-ratio])         ;; mutates view, triggers watch
   (resize! [this [oldw oldh] [neww newh]])            ;; resizes window
   (init-handlers! [this])) 
 
@@ -304,6 +306,12 @@
 
   (zoom-by! [doc dzoom-level pt]
     (swap! (:viewdef doc) viewdef/zoom-by dzoom-level pt)) ;; Zoom by a certain amount centered on point
+
+  (change-zoom-scale! [doc newscale]
+    (swap! (:viewdef doc) viewdef/change-zoom-scale newscale))
+
+  (change-minor-grid-ratio! [doc newratio]
+    (swap! (:viewdef doc) viewdef/change-minor-grid-ratio newratio))
 
   (redraw-view! [doc]
     (when-let [canvas (lookup-node doc "grid-canvas")]
@@ -560,7 +568,8 @@
   [editor-settings grid-settings]
   (let [uid (jfxc/uuid)
         idfn (make-idfn uid)
-        viewdef-atom (atom (viewdef/viewdef))
+        new-viewdef (assoc-in (viewdef/viewdef) [:zoomspecs :kmpm] (:minor-gpm @grid-settings))
+        viewdef-atom (atom new-viewdef)
         zoomlimits (get-in @viewdef-atom [:zoomspecs :zoomlimits])
         ;; The doc contains the canvas, but the canvas resize
         ;; callback refers to the doc, so we have a circular
@@ -599,6 +608,8 @@
                                                       :children [grid-canvas entities-pane]
                                                       :background (get-in @editor-settings [:calculated :background])))
 
+        _ (printexp (:minor-gpm @grid-settings))
+        _ (printexp (:kmpm (:zoomspecs @viewdef-atom)))
         doc (map->Doc-View {:viewdef viewdef-atom
                             :doc-pane (jfxc/jfxnew BorderPane
                                                    :center surface-pane
@@ -638,7 +649,13 @@
     (add-watch editor-settings :editor-settings-redraw (fn [k r o n] (redraw-view! doc)))
 
     ;; This watch triggers a redraw when one of the grid settings changes
-    (add-watch grid-settings :grid-settings-redraw (fn [k r o n]  (redraw-view! doc)))
+    ;; Tying a subset of grid-settings to viewdef-atom causes double-redraw.  Boo!
+    ;; Will probably get called twice, so maybe quadruple redraw??
+    (add-watch grid-settings :grid-settings-redraw (fn [k r o n]
+                                                     (cond
+                                                       (not= (:zoom-ppmm o) (:zoom-ppmm n)) (change-zoom-scale! doc (:zoom-ppmm n))
+                                                       (not= (:minor-gpm o) (:minor-gpm n)) (change-minor-grid-ratio! doc (:minor-gpm n))
+                                                       :else (redraw-view! doc))))
     
     ;; Use fancy double-binding to tie internal zoom level with slider value and text.
     (jfxui/setup-generic-slider-and-text viewdef-atom
@@ -721,6 +738,16 @@
                                  (:inches-selection old)))
                    (update-coordinates! doc @(:mouse-state doc)))))
 
+    ;; When user presses the reset viewdef button, the pixels-per-mm need to
+    ;; make it back to the UI and grid state
+    (add-watch viewdef-atom :pixels-per-mm-watcher
+               (fn [key ref old new]
+                 (when (not= (get-in old [:zoomspecs :kppu])
+                             (get-in new [:zoomspecs :kppu]))
+                   (let [new-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu])))]
+                     (swap! grid-settings assoc :zoom-ppmm new-ppmm)))))
+
+
     ;; Use fancy double binding to tie internal snap setting to checkbox
     ;; The unqualified ":snap" key here is used elsewhere, qualified with
     ;; :minor-snap and/or :major-snap.
@@ -744,6 +771,8 @@
                 :keyvec [:calculated :background]
                 :property :background
                 :targets [surface-pane])
+
+    
 
     (init-handlers! doc)
     doc))

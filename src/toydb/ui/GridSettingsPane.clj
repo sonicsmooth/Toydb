@@ -28,8 +28,10 @@ Rectangular grid
 Position/scale overlay
 keys for pan/zoom
 Enable/disable dynamic scale
+Zoom ratio
 Save/load values
-:derivative key for background and snap-allowed
+* :derivative key for background and snap-allowed
+
 "
 
 
@@ -156,7 +158,7 @@ Save/load values
         tgt-spgpm (doto (lu "sp-minor-grid-ratio") (.setValueFactory tgt-spgpmvf))]
     (.setEditable tgt-spgpm true)
     (jfxui/setup-number-textfield! (.getEditor tgt-spgpm) (.getConverter tgt-spgpmvf) lower upper)
-    (jfxb/bind! :var state, :init lower, :keyvec [:minor-gpm]
+    (jfxb/bind! :var state, :init (int 5), :keyvec [:minor-gpm]
            :property :value
            :no-action-val nil
            :range-fn #(jfxui/number-range-check % lower upper :clip)
@@ -189,12 +191,12 @@ Save/load values
     :show-tick-labels true
     :block-increment 1.0
     :snap-to 0.01}
-   {:slider "sl-zoom-ppu"
-    :textfield "tf-zoom-ppu"
-    :keyvec [:zoom-ppu]
+   {:slider "sl-zoom-ppmm"
+    :textfield "tf-zoom-ppmm"
+    :keyvec [:zoom-ppmm]
     :type Long
     :range [5 200] 
-    :init 10
+    :init 5
     :major-tick-unit 50
     :minor-tick-count 9
     :show-tick-marks true
@@ -285,7 +287,11 @@ Save/load values
                    (swap-snap! n))))
     (swap-snap! @state)))
 
-(defn setup-visibility-checkboxes! [state lu]
+(defn setup-visibility-checkboxes!
+"Set up checkboxes which both enable a feature, such as axes-visible,
+  and enable or disable related UI elements so they look grayed out
+  when the feature is not available."
+  [state lu]
   (jfxb/bind! :var state, :init true, :keyvec [:axes-visible]
               :property :disable
               :var-to-prop-fn not
@@ -414,6 +420,7 @@ Save/load values
                         (throw (Exception. (str "Could not find " id)))))]
       (def root root)
       (def lu lu)
+      (def gs grid-settings)
       (setup-grid-enable-checkboxes! grid-settings lu)
       (setup-major-grid-spacing-spinners! grid-settings lu)
       (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
