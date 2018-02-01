@@ -195,8 +195,8 @@ Save/load values
     :textfield "tf-zoom-ppmm"
     :keyvec [:zoom-ppmm]
     :type Long
-    :range [5 200] 
-    :init 5
+    :range [1 200] 
+    :init 1
     :major-tick-unit 50
     :minor-tick-count 9
     :show-tick-marks true

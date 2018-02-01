@@ -52,8 +52,9 @@
 (def inch-kgpu (/ 1 igsu))
 
 
-(def DEFAULT-ZOOM-RATIO 100) ;; How many zoom levels for each minor/major replacement
+(def DEFAULT-ZOOM-RATIO 100) ;; How many zoom levels for multiply by zoom base
 (def DEFAULT-ZOOM-LEVEL 0)
+(def DEFAULT-ZOOM-BASE 10.0)  ;; Multiplies by this amount every zoom ratio
 (def DEFAULT-ZOOM-LIMITS [-400 400])
 (def DEFAULT-MINORS-PER-MAJOR 10)
 (def DEFAULT-PIXELS-PER-UNIT kppu) 
@@ -75,7 +76,8 @@
   ([^long zoomlevel, ^long zoomratio, ^double kppu, ^long kmpm]
    (let [zoom-exp (/ zoomlevel zoomratio)
          kmpm-ratio (/ (double kmpm) (double base-kmpm))]
-    (* kppu (Math/pow kmpm zoom-exp))))
+     ;;(* kppu (Math/pow kmpm zoom-exp))
+     (* kppu (Math/pow DEFAULT-ZOOM-BASE zoom-exp))))
 
   ([^ViewDef view]
    (let [zs (:zoomspecs view)]
@@ -150,8 +152,9 @@
   (^double [^ZoomSpecs zoomspecs]
    (let [zoom-exp-step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
          kgpu (.kgpu zoomspecs)
-         kmpm (.kmpm zoomspecs)
-         majgpu (* kgpu (Math/pow kmpm zoom-exp-step))]  ; major grids per unit after zoom
+         ;;kmpm (.kmpm zoomspecs)
+         ;;majgpu (* kgpu (Math/pow kmpm zoom-exp-step))
+         majgpu (* kgpu (Math/pow DEFAULT-ZOOM-BASE zoom-exp-step))] 
      (/ 1 majgpu))))
 (def compute-maj-spacing (memoize _compute-maj-spacing))
 
@@ -159,9 +162,11 @@
 ;; compute-min-spacing
 
 (defn _compute-min-spacing
-  "Computes minor gridspacing for both grid and snap-to functionality"
+  "Computes minor gridspacing for both grid and snap-to functionality.
+  Return values are in units, ie microns"
   (^double [^ZoomSpecs zoomspecs]
-   (let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
+   (/ (compute-maj-spacing zoomspecs) (.kmpm zoomspecs))
+   #_(let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
          kgpu (.kgpu zoomspecs)
          kmpm (.kmpm zoomspecs)
          mingpu (* kgpu (Math/pow kmpm (+ zoom_exp_step 1)))] ;; minor grids per unit after zoom
