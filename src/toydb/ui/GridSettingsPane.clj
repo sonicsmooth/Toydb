@@ -152,16 +152,18 @@ Save/load values
                      tgt-spmilvf {:var-to-prop-fn mil}})))
 
 (defn setup-minor-grid-per-major-grid-spinner! [state lu]
-  (let [lower (int 2) ;; use int because there is no LongSpinnerValueFactory
-        upper (int 10)
-        tgt-spgpmvf (jfxui/integer-spinner-value-factory lower upper)
+  (let [lower 2
+        upper 10
+        tgt-spgpmvf (jfxui/integer-spinner-value-factory (int lower) (int upper)) ;; use int because there is no LongSpinnerValueFactory
         tgt-spgpm (doto (lu "sp-minor-grid-ratio") (.setValueFactory tgt-spgpmvf))]
     (.setEditable tgt-spgpm true)
     (jfxui/setup-number-textfield! (.getEditor tgt-spgpm) (.getConverter tgt-spgpmvf) lower upper)
-    (jfxb/bind! :var state, :init (int 5), :keyvec [:minor-gpm]
+    (jfxb/bind! :var state, :init 8, :keyvec [:minor-grid-ratio]
            :property :value
            :no-action-val nil
            :range-fn #(jfxui/number-range-check % lower upper :clip)
+           :var-to-prop-fn int   ;; valueconverter is integer 
+           :prop-to-var-fn long  ;; valueconverter is integer
            :targets [tgt-spgpmvf])  ))
 
 (defn setup-sliders! [state lu]
@@ -195,8 +197,8 @@ Save/load values
     :textfield "tf-zoom-ppmm"
     :keyvec [:zoom-ppmm]
     :type Long
-    :range [1 200] 
-    :init 1
+    :range [1 20] 
+    :init 10
     :major-tick-unit 50
     :minor-tick-count 9
     :show-tick-marks true
@@ -279,12 +281,12 @@ Save/load values
                              [:calculated :any-snap-allowed] anysq))]
     
     (add-watch state :snap-enabler
-               (fn [k r o n]
-                 (when (or (not= (minor-snap-qual o)
-                                 (minor-snap-qual n))
-                           (not= (major-snap-qual o)
-                                 (major-snap-qual n)))
-                   (swap-snap! n))))
+               (fn [key ref old new]
+                 (when (or (not= (minor-snap-qual old)
+                                 (minor-snap-qual new))
+                           (not= (major-snap-qual old)
+                                 (major-snap-qual new)))
+                   (swap-snap! new))))
     (swap-snap! @state)))
 
 (defn setup-visibility-checkboxes!
@@ -384,14 +386,12 @@ Save/load values
 
     ;; Create a new background when relevant color changes occur
     (add-watch state :background-changer
-               (fn [k r o n]
-                 (when (or (not= (:background-color-top o)
-                                 (:background-color-top n))
-                           (not= (:background-color-bot o)
-                                 (:background-color-bot n)))
+               (fn [key ref old new]
+                 (when (jfxc/keydiff old new [:background-color-top
+                                              :background-color-bot])
                    (swap-background!
-                    (:background-color-top n)
-                    (:background-color-bot n)))))
+                    (:background-color-top new)
+                    (:background-color-bot new)))))
     (swap-background! top-init bot-init)))
 
 (defn setup-other-color-selectors! [state lu]

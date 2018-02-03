@@ -262,9 +262,9 @@
    ;; Set new kppu
    ;; Compute new transform
    (let [mgsm 1e-3             ;; 1mm
-         mgsp newscale-ppmm     ;; eg 10
+         ;;mgsp newscale-ppmm     ;; eg 10
          mgsu (/ mgsm usm)     ;; 1e-3/1e-6 = 1e3
-         newkppu (/ mgsp mgsu) ;; 10 / 1e3 = 1e-2 = 0.01
+         newkppu (/ newscale-ppmm mgsu) ;; 10 / 1e3 = 1e-2 = 0.01
          new-zoomspecs (assoc (:zoomspecs view) :kppu newkppu)
          new-transform (transform (:origin view) new-zoomspecs)
          new-inv-transform (matrix/inverse new-transform)]

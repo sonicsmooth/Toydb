@@ -31,13 +31,6 @@
 (set! *warn-on-reflection* false)
 (set! *unchecked-math* false)
 
-;; These are from the grid settings pane, which need to go into the viewdef, somehow:
-:major-spacing-um
-:minor-gpm
-:zoom-range-min
-:zoom-range-max
-:zoom-ppu
-
 
 (def EDITOR-SETTINGS1
   (atom {:background (jfxc/background Color/ALICEBLUE Color/LIGHTBLUE)}))
@@ -563,14 +556,22 @@
 ;; passed as arguments because they come from the dialog box; the
 ;; third is created internally.
 
+;;(viewdef/change-zoom-scale)
+;;(:zoom-ppmm @grid-settings)
+
+
+
 (defn editor-view
   "Make editor-view with relevant handlers"
   [editor-settings grid-settings]
   (let [uid (jfxc/uuid)
         idfn (make-idfn uid)
-        new-viewdef (assoc-in (viewdef/viewdef) [:zoomspecs :kmpm] (:minor-gpm @grid-settings))
-        viewdef-atom (atom new-viewdef)
-        zoomlimits (get-in @viewdef-atom [:zoomspecs :zoomlimits])
+        new-viewdef (-> (viewdef/viewdef)
+                        (viewdef/change-zoom-scale (:zoom-ppmm @grid-settings))
+                        (viewdef/change-minor-grid-ratio (:minor-grid-ratio @grid-settings)))
+        
+        viewdef-settings (atom new-viewdef)
+        zoomlimits (get-in @viewdef-settings [:zoomspecs :zoomlimits])
         ;; The doc contains the canvas, but the canvas resize
         ;; callback refers to the doc, so we have a circular
         ;; reference so make a quick atom...
@@ -608,9 +609,7 @@
                                                       :children [grid-canvas entities-pane]
                                                       :background (get-in @editor-settings [:calculated :background])))
 
-        _ (printexp (:minor-gpm @grid-settings))
-        _ (printexp (:kmpm (:zoomspecs @viewdef-atom)))
-        doc (map->Doc-View {:viewdef viewdef-atom
+        doc (map->Doc-View {:viewdef viewdef-settings
                             :doc-pane (jfxc/jfxnew BorderPane
                                                    :center surface-pane
                                                    :top (doc-tool-bar uid)
@@ -641,24 +640,38 @@
     ;; ...then set the atom down here, used by resize
     (reset! doc-atom doc)
 
-    ;; This watch triggers a redraw whenever viewdef changes.
-    (add-watch viewdef-atom :viewdef-redraw (fn [k r o n]
-                                              (redraw-view! doc)))
-
-    ;; This watch triggers a redraw when one of the settings changes, primarily background
+    ;; This watch triggers a redraw when one of the editor  changes, primarily background
     (add-watch editor-settings :editor-settings-redraw (fn [k r o n] (redraw-view! doc)))
 
     ;; This watch triggers a redraw when one of the grid settings changes
-    ;; Tying a subset of grid-settings to viewdef-atom causes double-redraw.  Boo!
-    ;; Will probably get called twice, so maybe quadruple redraw??
-    (add-watch grid-settings :grid-settings-redraw (fn [k r o n]
-                                                     (cond
-                                                       (not= (:zoom-ppmm o) (:zoom-ppmm n)) (change-zoom-scale! doc (:zoom-ppmm n))
-                                                       (not= (:minor-gpm o) (:minor-gpm n)) (change-minor-grid-ratio! doc (:minor-gpm n))
-                                                       :else (redraw-view! doc))))
+    (add-watch grid-settings :grid-settings-redraw
+               (fn [key ref old new]
+                 (let [new-ppmm? (jfxc/keydiff old new [:zoom-ppmm])
+                       new-ratio? (jfxc/keydiff old new [:minor-grid-ratio])]
+                   (if (and (not new-ppmm?) (not new-ratio?))
+                     (redraw-view! doc)
+                     (do
+                       (when new-ppmm? (change-zoom-scale! doc (:zoom-ppmm new)))
+                       (when new-ratio? (change-minor-grid-ratio! doc (:minor-grid-ratio new))))))))
     
+    ;; This watch triggers redraws when the viewdef changes
+    (add-watch viewdef-settings :viewdef-all
+               (fn [key ref old new]
+                 (let [new-coords? (jfxc/keydiff old new [:metric-or-inches :inches-selection])
+                       new-grid-ui? (jfxc/keydiff old new [[:zoomspecs :kppu] [:zoomspecs :kmpm]])]
+                   (if (and (not new-coords?) (not new-grid-ui?))
+                     (redraw-view! doc) ;; what happen when neither of the two specific things happens
+                     (do
+                       (when new-coords?
+                         (update-coordinates! doc @(:mouse-state doc)))
+                       (when new-grid-ui?
+                         (swap! grid-settings assoc
+                                :zoom-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu])))
+                                :minor-grid-ratio (get-in new [:zoomspecs :kmpm]))))))))
+
+
     ;; Use fancy double-binding to tie internal zoom level with slider value and text.
-    (jfxui/setup-generic-slider-and-text viewdef-atom
+    (jfxui/setup-generic-slider-and-text viewdef-settings
                                          (partial lookup-node doc)
                                          {:slider "zoom-slider"
                                           :textfield "zoom-value"
@@ -678,7 +691,7 @@
     ;; in turn calls viewdef/view-metric, because other stuff in view
     ;; besides :metric-or-inches needs to change.
     (jfxb/bind! :init :metric
-                :var viewdef-atom
+                :var viewdef-settings
                 :var-fn! (partial view-metric! doc)
                 :keyvec [:metric-or-inches]
                 :property :selected
@@ -697,16 +710,16 @@
               (fn [propval]
                 (if propval
                   selector
-                  (:metric-selection @viewdef-atom))))
+                  (:metric-selection @viewdef-settings))))
 
             (inches-propfn [selector]
               (fn [propval]
                 (if propval
                   selector
-                  (:inches-selection @viewdef-atom))))]
+                  (:inches-selection @viewdef-settings))))]
       
       (jfxb/bind! :init :cm
-                  :var viewdef-atom
+                  :var viewdef-settings
                   :keyvec [:metric-selection]
                   :property :selected
                   :targets {um-button {:var-to-prop-fn viewdef/um?
@@ -717,7 +730,7 @@
                                        :prop-to-var-fn (metric-propfn :cm)}})
 
       (jfxb/bind! :init :inches
-                  :var viewdef-atom
+                  :var viewdef-settings
                   :keyvec [:inches-selection]
                   :property :selected
                   :targets {inch-button {:var-to-prop-fn viewdef/inches?
@@ -725,27 +738,6 @@
                             mil-button {:var-to-prop-fn viewdef/mils?
                                         :prop-to-var-fn (inches-propfn :mils)}})) 
     
-    ;; These fns update the coordinates when the buttons are pressed
-    ;; Do this here instead of in the var-to-prop-fn and
-    ;; prop-to-var-fn
-    (add-watch viewdef-atom :metric-chooser
-               (fn [key ref old new]
-                 (when (or (not= (:metric-or-inches new)
-                                 (:metric-or-inches old))
-                           (not= (:metric-selection new)
-                                 (:metric-selection old))
-                           (not= (:inches-selection new)
-                                 (:inches-selection old)))
-                   (update-coordinates! doc @(:mouse-state doc)))))
-
-    ;; When user presses the reset viewdef button, the pixels-per-mm need to
-    ;; make it back to the UI and grid state
-    (add-watch viewdef-atom :pixels-per-mm-watcher
-               (fn [key ref old new]
-                 (when (not= (get-in old [:zoomspecs :kppu])
-                             (get-in new [:zoomspecs :kppu]))
-                   (let [new-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu])))]
-                     (swap! grid-settings assoc :zoom-ppmm new-ppmm)))))
 
 
     ;; Use fancy double binding to tie internal snap setting to checkbox
