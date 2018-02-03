@@ -448,10 +448,18 @@
   (let [view @(:viewdef doc)
         ppos (or (:last-px mouse-state) (:origin view) )
         [unit-scale unit-label] (get-print-scale-and-label doc)
-        upos (viewdef/pixels-to-units view ppos)
-        snupos (if (:minor-snap @(:grid-settings doc))
-                 (viewdef/pixels-to-snapped-units view ppos :minor)
-                 upos)
+        ;;upos (viewdef/pixels-to-units view ppos)
+        es @(:editor-settings doc)
+        gs @(:grid-settings doc)
+
+        snupos (cond (and (get-in gs [:calculated :minor-snap-allowed])
+                          (:snap es)) (viewdef/pixels-to-snapped-units view ppos :minor)
+                     (and (get-in gs [:calculated :major-snap-allowed])
+                          (:snap es)) (viewdef/pixels-to-snapped-units view ppos :major)
+                     :else (viewdef/pixels-to-units view ppos))
+        #_snupos #_(if (:minor-snap @(:grid-settings doc))
+                     (viewdef/pixels-to-snapped-units view ppos :minor)
+                     upos)
 
         snscupos (.multiply snupos unit-scale)
         ^Label upos-label (lookup-node doc "unit-pos-label")]
@@ -666,7 +674,8 @@
                          (update-coordinates! doc @(:mouse-state doc)))
                        (when new-grid-ui?
                          (swap! grid-settings assoc
-                                :zoom-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu])))
+                                :zoom-ppmm #_(* 1000.0 (get-in new [:zoomspecs :kppu]))
+                                (Math/round (* 1000 (get-in new [:zoomspecs :kppu])))
                                 :minor-grid-ratio (get-in new [:zoomspecs :kmpm]))))))))
 
 
