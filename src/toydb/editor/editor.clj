@@ -258,6 +258,8 @@
   (zoom-by! [this dzoom-level] [this dzoom-level pt]) ;; mutates view, triggers watch
   (change-zoom-scale! [this new-scale])               ;; mutates view, triggers watch
   (change-minor-grid-ratio! [this new-ratio])         ;; mutates view, triggers watch
+  (dynamic-grid-enable! [this new-enable])            ;; mutates view ,triggers watch
+  (change-grid-distance! [this new-distance])         ;; mutates view, triggers watch
   (resize! [this [oldw oldh] [neww newh]])            ;; resizes window
   (init-handlers! [this])) 
 
@@ -306,6 +308,12 @@
   (change-minor-grid-ratio! [doc newratio]
     (swap! (:viewdef doc) viewdef/change-minor-grid-ratio newratio))
 
+  (change-grid-distance! [doc newdistance]
+    (swap! (:viewdef doc) viewdef/change-grid-distance newdistance))
+
+  (dynamic-grid-enable! [doc new-enable]
+    (swap! (:viewdef doc) viewdef/dynamic-grid-enable new-enable))
+  
   (redraw-view! [doc]
     (when-let [canvas (lookup-node doc "grid-canvas")]
       (toydb.editor.grid/draw-grid! canvas @(:viewdef doc) (-> @(:grid-settings doc))))
@@ -355,8 +363,6 @@
                                 :shift (.isShiftDown event)
                                 :alt (.isAltDown event)))
           idfn (make-idfn (:uuid doc))
-
-          
 
           ;; For display of coordinates in status bar
           move-handler (jfxc/event-handler [mouse-event]
@@ -432,23 +438,25 @@
       (jfxc/set-on-event-handler! (lookup-node doc "reset-button") :action reset-btn-handler)
       (jfxc/add-listener! surface-pane :focused focus-listener))))
 
-(defn- get-print-scale-and-label [doc]
+#_(defn- get-print-scale-and-label [doc]
   (let [view @(:viewdef doc)
-        metric? (:metric-or-inches view)
+        metric? (:metric-or-inches view) ;; returns :metric or :inches
+
+        ;;print scales is either {:um 1.0, :mm 1e-3, :cm 1e-4} or
+        ;;                       {:inches (/ 1.0 igsu), :mils (/ 1000.0 igsu)}
         ps ((:print-scales view) metric?)]
     (condp = metric?
       :metric (let [ms (:metric-selection view)]
-                [(ps ms) (name ms)])
+                [(ps ms) (name ms)]) ;; returns something like [1e-3 "mm"]
       :inches (let [is (:inches-selection view)]
-                [(ps is) (name is)]))))
+                [(ps is) (name is)])))) ;; returns something like [3.937e-5 "inches"]
 
 (defn- update-coordinates!
   "Use current state to update coordinates at bottom of screen"
   [doc mouse-state]
   (let [view @(:viewdef doc)
         ppos (or (:last-px mouse-state) (:origin view) )
-        [unit-scale unit-label] (get-print-scale-and-label doc)
-        ;;upos (viewdef/pixels-to-units view ppos)
+        [unit-scale unit-label] (viewdef/get-print-scale-and-label view)
         es @(:editor-settings doc)
         gs @(:grid-settings doc)
 
@@ -457,9 +465,6 @@
                      (and (get-in gs [:calculated :major-snap-allowed])
                           (:snap es)) (viewdef/pixels-to-snapped-units view ppos :major)
                      :else (viewdef/pixels-to-units view ppos))
-        #_snupos #_(if (:minor-snap @(:grid-settings doc))
-                     (viewdef/pixels-to-snapped-units view ppos :minor)
-                     upos)
 
         snscupos (.multiply snupos unit-scale)
         ^Label upos-label (lookup-node doc "unit-pos-label")]
@@ -517,7 +522,7 @@
      (.bind (jfxc/get-property segmented-metric-scale-chooser :visible)
             (jfxc/get-property metric-button :selected))
      (.bind (jfxc/get-property segmented-inch-scale-chooser :visible)
-            (jfxc/get-property inches-button :selected) )
+            (jfxc/get-property inches-button :selected))
      tb)))
 
 (defn editor-tool-bar
@@ -576,7 +581,8 @@
         idfn (make-idfn uid)
         new-viewdef (-> (viewdef/viewdef)
                         (viewdef/change-zoom-scale (:zoom-ppmm @grid-settings))
-                        (viewdef/change-minor-grid-ratio (:minor-grid-ratio @grid-settings)))
+                        (viewdef/change-minor-grid-ratio (:minor-grid-ratio @grid-settings))
+                        (viewdef/dynamic-grid-enable (:dynamic-grid-enable @grid-settings)))
         
         viewdef-settings (atom new-viewdef)
         zoomlimits (get-in @viewdef-settings [:zoomspecs :zoomlimits])
@@ -651,22 +657,32 @@
     ;; This watch triggers a redraw when one of the editor  changes, primarily background
     (add-watch editor-settings :editor-settings-redraw (fn [k r o n] (redraw-view! doc)))
 
-    ;; This watch triggers a redraw when one of the grid settings changes
+    ;; This watch triggers a redraw when one of the grid settings changes from the UI panel
     (add-watch grid-settings :grid-settings-redraw
                (fn [key ref old new]
                  (let [new-ppmm? (jfxc/keydiff old new [:zoom-ppmm])
-                       new-ratio? (jfxc/keydiff old new [:minor-grid-ratio])]
-                   (if (and (not new-ppmm?) (not new-ratio?))
+                       new-ratio? (jfxc/keydiff old new [:minor-grid-ratio])
+                       dynamic-grid? (jfxc/keydiff old new [:dynamic-grid-enable])
+                       new-grid-distance? (jfxc/keydiff old new [:major-spacing-um])]
+                   (if (and (not new-ppmm?)
+                            (not new-ratio?)
+                            (not dynamic-grid?)
+                            (not new-grid-distance?))
                      (redraw-view! doc)
                      (do
                        (when new-ppmm? (change-zoom-scale! doc (:zoom-ppmm new)))
-                       (when new-ratio? (change-minor-grid-ratio! doc (:minor-grid-ratio new))))))))
+                       (when new-ratio? (change-minor-grid-ratio! doc (:minor-grid-ratio new)))
+                       (when dynamic-grid? (dynamic-grid-enable! doc (:dynamic-grid-enable new)))
+                       (when new-grid-distance? (change-grid-distance! doc (:major-spacing-um new))))))))
     
-    ;; This watch triggers redraws when the viewdef changes
+    ;; This watch triggers redraws when the viewdef changes, ie reset button
     (add-watch viewdef-settings :viewdef-all
                (fn [key ref old new]
-                 (let [new-coords? (jfxc/keydiff old new [:metric-or-inches :inches-selection])
-                       new-grid-ui? (jfxc/keydiff old new [[:zoomspecs :kppu] [:zoomspecs :kmpm]])]
+                 (let [new-coords? (jfxc/keydiff old new [:metric-or-inches
+                                                          :inches-selection
+                                                          :metric-selection])
+                       new-grid-ui? (jfxc/keydiff old new [[:zoomspecs :kppu]
+                                                           [:zoomspecs :kmpm]])]
                    (if (and (not new-coords?) (not new-grid-ui?))
                      (redraw-view! doc) ;; what happen when neither of the two specific things happens
                      (do
@@ -674,8 +690,7 @@
                          (update-coordinates! doc @(:mouse-state doc)))
                        (when new-grid-ui?
                          (swap! grid-settings assoc
-                                :zoom-ppmm #_(* 1000.0 (get-in new [:zoomspecs :kppu]))
-                                (Math/round (* 1000 (get-in new [:zoomspecs :kppu])))
+                                :zoom-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu]))) ;; why 1000?
                                 :minor-grid-ratio (get-in new [:zoomspecs :kmpm]))))))))
 
 
@@ -726,7 +741,7 @@
                 (if propval
                   selector
                   (:inches-selection @viewdef-settings))))]
-      
+
       (jfxb/bind! :init :cm
                   :var viewdef-settings
                   :keyvec [:metric-selection]
@@ -745,7 +760,7 @@
                   :targets {inch-button {:var-to-prop-fn viewdef/inches?
                                          :prop-to-var-fn (inches-propfn :inches)}
                             mil-button {:var-to-prop-fn viewdef/mils?
-                                        :prop-to-var-fn (inches-propfn :mils)}})) 
+                                        :prop-to-var-fn (inches-propfn :mils)}}))
     
 
 
@@ -757,7 +772,6 @@
                 :keyvec [:snap]
                 :property :selected
                 :targets [snap-checkbox])
-
     
     (jfxb/bind! :init (get-in @grid-settings [:calculated :any-snap-allowed])
                 :var grid-settings

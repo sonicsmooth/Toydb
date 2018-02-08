@@ -1,7 +1,8 @@
 (ns toydb.editor.viewdef
   (:require [clojure.core.matrix :as matrix]
             [clojure.core.matrix.operators :as matrixop]
-            [jfxutils.core :as jfxc])
+            [jfxutils.core :as jfxc]
+            [toydb.units :as units :refer [um mm cm m inch mil]])
   (:import [javafx.geometry Point2D]))
 
 (set! *warn-on-reflection* false)
@@ -33,23 +34,25 @@
 ;; usm = unit size (meters)
 ;; mgs[m,p,u] = metric grid size [meters, pixels, units]
 ;; igs[m,p,u] = inch grid size [meters, pixels, units]
-(def usm 1e-6) ;; meters per unit (1 micron basic size)
+(def unit (um 1))
+(def usm (m unit)) ;; meters per unit (1 micron basic size)
+(def mgsp 100)   ;; (pixels/grid) (100px)
 
 ;; Used for ppu ratio and metric grid; could equally do 1mm and 10px, etc.
 ;; Change this ratio to set the overall zoom at zero zoom level
-(def mgsm 10e-3) ;; meters per grid (10mm)
-(def mgsu (/ mgsm usm)) ;; (meters/grid) / (meters/unit) = unit/grid (10,000)
+(def mgsm (m (mm 10))) ;; meters per grid when metric(10mm)
+(def igsm (m (mm 10))) ;; meters per grid when inches (still 10mm)
+;;(def igsm 25.4e-3) ; meters per grid when inches (25.4mm)
 
-(def mgsp 100)   ;; (pixels/grid) (100px)
 
-;; Used for inch grid
-(def igsm 25.4e-3) ; 25.4mm
-(def igsu (/ igsm usm)) ;; 25,4000
+(def mgsu (/ (.value mgsm) (.value usm))) ;; (meters/grid) / (meters/unit) = unit/grid (10,000)
+(def igsu (/ (.value igsm) (.value usm))) ;; (meters/grid) / (meters/unit) = unit/grid (25,400)
+
 
 ;; These are what actually go into the viewdef
 (def kppu (/ mgsp mgsu))     ;; 10px/mm = 100 px/10 mm = 100 px/10000 um = 0.01 px/unit
 (def metric-kgpu (/ 1 mgsu)) ;; 1 grid/10 mm = 1 grid/10000um = .0001 grids/unit
-(def inch-kgpu (/ 1 igsu))
+(def inch-kgpu (/ 1 igsu))   ;; 1 grid/25.4mm = 1 grid/25400um  .0000394 grids/unit
 
 
 (def DEFAULT-ZOOM-RATIO 100) ;; How many zoom levels for multiply by zoom base
@@ -60,28 +63,68 @@
 (def DEFAULT-PIXELS-PER-UNIT kppu) 
 (def DEFAULT-GRIDS-PER-UNIT metric-kgpu)
 (def DEFAULT-METRIC-OR-INCHES :metric)
-(def DEFAULT-PRINT-SCALES {:metric {:um 1.0, :mm 1e-3, :cm 1e-4}
-                           :inches {:inches (/ 1.0 igsu), :mils (/ 1000.0 igsu)}})
+(def DEFAULT-PRINT-SCALES {:metric {:um (.value (um unit))  ;; how many um, mm, cm per unit (um)
+                                    :mm (.value (mm unit))
+                                    :cm (.value (cm unit))}
+                           ;;:inches {:inches (/ 1.0 igsu), :mils (/ 1000.0 igsu)}
+                           :inches {:inches (.value (inch unit)) ;; how many inches, mils per unit (um)
+                                    :mils (.value (mil unit))}})  
 (def DEFAULT-METRIC-SELECTION :mm) ;; keys from DEFAULT-PRINT-SCALES :metric
 (def DEFAULT-INCHES-SELECTION :inches) ;; keys from DEFAULT-PRINT-SCALES :inches
-(def DEFAULT-ZOOMSPECS (map->ZoomSpecs {:zoomratio DEFAULT-ZOOM-RATIO
+(def DEFAULT-DYNAMIC-GRID-ENABLE true)
+(def DEFAULT-ZOOMSPECS (map->ZoomSpecs {:dynamic-grid-enable DEFAULT-DYNAMIC-GRID-ENABLE
+                                        :zoomratio DEFAULT-ZOOM-RATIO
                                         :zoomlevel DEFAULT-ZOOM-LEVEL
                                         :zoomlimits DEFAULT-ZOOM-LIMITS
                                         :kmpm DEFAULT-MINORS-PER-MAJOR
                                         :kppu DEFAULT-PIXELS-PER-UNIT
                                         :kgpu DEFAULT-GRIDS-PER-UNIT}))
-(def base-kmpm 5)
 (defn compute-ppu
-  "Compute pixels per unit given parameters"
-  ([^long zoomlevel, ^long zoomratio, ^double kppu, ^long kmpm]
-   (let [zoom-exp (/ zoomlevel zoomratio)
-         kmpm-ratio (/ (double kmpm) (double base-kmpm))]
-     ;;(* kppu (Math/pow kmpm zoom-exp))
+  "Compute pixels per unit given parameters.  This is a smooth
+  function, not related to dynamic grid sizing."
+  ([^long zoomlevel, ^long zoomratio, ^double kppu]
+   (let [zoom-exp (/ zoomlevel zoomratio)]
      (* kppu (Math/pow DEFAULT-ZOOM-BASE zoom-exp))))
 
   ([^ViewDef view]
    (let [zs (:zoomspecs view)]
-     (compute-ppu (:zoomlevel zs) (:zoomratio zs) (:kppu zs) (:kmpm zs)))))
+     (compute-ppu (:zoomlevel zs) (:zoomratio zs) (:kppu zs)))))
+
+
+(defn compute-ppu-ratio
+  "Computes the ratio of PPU between the new zoom level and the zoom
+  level in the old zoomspecs"
+  (^double [^ZoomSpecs old-zoomspecs, ^long new-zoomlevel]
+   (let [oldkmpm (.kmpm old-zoomspecs)
+         oldzl (.zoomlevel old-zoomspecs) ;; dot notation allows us to avoid casting to Long
+         oldzr (.zoomratio old-zoomspecs)]
+     ;; Does this need to change to DEFAULT-ZOOM-BASE?
+     (Math/pow oldkmpm (/ (- new-zoomlevel oldzl) oldzr)))))
+
+(defn _compute-maj-spacing
+  "Computes major grid spacing for both grid and snap-to
+  functionality.  Return values are in units, ie microns."
+  (^double [^ZoomSpecs zoomspecs]
+   (let [kgpu (.kgpu zoomspecs)
+         majgpu (if (:dynamic-grid-enable zoomspecs)
+                  (* kgpu (Math/pow DEFAULT-ZOOM-BASE
+                                    (Math/floor (/ (.zoomlevel zoomspecs)
+                                                   (.zoomratio zoomspecs)))))
+                  kgpu)]
+     (/ 1 majgpu))))
+(def compute-maj-spacing (memoize _compute-maj-spacing))
+
+
+;; This should be optimized further so a mere pan doesn't cause a new
+;; compute-min-spacing
+
+(defn _compute-min-spacing
+  "Computes minor gridspacing for both grid and snap-to functionality.
+  Return values are in units, ie microns"
+  (^double [^ZoomSpecs zoomspecs]
+   (/ (compute-maj-spacing zoomspecs) (.kmpm zoomspecs))))
+(def compute-min-spacing (memoize _compute-min-spacing))
+;;(def compute-min-spacing _compute-min-spacing)
 
 
 (defn transform
@@ -89,16 +132,15 @@
   fuction is intended to be used when creating or 'modifying' an
   existing viewdef"
 
-  ([^Point2D origin, ^Long zoomlevel, ^Long zoomratio, ^Double kppu, ^Long kmpm]
-   (let [ppu (double (compute-ppu zoomlevel zoomratio kppu kmpm))]
+  ([^Point2D origin, ^Long zoomlevel, ^Long zoomratio, ^Double kppu]
+   (let [ppu (double (compute-ppu zoomlevel zoomratio kppu))]
      (matrix/matrix [[ppu 0       (.getX origin)]
                      [0   (- ppu) (.getY origin)]
                      [0   0       1             ]])))
 
   ;; This one takes a ZoomSpecs map
-  ([^Point2D origin, {:keys [^long zoomlevel ^long zoomratio ^long kppu ^long kmpm]}]
-   (transform origin zoomlevel zoomratio kppu kmpm)))
-
+  ([^Point2D origin, {:keys [^long zoomlevel, ^long zoomratio, ^long kppu]}]
+   (transform origin zoomlevel zoomratio kppu)))
 
 ;; Constructor for ViewDef
 (defn viewdef
@@ -122,8 +164,7 @@
    (let [origin (Point2D. (/ width 2) (/ height 2))
          trans (transform origin 0
                           (:zoomratio zoomspecs)
-                          (:kppu zoomspecs)
-                          (:kmpm zoomspecs))
+                          (:kppu zoomspecs))
          inv-trans (matrix/inverse trans)]
      (map->ViewDef {:width width
                     :height height
@@ -136,42 +177,18 @@
                     :metric-selection metric-selection
                     :inches-selection inches-selection}))))
 
-(defn compute-ppu-ratio
-  "Computes the ratio of PPU between the new zoom level and the zoom
-  level in the old zoomspecs"
-  (^double [^ZoomSpecs old-zoomspecs, ^long new-zoomlevel]
-   (let [oldkmpm (.kmpm old-zoomspecs)
-         oldzl (.zoomlevel old-zoomspecs) ;; dot notation allows us to avoid casting to Long
-         oldzr (.zoomratio old-zoomspecs)]
-     (Math/pow oldkmpm (/ (- new-zoomlevel oldzl) oldzr)))))
 
+(defn get-print-scale-and-label [^ViewDef view]
+  (let [metric? (:metric-or-inches view) ;; returns :metric or :inches
 
-(defn _compute-maj-spacing
-  "Computes major grid spacing for both grid and snap-to
-  functionality.  Return values are in units, ie microns."
-  (^double [^ZoomSpecs zoomspecs]
-   (let [zoom-exp-step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
-         kgpu (.kgpu zoomspecs)
-         ;;kmpm (.kmpm zoomspecs)
-         ;;majgpu (* kgpu (Math/pow kmpm zoom-exp-step))
-         majgpu (* kgpu (Math/pow DEFAULT-ZOOM-BASE zoom-exp-step))] 
-     (/ 1 majgpu))))
-(def compute-maj-spacing (memoize _compute-maj-spacing))
-
-;; This should be optimized further so a mere pan doesn't cause a new
-;; compute-min-spacing
-
-(defn _compute-min-spacing
-  "Computes minor gridspacing for both grid and snap-to functionality.
-  Return values are in units, ie microns"
-  (^double [^ZoomSpecs zoomspecs]
-   (/ (compute-maj-spacing zoomspecs) (.kmpm zoomspecs))
-   #_(let [zoom_exp_step (Math/floor (/ (.zoomlevel zoomspecs) (.zoomratio zoomspecs)))
-         kgpu (.kgpu zoomspecs)
-         kmpm (.kmpm zoomspecs)
-         mingpu (* kgpu (Math/pow kmpm (+ zoom_exp_step 1)))] ;; minor grids per unit after zoom
-     (/ 1 mingpu))))
-(def compute-min-spacing (memoize _compute-min-spacing))
+        ;;print scales is either {:um 1.0, :mm 1e-3, :cm 1e-4} or
+        ;;                       {:inches (/ 1.0 igsu), :mils (/ 1000.0 igsu)}
+        ps ((:print-scales view) metric?)]
+    (condp = metric?
+      :metric (let [ms (:metric-selection view)]
+                [(ps ms) (name ms)]) ;; returns something like [1e-3 "mm"]
+      :inches (let [is (:inches-selection view)]
+                [(ps is) (name is)]))))
 
 (defn pan-to
   "Return new Viewdef based on pan coordinates, including updated transform"
@@ -263,7 +280,7 @@
    ;; Compute new transform
    (let [mgsm 1e-3             ;; 1mm
          ;;mgsp newscale-ppmm     ;; eg 10
-         mgsu (/ mgsm usm)     ;; 1e-3/1e-6 = 1e3
+         mgsu (/ mgsm (.value usm))           ;; 1e-3/1e-6 = 1e3
          newkppu (/ newscale-ppmm mgsu) ;; 10 / 1e3 = 1e-2 = 0.01
          new-zoomspecs (assoc (:zoomspecs view) :kppu newkppu)
          new-transform (transform (:origin view) new-zoomspecs)
@@ -274,24 +291,27 @@
             :zoomspecs new-zoomspecs))))
 
 (defn change-minor-grid-ratio
-  "Changes kppu and related parameters"
+  "Changes kmpm only."
   (^ViewDef [^ViewDef view, ^double newratio]
-   ;; Set new kppu
-   ;; Compute new transform
-   (let [new-zoomspecs (assoc (:zoomspecs view) :kmpm newratio)
-         new-transform (transform (:origin view) new-zoomspecs)
-         new-inv-transform (matrix/inverse new-transform)]
-     (assoc view
-            :transform new-transform
-            :inv-transform new-inv-transform
-            :zoomspecs new-zoomspecs))))
+   (assoc-in view [:zoomspecs :kmpm] newratio)))
 
+(defn dynamic-grid-enable
+  "Changes whether grid automatically changes scale"
+  (^ViewDef [^ViewDef view, ^Boolean enable?]
+   (assoc-in view [:zoomspecs :dynamic-grid-enable] enable?)))
+
+(defn change-grid-distance
+  "Changes unit distance between grid spaces"
+  (^ViewDef [^ViewDef view, newdistance]
+   (println newdistance)
+   view)
+  )
 
 (defn units-to-snapped-units
-  "Returns a point in unit space, snapped to the nearest minor grid,
+  "Returns a point in unit space, snapped to the nearest grid,
   given a point in unit space.  If arg is a Point2D, returns a
   Point2D.  If arg is a vector of two doubles, returns a vector of two
-  doubles.  Specify :major or :minor grid"
+  doubles.  Specify :major or :minor grid."
 
   (^Point2D [^ViewDef view, ^Point2D ptu, whichgrid]
    (let [[x y] [(.getX ptu) (.getY ptu)]
@@ -302,10 +322,8 @@
    (let [spacing (double (condp = whichgrid
                            :minor (compute-min-spacing (:zoomspecs view))
                            :major (compute-maj-spacing (:zoomspecs view))))
-         quantx (Math/round (/ ux spacing))
-         quanty (Math/round (/ uy spacing))
-         snapx (* spacing quantx)
-         snapy (* spacing quanty)]
+         snapx (jfxc/round-to-nearest ux spacing)
+         snapy (jfxc/round-to-nearest uy spacing)]
      [snapx snapy])))
 
 
@@ -322,7 +340,7 @@
 
 
 (defn pixels-to-snapped-units
-  "Returns a Point2D in unit space, snapped to the nearest minor grid,
+  "Returns a Point2D in unit space, snapped to grid,
   given a point in pixel space.  Specify :major or :minor grid."
 
   (^Point2D [^ViewDef view, ^Point2D ptpx, whichgrid]
@@ -380,7 +398,7 @@
   "Changes grid to show metric if arg missing or true, or inches if
   arg false."
   (^ViewDef [^ViewDef view metric-choice]
-   (if metric-choice ;; was (not metric-choice), but I'm not sure why
+   (if metric-choice
      (view-metric view)
      (view-inches view)))
   (^ViewDef [^ViewDef view]

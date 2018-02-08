@@ -79,17 +79,22 @@ Save/load values
   (let [ ;; TitledPanes
         tpmaj (lu "tp-major-grid")
         tpmin (lu "tp-minor-grid")
+        tpaxes (lu "tp-axes")
         tporig (lu "tp-origin")
 
         ;; GridPanes
         gpmaj (lu "gp-major-grid-elements")
         gpmin (lu "gp-minor-grid-elements")
+        gpaxes (lu "gp-axes-elements")
         gporig (lu "gp-orig-elements")
 
         ;; Corner checkboxes
-        enmaj (.getGraphic tpmaj)
-        enmin (.getGraphic tpmin)
-        enorig (.getGraphic tporig)]
+        ;; Not using lu because jfxutils.core/subnodes does not support multiple gets of content
+        enmaj (.getGraphic tpmaj) ;; (lu "cb-major-grid-enable")
+        enmin (.getGraphic tpmin) ;; (lu "cb-minor-grid-enable")
+        enaxes (.getGraphic tpaxes) ;; (lu "cb-axes-visible")
+        enorig (.getGraphic tporig) ;; (lu "cb-origin-visible")
+        ]
 
     (jfxb/bind! :var state, :init true, :keyvec [:major-grid-enable]
                 :targets {enmaj {:property :selected}
@@ -100,12 +105,16 @@ Save/load values
                 :targets {enmin {:property :selected}
                           gpmin {:property :disable, :var-to-prop-fn not}})
 
-    (jfxb/bind! :var state, :init true, :keyvec [:origin-enable]
+    (jfxb/bind! :var state, :init true, :keyvec [:axes-visible]
+                :targets {enaxes {:property :selected}
+                          gpaxes {:property :disable, :var-to-prop-fn not}})
+
+    (jfxb/bind! :var state, :init true, :keyvec [:origin-visible]
                 :targets {enorig {:property :selected}
                           gporig {:property :disable, :var-to-prop-fn not}})
 
     ;; Adjust checkbox positions to the far right, adding 20px to avoid ellipsis
-    (doseq [tgt [tpmaj tpmin tporig]]
+    (doseq [tgt [tpmaj tpmin tpaxes tporig]]
       (.bind (jfxc/get-property tgt :graphic-text-gap)
              (.subtract (get-property tgt :width)
                         (.add (get-property (.getGraphic tgt) :width)
@@ -294,14 +303,6 @@ Save/load values
   and enable or disable related UI elements so they look grayed out
   when the feature is not available."
   [state lu]
-  (jfxb/bind! :var state, :init true, :keyvec [:axes-visible]
-              :property :disable
-              :var-to-prop-fn not
-              :targets {(lu "cb-axes-visible") {:property :selected, :var-to-prop-fn identity}
-                        (lu "sl-axis-line-width") {}
-                        (lu "tf-axis-line-width") {}
-                        (lu "col-axis-line-color") {}})
-
   (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
               :property :disable
               :var-to-prop-fn not
@@ -333,6 +334,17 @@ Save/load values
                         (lu "sl-minor-grid-dot-width") {}
                         (lu "tf-minor-grid-dot-width") {}
                         (lu "col-minor-grid-dot-color") {}}))
+
+(defn setup-other-checkboxes!
+  "Sets up generic checkboxes, which only connect to var state, not
+  visibility or other logic."
+  [state lu]
+  (jfxb/bind! :var state, :init true :keyvec [:dynamic-grid-enable]
+              :property :selected
+              :targets [(lu "cb-dynamic-grid")])
+  (jfxb/bind! :var state, :init true :keyvec [:scale-visible]
+              :property :selected
+              :targets [(lu "cb-scale-visible")]))
 
 (defn setup-origin-marker-selection!
   "Sets up origin marker selection.  Similar to
@@ -430,6 +442,7 @@ Save/load values
       (setup-origin-marker-selection! grid-settings lu)
       (setup-background-color-selectors! editor-settings lu)
       (setup-other-color-selectors! grid-settings lu)
+      (setup-other-checkboxes! grid-settings lu)
       {:root root
        :grid-settings grid-settings
        :editor-settings editor-settings
