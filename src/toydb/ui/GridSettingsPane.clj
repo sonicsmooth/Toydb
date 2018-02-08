@@ -207,7 +207,7 @@ Save/load values
     :keyvec [:zoom-ppmm]
     :type Long
     :range [1 20] 
-    :init 10
+    :init 9
     :major-tick-unit 50
     :minor-tick-count 9
     :show-tick-marks true

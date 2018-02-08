@@ -681,7 +681,7 @@
                  (let [new-coords? (jfxc/keydiff old new [:metric-or-inches
                                                           :inches-selection
                                                           :metric-selection])
-                       new-grid-ui? (jfxc/keydiff old new [[:zoomspecs :kppu]
+                       new-grid-ui? (jfxc/keydiff old new [;;[:zoomspecs :kppu]
                                                            [:zoomspecs :kmpm]])]
                    (if (and (not new-coords?) (not new-grid-ui?))
                      (redraw-view! doc) ;; what happen when neither of the two specific things happens
@@ -690,7 +690,7 @@
                          (update-coordinates! doc @(:mouse-state doc)))
                        (when new-grid-ui?
                          (swap! grid-settings assoc
-                                :zoom-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu]))) ;; why 1000?
+                                ;;:zoom-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu]))) ;; why 1000?
                                 :minor-grid-ratio (get-in new [:zoomspecs :kmpm]))))))))
 
 

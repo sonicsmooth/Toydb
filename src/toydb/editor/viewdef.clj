@@ -11,12 +11,14 @@
 
 ;; Separate zoom from pan (aka origin) and the rest of it
 ;; This allows memoization of spacing which is used for all the moving/dragging/snapping
-(defrecord ZoomSpecs [^long zoomratio
-                      ^long zoomlevel
+(defrecord ZoomSpecs [^Long zoomratio
+                      ^Long zoomlevel
                       zoomlimits ;; just a vector, so no typehint
-                      ^double kppu
-                      ^double kgpu
-                      ^long kmpm])
+                      grid-spacing ;; in distance record
+                      ^Double px-per-grid
+                      ;;^double kppu
+                      ;;^double kgpu
+                      ^Long kmpm])
 
 (defrecord ViewDef [^long width
                     ^long height
@@ -30,43 +32,25 @@
                     inches-selection])
 
 ;; see spreadsheet
-;; If Unit is microns, this shows 100 pixels per 10mm, and 1 grid per cm
-;; usm = unit size (meters)
-;; mgs[m,p,u] = metric grid size [meters, pixels, units]
-;; igs[m,p,u] = inch grid size [meters, pixels, units]
-(def unit (um 1))
-(def usm (m unit)) ;; meters per unit (1 micron basic size)
-(def mgsp 100)   ;; (pixels/grid) (100px)
+(def ufn um)            ;; basic unit
+(def unit (ufn 1))
+(def grid1-spacing (mm 10)) ;; distance per grid
+(def px-per-grid 100)   ;; (pixels/grid) (100px)
 
-;; Used for ppu ratio and metric grid; could equally do 1mm and 10px, etc.
-;; Change this ratio to set the overall zoom at zero zoom level
-(def mgsm (m (mm 10))) ;; meters per grid when metric(10mm)
-(def igsm (m (mm 10))) ;; meters per grid when inches (still 10mm)
-;;(def igsm 25.4e-3) ; meters per grid when inches (25.4mm)
-
-
-(def mgsu (/ (.value mgsm) (.value usm))) ;; (meters/grid) / (meters/unit) = unit/grid (10,000)
-(def igsu (/ (.value igsm) (.value usm))) ;; (meters/grid) / (meters/unit) = unit/grid (25,400)
-
-
-;; These are what actually go into the viewdef
-(def kppu (/ mgsp mgsu))     ;; 10px/mm = 100 px/10 mm = 100 px/10000 um = 0.01 px/unit
-(def metric-kgpu (/ 1 mgsu)) ;; 1 grid/10 mm = 1 grid/10000um = .0001 grids/unit
-(def inch-kgpu (/ 1 igsu))   ;; 1 grid/25.4mm = 1 grid/25400um  .0000394 grids/unit
-
+(def grid1-units-per-grid (ufn (/ (.value (ufn grid1-spacing))
+                                  (.value (ufn 1))))) ;; (units distance) / (units 1)
 
 (def DEFAULT-ZOOM-RATIO 100) ;; How many zoom levels for multiply by zoom base
 (def DEFAULT-ZOOM-LEVEL 0)
 (def DEFAULT-ZOOM-BASE 10.0)  ;; Multiplies by this amount every zoom ratio
 (def DEFAULT-ZOOM-LIMITS [-400 400])
+(def DEFAULT-GRID-SPACING grid1-spacing)
+(def DEFAULT-PIXELS-PER-GRID px-per-grid)
 (def DEFAULT-MINORS-PER-MAJOR 10)
-(def DEFAULT-PIXELS-PER-UNIT kppu) 
-(def DEFAULT-GRIDS-PER-UNIT metric-kgpu)
 (def DEFAULT-METRIC-OR-INCHES :metric)
 (def DEFAULT-PRINT-SCALES {:metric {:um (.value (um unit))  ;; how many um, mm, cm per unit (um)
                                     :mm (.value (mm unit))
                                     :cm (.value (cm unit))}
-                           ;;:inches {:inches (/ 1.0 igsu), :mils (/ 1000.0 igsu)}
                            :inches {:inches (.value (inch unit)) ;; how many inches, mils per unit (um)
                                     :mils (.value (mil unit))}})  
 (def DEFAULT-METRIC-SELECTION :mm) ;; keys from DEFAULT-PRINT-SCALES :metric
@@ -76,19 +60,21 @@
                                         :zoomratio DEFAULT-ZOOM-RATIO
                                         :zoomlevel DEFAULT-ZOOM-LEVEL
                                         :zoomlimits DEFAULT-ZOOM-LIMITS
-                                        :kmpm DEFAULT-MINORS-PER-MAJOR
-                                        :kppu DEFAULT-PIXELS-PER-UNIT
-                                        :kgpu DEFAULT-GRIDS-PER-UNIT}))
+                                        :grid-spacing DEFAULT-GRID-SPACING ;; in distance records
+                                        :px-per-grid DEFAULT-PIXELS-PER-GRID
+                                        :kmpm DEFAULT-MINORS-PER-MAJOR}))
 (defn compute-ppu
   "Compute pixels per unit given parameters.  This is a smooth
   function, not related to dynamic grid sizing."
-  ([^long zoomlevel, ^long zoomratio, ^double kppu]
-   (let [zoom-exp (/ zoomlevel zoomratio)]
+  ([^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-grid]
+   (let [zoom-exp (/ zoomlevel zoomratio)
+         spacing-units (.value (ufn grid-spacing))
+         kppu (/ px-per-grid spacing-units)]
      (* kppu (Math/pow DEFAULT-ZOOM-BASE zoom-exp))))
 
   ([^ViewDef view]
    (let [zs (:zoomspecs view)]
-     (compute-ppu (:zoomlevel zs) (:zoomratio zs) (:kppu zs)))))
+     (compute-ppu (:zoomlevel zs) (:zoomratio zs) (:grid-spacing zs) (:px-per-grid zs)))))
 
 
 (defn compute-ppu-ratio
@@ -103,9 +89,10 @@
 
 (defn _compute-maj-spacing
   "Computes major grid spacing for both grid and snap-to
-  functionality.  Return values are in units, ie microns."
+  functionality.  Return values are in units, ie microns or whatever
+  ufn has been set to at the top of this file."
   (^double [^ZoomSpecs zoomspecs]
-   (let [kgpu (.kgpu zoomspecs)
+   (let [kgpu (/ 1 (.value (ufn (:grid-spacing zoomspecs))))
          majgpu (if (:dynamic-grid-enable zoomspecs)
                   (* kgpu (Math/pow DEFAULT-ZOOM-BASE
                                     (Math/floor (/ (.zoomlevel zoomspecs)
@@ -132,15 +119,15 @@
   fuction is intended to be used when creating or 'modifying' an
   existing viewdef"
 
-  ([^Point2D origin, ^Long zoomlevel, ^Long zoomratio, ^Double kppu]
-   (let [ppu (double (compute-ppu zoomlevel zoomratio kppu))]
+  ([^Point2D origin, ^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-grid]
+   (let [ppu (double (compute-ppu zoomlevel zoomratio grid-spacing px-per-grid))]
      (matrix/matrix [[ppu 0       (.getX origin)]
                      [0   (- ppu) (.getY origin)]
                      [0   0       1             ]])))
 
   ;; This one takes a ZoomSpecs map
-  ([^Point2D origin, {:keys [^long zoomlevel, ^long zoomratio, ^long kppu]}]
-   (transform origin zoomlevel zoomratio kppu)))
+  ([^Point2D origin, {:keys [^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-grid ]}]
+   (transform origin zoomlevel zoomratio grid-spacing px-per-grid)))
 
 ;; Constructor for ViewDef
 (defn viewdef
@@ -164,7 +151,8 @@
    (let [origin (Point2D. (/ width 2) (/ height 2))
          trans (transform origin 0
                           (:zoomratio zoomspecs)
-                          (:kppu zoomspecs))
+                          (:grid-spacing zoomspecs)
+                          (:px-per-grid zoomspecs))
          inv-trans (matrix/inverse trans)]
      (map->ViewDef {:width width
                     :height height
@@ -278,17 +266,18 @@
   (^ViewDef [^ViewDef view, ^double newscale-ppmm]
    ;; Set new kppu
    ;; Compute new transform
-   (let [mgsm 1e-3             ;; 1mm
-         ;;mgsp newscale-ppmm     ;; eg 10
-         mgsu (/ mgsm (.value usm))           ;; 1e-3/1e-6 = 1e3
-         newkppu (/ newscale-ppmm mgsu) ;; 10 / 1e3 = 1e-2 = 0.01
-         new-zoomspecs (assoc (:zoomspecs view) :kppu newkppu)
-         new-transform (transform (:origin view) new-zoomspecs)
-         new-inv-transform (matrix/inverse new-transform)]
-     (assoc view
-            :transform new-transform
-            :inv-transform new-inv-transform
-            :zoomspecs new-zoomspecs))))
+   #_(comment (let [mgsm 1e-3 ;; 1mm
+                  ;;px-per-grid newscale-ppmm     ;; eg 10
+                  mgsu (/ mgsm (.value usm))  ;; 1e-3/1e-6 = 1e3
+                  newkppu (/ newscale-ppmm mgsu) ;; 10 / 1e3 = 1e-2 = 0.01
+                  new-zoomspecs (assoc (:zoomspecs view) :kppu newkppu)
+                  new-transform (transform (:origin view) new-zoomspecs)
+                  new-inv-transform (matrix/inverse new-transform)]
+              (assoc view
+                     :transform new-transform
+                     :inv-transform new-inv-transform
+                     :zoomspecs new-zoomspecs)))
+   view))
 
 (defn change-minor-grid-ratio
   "Changes kmpm only."
@@ -369,7 +358,8 @@
    (let [origin (Point2D. (/ width 2) (/ height 2))
          zoomspecs (assoc (:zoomspecs view)
                           :zoomlevel 0
-                          :kppu DEFAULT-PIXELS-PER-UNIT)
+                          ;;:kppu DEFAULT-PIXELS-PER-UNIT
+                          )
          trans (transform origin zoomspecs)
          inv-trans (matrix/inverse trans)]
      (assoc view
@@ -388,10 +378,12 @@
   "Changes grid to show inches."
   (^ViewDef [^ViewDef view]
    (let [zs (:zoomspecs view)
-         new-zs (assoc zs :kgpu inch-kgpu)
+         #_new-zs #_(assoc zs :kgpu grid1-kgrids-per-unit;;inch-kgpu
+                          )
          new-view (assoc view
                          :metric-or-inches :inches
-                         :zoomspecs new-zs)]
+                         ;;:zoomspecs new-zs
+                         )]
      (zoom-by new-view 0)))) ;; force rezoom to update all values
 
 (defn view-metric
@@ -403,10 +395,11 @@
      (view-inches view)))
   (^ViewDef [^ViewDef view]
    (let [zs (:zoomspecs view)
-         new-zs (assoc zs :kgpu metric-kgpu)
+         ;;new-zs (assoc zs :kgpu grid1-kgrids-per-unit)
          new-view (assoc view
                          :metric-or-inches :metric
-                         :zoomspecs new-zs)]
+                   ;;      :zoomspecs new-zs
+                         )]
      (zoom-by new-view 0)))) ;; force rezoom to update all values
 
 (defn metric?
