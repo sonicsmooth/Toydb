@@ -259,7 +259,7 @@
   (change-zoom-scale! [this new-scale])               ;; mutates view, triggers watch
   (change-minor-grid-ratio! [this new-ratio])         ;; mutates view, triggers watch
   (dynamic-grid-enable! [this new-enable])            ;; mutates view ,triggers watch
-  (change-grid-distance! [this new-distance])         ;; mutates view, triggers watch
+  (change-grid-spacing! [this new-spacing])         ;; mutates view, triggers watch
   (resize! [this [oldw oldh] [neww newh]])            ;; resizes window
   (init-handlers! [this])) 
 
@@ -308,8 +308,8 @@
   (change-minor-grid-ratio! [doc newratio]
     (swap! (:viewdef doc) viewdef/change-minor-grid-ratio newratio))
 
-  (change-grid-distance! [doc newdistance]
-    (swap! (:viewdef doc) viewdef/change-grid-distance newdistance))
+  (change-grid-spacing! [doc newspacing]
+    (swap! (:viewdef doc) viewdef/change-grid-spacing newspacing))
 
   (dynamic-grid-enable! [doc new-enable]
     (swap! (:viewdef doc) viewdef/dynamic-grid-enable new-enable))
@@ -569,10 +569,6 @@
 ;; passed as arguments because they come from the dialog box; the
 ;; third is created internally.
 
-;;(viewdef/change-zoom-scale)
-;;(:zoom-ppmm @grid-settings)
-
-
 
 (defn editor-view
   "Make editor-view with relevant handlers"
@@ -660,20 +656,35 @@
     ;; This watch triggers a redraw when one of the grid settings changes from the UI panel
     (add-watch grid-settings :grid-settings-redraw
                (fn [key ref old new]
+                 #_(let [do-map [{:zoom-ppmm change-zoom-scale!
+                                  :minor-grid-ratio change-minor-grid-ratio!
+                                  :dynamic-grid-enable dynamic-grid-enable!
+                                  :major-spacing-um change-grid-distance!}]
+                         do-new! (fn [old new doc do-map]
+                                   ;; Returns true when something has been done
+                                   (some identity
+                                         (for [[key action] do-map]
+                                           (when-let [doval (jfxc/keydiff old new key)]
+                                             (action doc doval)
+                                             doval))))
+                         did-something? (do-new! old new doc do-map )]
+                     (when (not did-something?)
+                       (redraw-view! doc)))
+                 
                  (let [new-ppmm? (jfxc/keydiff old new [:zoom-ppmm])
                        new-ratio? (jfxc/keydiff old new [:minor-grid-ratio])
                        dynamic-grid? (jfxc/keydiff old new [:dynamic-grid-enable])
-                       new-grid-distance? (jfxc/keydiff old new [:major-spacing-um])]
-                   (if (and (not new-ppmm?)
-                            (not new-ratio?)
-                            (not dynamic-grid?)
-                            (not new-grid-distance?))
+                       new-grid-spacing? (jfxc/keydiff old new [:grid-spacing])]
+                   (if (and (nil? new-ppmm?)
+                            (nil? new-ratio?)
+                            (nil? dynamic-grid?)
+                            (nil? new-grid-spacing?))
                      (redraw-view! doc)
                      (do
-                       (when new-ppmm? (change-zoom-scale! doc (:zoom-ppmm new)))
-                       (when new-ratio? (change-minor-grid-ratio! doc (:minor-grid-ratio new)))
-                       (when dynamic-grid? (dynamic-grid-enable! doc (:dynamic-grid-enable new)))
-                       (when new-grid-distance? (change-grid-distance! doc (:major-spacing-um new))))))))
+                       (when (some? new-ppmm?) (change-zoom-scale! doc (:zoom-ppmm new)))
+                       (when (some? new-ratio?) (change-minor-grid-ratio! doc (:minor-grid-ratio new)))
+                       (when (some? dynamic-grid?) (dynamic-grid-enable! doc (:dynamic-grid-enable new)))
+                       (when (some? new-grid-spacing?) (change-grid-spacing! doc (:grid-spacing new))))))))
     
     ;; This watch triggers redraws when the viewdef changes, ie reset button
     (add-watch viewdef-settings :viewdef-all
@@ -681,9 +692,10 @@
                  (let [new-coords? (jfxc/keydiff old new [:metric-or-inches
                                                           :inches-selection
                                                           :metric-selection])
-                       new-grid-ui? (jfxc/keydiff old new [;;[:zoomspecs :kppu]
+                       new-grid-ui? (jfxc/keydiff old new [ ;;[:zoomspecs :kppu]
                                                            [:zoomspecs :kmpm]])]
-                   (if (and (not new-coords?) (not new-grid-ui?))
+                   (if (and (not new-coords?)
+                            (not new-grid-ui?))
                      (redraw-view! doc) ;; what happen when neither of the two specific things happens
                      (do
                        (when new-coords?

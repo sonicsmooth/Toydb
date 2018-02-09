@@ -32,8 +32,8 @@
                     inches-selection])
 
 ;; see spreadsheet
-(def ufn um)            ;; basic unit
-(def unit (ufn 1))
+(def ufn um)            ;; basic unit fn
+(def unit (ufn 1))      ;; basic unit
 (def grid1-spacing (mm 10)) ;; distance per grid
 (def px-per-grid 100)   ;; (pixels/grid) (100px)
 
@@ -168,9 +168,6 @@
 
 (defn get-print-scale-and-label [^ViewDef view]
   (let [metric? (:metric-or-inches view) ;; returns :metric or :inches
-
-        ;;print scales is either {:um 1.0, :mm 1e-3, :cm 1e-4} or
-        ;;                       {:inches (/ 1.0 igsu), :mils (/ 1000.0 igsu)}
         ps ((:print-scales view) metric?)]
     (condp = metric?
       :metric (let [ms (:metric-selection view)]
@@ -262,22 +259,15 @@
    (zoom-to view (+ dz (long (-> view :zoomspecs :zoomlevel))) ptpx)))
 
 (defn change-zoom-scale
-  "Changes kppu and related parameters"
+  "Changes pixels-per-grid and transform"
   (^ViewDef [^ViewDef view, ^double newscale-ppmm]
-   ;; Set new kppu
-   ;; Compute new transform
-   #_(comment (let [mgsm 1e-3 ;; 1mm
-                  ;;px-per-grid newscale-ppmm     ;; eg 10
-                  mgsu (/ mgsm (.value usm))  ;; 1e-3/1e-6 = 1e3
-                  newkppu (/ newscale-ppmm mgsu) ;; 10 / 1e3 = 1e-2 = 0.01
-                  new-zoomspecs (assoc (:zoomspecs view) :kppu newkppu)
-                  new-transform (transform (:origin view) new-zoomspecs)
-                  new-inv-transform (matrix/inverse new-transform)]
-              (assoc view
-                     :transform new-transform
-                     :inv-transform new-inv-transform
-                     :zoomspecs new-zoomspecs)))
-   view))
+   (let [new-zs (assoc (:zoomspecs view) :px-per-grid newscale-ppmm)
+         new-transform (transform (:origin view) new-zs)
+         new-inv-transform (matrix/inverse new-transform)]
+     (assoc view
+            :zoomspecs new-zs
+            :transform new-transform
+            :inv-transform new-inv-transform))))
 
 (defn change-minor-grid-ratio
   "Changes kmpm only."
@@ -289,12 +279,17 @@
   (^ViewDef [^ViewDef view, ^Boolean enable?]
    (assoc-in view [:zoomspecs :dynamic-grid-enable] enable?)))
 
-(defn change-grid-distance
+(defn change-grid-spacing
   "Changes unit distance between grid spaces"
-  (^ViewDef [^ViewDef view, newdistance]
-   (println newdistance)
-   view)
-  )
+  (^ViewDef [^ViewDef view, newspacing]
+   (println newspacing)
+   (let [new-zs (assoc (:zoomspecs view) :grid-spacing newspacing)
+         new-transform (transform (:origin view) new-zs)
+         new-inv-transform (matrix/inverse new-transform)]
+     (assoc view
+            :zoomspecs new-zs
+            :transform new-transform
+            :inv-transform new-inv-transform))))
 
 (defn units-to-snapped-units
   "Returns a point in unit space, snapped to the nearest grid,
@@ -357,9 +352,7 @@
   (^ViewDef [^ViewDef view, ^double width, ^double height]
    (let [origin (Point2D. (/ width 2) (/ height 2))
          zoomspecs (assoc (:zoomspecs view)
-                          :zoomlevel 0
-                          ;;:kppu DEFAULT-PIXELS-PER-UNIT
-                          )
+                          :zoomlevel 0)
          trans (transform origin zoomspecs)
          inv-trans (matrix/inverse trans)]
      (assoc view
@@ -377,13 +370,9 @@
 (defn view-inches
   "Changes grid to show inches."
   (^ViewDef [^ViewDef view]
-   (let [zs (:zoomspecs view)
-         #_new-zs #_(assoc zs :kgpu grid1-kgrids-per-unit;;inch-kgpu
-                          )
+   (let [;;zs (:zoomspecs view)
          new-view (assoc view
-                         :metric-or-inches :inches
-                         ;;:zoomspecs new-zs
-                         )]
+                         :metric-or-inches :inches)]
      (zoom-by new-view 0)))) ;; force rezoom to update all values
 
 (defn view-metric
@@ -395,11 +384,8 @@
      (view-inches view)))
   (^ViewDef [^ViewDef view]
    (let [zs (:zoomspecs view)
-         ;;new-zs (assoc zs :kgpu grid1-kgrids-per-unit)
          new-view (assoc view
-                         :metric-or-inches :metric
-                   ;;      :zoomspecs new-zs
-                         )]
+                         :metric-or-inches :metric)]
      (zoom-by new-view 0)))) ;; force rezoom to update all values
 
 (defn metric?

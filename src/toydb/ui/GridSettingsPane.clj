@@ -152,7 +152,7 @@ Save/load values
       (jfxc/add-listener! tgt :value invalid-listener)
       (jfxui/setup-number-textfield! (.getEditor tgt) (.. tgt getValueFactory getConverter) drc))
 
-    (jfxb/bind! :var state, :init (um (mm 10)), :keyvec [:major-spacing-um]
+    (jfxb/bind! :var state, :init (um (mm 10)), :keyvec [:grid-spacing]
            :no-action-val nil
            :property :value
            :range-fn #(um (drc-clip %))
@@ -206,10 +206,10 @@ Save/load values
     :textfield "tf-zoom-ppmm"
     :keyvec [:zoom-ppmm]
     :type Long
-    :range [1 20] 
-    :init 9
-    :major-tick-unit 50
-    :minor-tick-count 9
+    :range [20 400]
+    :init 100
+    :major-tick-unit 90
+    :minor-tick-count 5
     :show-tick-marks true
     :show-tick-labels true}
    {:slider "sl-major-grid-line-width"
