@@ -15,7 +15,7 @@
                       ^Long zoomlevel
                       zoomlimits ;; just a vector, so no typehint
                       grid-spacing ;; in distance record
-                      ^Double px-per-grid
+                      ^Double px-per-mm
                       ;;^double kppu
                       ;;^double kgpu
                       ^Long kmpm])
@@ -31,12 +31,14 @@
                     metric-selection
                     inches-selection])
 
-;; see spreadsheet
-(def ufn um)            ;; basic unit fn
-(def unit (ufn 1))      ;; basic unit
+;; Initial inputs
+(def ufn um)                ;; basic unit fn
+(def unit (ufn 1))          ;; basic unit
 (def grid1-spacing (mm 10)) ;; distance per grid
-(def px-per-grid 100)   ;; (pixels/grid) (100px)
+(def px-per-mm 10)          ;; Initial scaling
 
+;; Derived values
+;;(def px-per-grid (* px-per-mm (.value (mm grid1-spacing)))) ;; (pixels/grid) (100px)
 (def grid1-units-per-grid (ufn (/ (.value (ufn grid1-spacing))
                                   (.value (ufn 1))))) ;; (units distance) / (units 1)
 
@@ -45,7 +47,8 @@
 (def DEFAULT-ZOOM-BASE 10.0)  ;; Multiplies by this amount every zoom ratio
 (def DEFAULT-ZOOM-LIMITS [-400 400])
 (def DEFAULT-GRID-SPACING grid1-spacing)
-(def DEFAULT-PIXELS-PER-GRID px-per-grid)
+;;(def DEFAULT-PIXELS-PER-GRID px-per-grid)
+(def DEFAULT-PIXELS-PER-MM px-per-mm)
 (def DEFAULT-MINORS-PER-MAJOR 10)
 (def DEFAULT-METRIC-OR-INCHES :metric)
 (def DEFAULT-PRINT-SCALES {:metric {:um (.value (um unit))  ;; how many um, mm, cm per unit (um)
@@ -61,20 +64,22 @@
                                         :zoomlevel DEFAULT-ZOOM-LEVEL
                                         :zoomlimits DEFAULT-ZOOM-LIMITS
                                         :grid-spacing DEFAULT-GRID-SPACING ;; in distance records
-                                        :px-per-grid DEFAULT-PIXELS-PER-GRID
+                                        :px-per-mm DEFAULT-PIXELS-PER-MM
+                                        ;;:px-per-grid DEFAULT-PIXELS-PER-GRID
                                         :kmpm DEFAULT-MINORS-PER-MAJOR}))
 (defn compute-ppu
   "Compute pixels per unit given parameters.  This is a smooth
   function, not related to dynamic grid sizing."
-  ([^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-grid]
+  ([^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-mm]
    (let [zoom-exp (/ zoomlevel zoomratio)
          spacing-units (.value (ufn grid-spacing))
+         px-per-grid (* px-per-mm (.value (mm grid-spacing)))
          kppu (/ px-per-grid spacing-units)]
      (* kppu (Math/pow DEFAULT-ZOOM-BASE zoom-exp))))
 
   ([^ViewDef view]
    (let [zs (:zoomspecs view)]
-     (compute-ppu (:zoomlevel zs) (:zoomratio zs) (:grid-spacing zs) (:px-per-grid zs)))))
+     (compute-ppu (:zoomlevel zs) (:zoomratio zs) (:grid-spacing zs) (:px-per-mm zs)))))
 
 
 (defn compute-ppu-ratio
@@ -119,15 +124,15 @@
   fuction is intended to be used when creating or 'modifying' an
   existing viewdef"
 
-  ([^Point2D origin, ^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-grid]
-   (let [ppu (double (compute-ppu zoomlevel zoomratio grid-spacing px-per-grid))]
+  ([^Point2D origin, ^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-mm]
+   (let [ppu (double (compute-ppu zoomlevel zoomratio grid-spacing px-per-mm))]
      (matrix/matrix [[ppu 0       (.getX origin)]
                      [0   (- ppu) (.getY origin)]
                      [0   0       1             ]])))
 
   ;; This one takes a ZoomSpecs map
-  ([^Point2D origin, {:keys [^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-grid ]}]
-   (transform origin zoomlevel zoomratio grid-spacing px-per-grid)))
+  ([^Point2D origin, {:keys [^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-mm]}]
+   (transform origin zoomlevel zoomratio grid-spacing px-per-mm)))
 
 ;; Constructor for ViewDef
 (defn viewdef
@@ -152,7 +157,7 @@
          trans (transform origin 0
                           (:zoomratio zoomspecs)
                           (:grid-spacing zoomspecs)
-                          (:px-per-grid zoomspecs))
+                          (:px-per-mm zoomspecs))
          inv-trans (matrix/inverse trans)]
      (map->ViewDef {:width width
                     :height height
@@ -260,8 +265,8 @@
 
 (defn change-zoom-scale
   "Changes pixels-per-grid and transform"
-  (^ViewDef [^ViewDef view, ^double newscale-ppmm]
-   (let [new-zs (assoc (:zoomspecs view) :px-per-grid newscale-ppmm)
+  (^ViewDef [^ViewDef view, ^double new-px-per-mm]
+   (let [new-zs (assoc (:zoomspecs view) :px-per-mm new-px-per-mm)
          new-transform (transform (:origin view) new-zs)
          new-inv-transform (matrix/inverse new-transform)]
      (assoc view
