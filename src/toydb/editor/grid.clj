@@ -59,6 +59,20 @@
                       ^doubles minvsteps
                       ^GridSpacing spacing])
 
+(defmemo count-steps
+  "Computes the locations, in unit space, of grid points.
+  The points are located spacing units apart, and are on the integer
+  spacing grid.  Start and stop are the full extent, so the grid
+  points will be between start and stop.  For example, if start is
+  -3.2 and stop is 4.5, with spacing 1, then the output is [-3 -2 -1 0
+  1 2 3 4]"
+  (^long [^double start, ^double stop, ^double spacing]
+   (let [strtd (Math/ceil (/ start spacing))
+         stpd (Math/floor (/ stop spacing))
+         nsteps (long (+ (- stpd strtd) 1))]
+     nsteps)))
+
+
 ;; Prematurely optimized, so faster than necessary
 (defn compute-steps
   "Computes the locations, in unit space, of grid points.
@@ -69,20 +83,22 @@
   1 2 3 4]"
   (^doubles [^double start, ^double stop, ^double spacing]
    (let [strtd (Math/ceil (/ start spacing))
-         stpd (Math/floor (/ stop spacing))
-         nsteps (long (+ (- stpd strtd) 1))
+         nsteps (count-steps start stop spacing)
          steps (double-array nsteps)]
-     (dotimes [i (count steps)]
+     (dotimes [i nsteps]
          (aset-double steps i (*  (+ strtd i) spacing)))
      steps)))
 
 
 (defn grid-specs
-  "Returns a GridSpecs structure with enough stuff to draw a grid"
+  "Returns a GridSpecs structure with enough stuff to draw a grid.  If
+  the density of lines is too high, then returns an empty list."
   [^toydb.editor.viewdef.ViewDef view]
   (let [;; Feed the known pixel values to the inverse transform to get the points
         ;; for the upper left and bottom right corners of the canvas in units, not pixels
-        invt (.inv-transform view)
+        ;;xfrm (:transform view)
+        invt (:inv-transform view)
+        imxx (double (matrix/mget invt 0 0))
         left_top_vec_px (matrix/matrix [0 0 1])
         right_bottom_vec_px (matrix/matrix
                              [(max 0 (dec (.width view)))
@@ -92,13 +108,23 @@
         [right bottom] (vec (matrix/mmul invt right_bottom_vec_px))
         
         ;; Update grids per unit
-        majspacing (toydb.editor.viewdef/compute-maj-spacing (:zoomspecs view))
-        minspacing (toydb.editor.viewdef/compute-min-spacing (:zoomspecs view))
+        ^double majspacing (toydb.editor.viewdef/compute-maj-spacing (:zoomspecs view))
+        ^double minspacing (toydb.editor.viewdef/compute-min-spacing (:zoomspecs view))
+
+        ;;majhnsteps (long (count-steps left right majspacing))
+        ;;minhnsteps (long (count-steps left right minspacing))
+        ;;majvnsteps (long (count-steps bottom top majspacing))
+        ;;minvnsteps (long (count-steps bottom top minspacing))
+
+        ;;majndots (* majhnsteps majvnsteps)
+        ;;minndots (* minhnsteps minvnsteps)
+        ;;dotlimit 20000
         
         majhsteps (compute-steps left right majspacing)
         minhsteps (compute-steps left right minspacing)
         majvsteps (compute-steps bottom top majspacing)
-        minvsteps (compute-steps bottom top minspacing)]
+        minvsteps (compute-steps bottom top minspacing)
+        ]
 
     (->GridSpecs left right top bottom
                  majhsteps minhsteps
@@ -200,8 +226,9 @@ Lines is a list with each member a pair of Point2D."
   (.restore gc))
 
 (defn xyvecs-to-matrix
-  "Takes two-vector of point-pairs (M and N long), and
-  returns (M*N)x2 matrix of point coordinates."
+  "Takes two-vector of point-pairs (M and N long), and returns (M*N)x2
+  matrix of point coordinates.  Returns empty matrix if M*N is too
+  big."
   [[V H]]
   ;; V represents vertical lines, ie X coords
   ;; [[P2D(10,-50) P2D(10,50)]     N pairs
@@ -210,22 +237,27 @@ Lines is a list with each member a pair of Point2D."
   ;; H represents horizontal lines, ie Y coords
   ;; [[P2D(-50, 20) P2D(50, 20)]   M pairs
   ;;  [P2D(-50, 30) P2D(50, 30)]]
+  ;; Could not optimize with aset or aset-double -- much slower
   (let [M (count H) ;; how many down
-        N (count V) ;; how many across
-        m (matrix/zero-matrix (* M N) 2)]
-    (doseq [[^long xi [^Point2D xpt _]] (map-indexed vector V) 
-            [^long yi [^Point2D ypt _]] (map-indexed vector H)]
-      (let [idx (+ xi (* yi N))]
-        (matrix/mset! m idx 0 (.getX xpt))
-        (matrix/mset! m idx 1 (.getY ypt))))
-    m))
+        N (count V)  ;; how many across
+        M*N (* M N)
+        dotlimit 20000]
+    (if (< M*N dotlimit)
+      (let [m (matrix/zero-matrix (* M N) 2)]
+        (doseq [[^long col [^Point2D xpt _]] (map-indexed vector V)
+                [^long row [^Point2D ypt _]] (map-indexed vector H)]
+          (let [idx (+ col (* row N))]
+            (matrix/mset! m idx 0 (.getX xpt))
+            (matrix/mset! m idx 1 (.getY ypt))))
+        m)
+      (matrix/matrix []))))
 
 (defn xyvecs-to-pixel-matrix
   [VH scale]
   (-> (xyvecs-to-matrix VH)
-      (matrix/mmul scale)
-      (matrix/round)
-      (matrix/add 0.5)))
+      (matrix/mul! scale)
+      (matrix/round!)
+      (matrix/add! 0.5)))
 
 (defn draw-matrix-dots!
   "Put dots on the canvas using the current transform.  dots is a Nx2
@@ -236,8 +268,7 @@ Lines is a list with each member a pair of Point2D."
    ^Color color]
   (.save gc)
   (.setFill gc color)
-  (let [;;recipscale (/ 1.0 (.. gc getTransform getMxx))
-        dot-width-u (/ dot-width-px (.. gc getTransform getMxx))
+  (let [dot-width-u (/ dot-width-px (.. gc getTransform getMxx))
         center-offset-u (/ dot-width-u 2.0)
         newdots (matrix/sub dots center-offset-u)]
        (doseq [dot newdots]
@@ -251,7 +282,6 @@ Lines is a list with each member a pair of Point2D."
    ^double line-width-px,
    ^Color color]
   (.save gc)
-
   (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
         line-width-u (* line-width-px recipscale)
         circ-dia-u (* 10.0 recipscale)
@@ -332,9 +362,9 @@ Lines is a list with each member a pair of Point2D."
   offset by 0.5."
   [line-pts scale]
   (-> line-pts line-endpts-to-matrix
-      (matrix/mmul scale)
-      (matrix/round)
-      (matrix/add 0.5)))
+      (matrix/mul! scale)
+      (matrix/round!)
+      (matrix/add! 0.5)))
 
 
 (defn draw-grid!
