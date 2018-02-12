@@ -65,7 +65,6 @@
                                         :zoomlimits DEFAULT-ZOOM-LIMITS
                                         :grid-spacing DEFAULT-GRID-SPACING ;; in distance records
                                         :px-per-mm DEFAULT-PIXELS-PER-MM
-                                        ;;:px-per-grid DEFAULT-PIXELS-PER-GRID
                                         :kmpm DEFAULT-MINORS-PER-MAJOR}))
 (defn compute-ppu
   "Compute pixels per unit given parameters.  This is a smooth
@@ -118,6 +117,12 @@
 (def compute-min-spacing (memoize _compute-min-spacing))
 ;;(def compute-min-spacing _compute-min-spacing)
 
+
+(defn round-pt-half
+  "Rounds Point2D values to nearest integer, then adds 0.5"
+  [^Point2D pt]
+  (Point2D. (+ 0.5 (Math/round (.getX pt)))
+            (+ 0.5 (Math/round (.getY pt)))))
 
 (defn transform
   "Returns transform matrix which converts units to pixels.  This
@@ -287,7 +292,6 @@
 (defn change-grid-spacing
   "Changes unit distance between grid spaces"
   (^ViewDef [^ViewDef view, newspacing]
-   (println newspacing)
    (let [new-zs (assoc (:zoomspecs view) :grid-spacing newspacing)
          new-transform (transform (:origin view) new-zs)
          new-inv-transform (matrix/inverse new-transform)]

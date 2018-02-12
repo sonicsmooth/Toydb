@@ -206,10 +206,10 @@ Save/load values
     :textfield "tf-zoom-ppmm"
     :keyvec [:zoom-ppmm]
     :type Long
-    :range [1 400]
+    :range [1 50]
     :init 10
-    :major-tick-unit 90
-    :minor-tick-count 5
+    :major-tick-unit 50
+    :minor-tick-count 2
     :show-tick-marks true
     :show-tick-labels true}
    {:slider "sl-major-grid-line-width"
@@ -253,7 +253,7 @@ Save/load values
     :keyvec [:minor-dot-width-px]
     :type Double
     :range [0.01 10.0]
-    :init 0.2
+    :init 0.5
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
