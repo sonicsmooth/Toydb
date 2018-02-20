@@ -362,7 +362,7 @@ Save/load values
         conv (proxy [javafx.util.StringConverter] []
                (fromString [s] (keyword s))
                (toString [k] (clojure.string/capitalize (name k))))]
-    (jfxc/set-items! combo [:crosshair :diag-crosshair :circle])
+    (jfxc/set-items! combo [:diag-crosshair :crosshair :circle])
     (doto combo
       (.setCellFactory callb)
       (.setConverter conv))

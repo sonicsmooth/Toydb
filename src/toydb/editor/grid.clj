@@ -12,8 +12,8 @@
              [javafx.scene.text Font Text TextAlignment]))
 
 
-(set! *warn-on-reflection*  true)
-(set! *unchecked-math*  :warn-on-boxed      )
+(set! *warn-on-reflection*  true  )
+(set! *unchecked-math*  :warn-on-boxed)
 (matrix/set-current-implementation :vectorz)
 
 ;; These get are used if a settings map is not passed to draw-grid!
@@ -108,23 +108,13 @@
         [right bottom] (vec (matrix/mmul invt right_bottom_vec_px))
         
         ;; Update grids per unit
-        ^double majspacing (toydb.editor.viewdef/compute-maj-spacing (:zoomspecs view))
-        ^double minspacing (toydb.editor.viewdef/compute-min-spacing (:zoomspecs view))
+        ^double majspacing (toydb.editor.viewdef/compute-maj-spacing view)
+        ^double minspacing (toydb.editor.viewdef/compute-min-spacing view)
 
-        ;;majhnsteps (long (count-steps left right majspacing))
-        ;;minhnsteps (long (count-steps left right minspacing))
-        ;;majvnsteps (long (count-steps bottom top majspacing))
-        ;;minvnsteps (long (count-steps bottom top minspacing))
-
-        ;;majndots (* majhnsteps majvnsteps)
-        ;;minndots (* minhnsteps minvnsteps)
-        ;;dotlimit 20000
-        
         majhsteps (compute-steps left right majspacing)
         minhsteps (compute-steps left right minspacing)
         majvsteps (compute-steps bottom top majspacing)
-        minvsteps (compute-steps bottom top minspacing)
-        ]
+        minvsteps (compute-steps bottom top minspacing)]
 
     (->GridSpecs left right top bottom
                  majhsteps minhsteps
@@ -165,8 +155,8 @@ Lines is a list with each member a pair of Point2D."
   (.setStroke gc color)
   (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
         line-width-u (* line-width-px recipscale)  ;; Divide requested linewidth down by Mxx
-        pixel-offsetx (* 0.5 recipscale)
-        pixel-offsety (* 0.5 recipscale)]
+        pixel-offsetx (* -0.5 recipscale)
+        pixel-offsety (* -0.5 recipscale)]
     (.setLineWidth gc line-width-u)
     (doseq [line lines]
       (let [p1 ^Point2D (first line)
@@ -187,14 +177,15 @@ Lines is a list with each member a pair of Point2D."
    ^Color color]
   (.save gc)
   (.setStroke gc color)
-  (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
+  (let [offset 0.5
+        recipscale (/ 1.0 (.. gc getTransform getMxx))
         line-width-u (* line-width-px recipscale)]   ;; Divide requested linewidth down by Mxx
     (.setLineWidth gc line-width-u)
     (doseq [line lines]
-      (let [x1 (matrix/mget line 0)
-            y1 (matrix/mget line 1)
-            x2 (matrix/mget line 2)
-            y2 (matrix/mget line 3)]
+      (let [x1 (+ offset (double (matrix/mget line 0)))
+            y1 (+ offset (double (matrix/mget line 1)))
+            x2 (+ offset (double (matrix/mget line 2)))
+            y2 (+ offset (double (matrix/mget line 3)))]
         (.strokeLine gc x1 y1 x2 y2))))
   (.restore gc))
 
@@ -366,6 +357,116 @@ Lines is a list with each member a pair of Point2D."
       (matrix/round!)
       (matrix/add! 0.5)))
 
+(defn draw-gridlines!
+  "Draws minor lines directly on GC using viewdef.  Does not collect
+  points or lines ahead of time, or use matrix.  Draws in pixel space
+  with default transform"
+  [^GraphicsContext gc, ^toydb.editor.viewdef.ViewDef view, grid-settings, whichgrid]
+  (let [xfrm (:transform view)
+        mxx (double (matrix/mget xfrm 0 0))
+        myy (double (matrix/mget xfrm 1 1))
+        mxt (double (matrix/mget xfrm 0 2))
+        myt (double (matrix/mget xfrm 1 2))
+        stopx (dec (.width view))
+        stopy (dec (.height view))
+        spacing (double (condp = whichgrid
+                          :minor (viewdef/compute-min-spacing view)
+                          :major (viewdef/compute-maj-spacing view)))
+        linewidth (double (condp = whichgrid
+                            :minor (:minor-line-width-px grid-settings)
+                            :major (:major-line-width-px grid-settings)))
+        color (condp = whichgrid
+                :minor (:minor-line-color grid-settings)
+                :major (:major-line-color grid-settings))
+        step (* mxx (double spacing))]
+
+    (.save gc)
+    (.setTransform gc (javafx.scene.transform.Affine.))
+    (.setLineWidth gc linewidth)
+    (.setStroke gc color)
+    
+    ;; Draw vertical lines
+    (loop [x (double (mod mxt step))]
+      (when (<= x stopx)
+        (let [rx (+ 0.5 (round-to-nearest x 1.0))]
+          (.strokeLine gc rx 0.0 rx stopy)
+          (recur (+ x step)))))
+
+    ;; Draw horizontal lines
+    (loop [y (double (mod myt step))]
+      (when (<= y stopy)
+        (let [ry (+ 0.5 (round-to-nearest y 1.0))]
+          (.strokeLine gc 0.0 ry stopx ry)
+          (recur (+ y step))))))
+  (.restore gc))
+
+(defn draw-griddots!
+  "Draws minor dots directly on GC using viewdef.  Does not collect
+  points or lines ahead of time, or use matrix.  Draws in pixel space
+  with default transform."
+  [^GraphicsContext gc,  ^toydb.editor.viewdef.ViewDef view, grid-settings, whichgrid]
+  (let [xfrm (:transform view)
+        mxx (double (matrix/mget xfrm 0 0))
+        spacing (double (condp = whichgrid
+                          :minor (viewdef/compute-min-spacing view)
+                          :major (viewdef/compute-maj-spacing view)))
+        spacingpx (* mxx spacing)]
+    (when (> spacingpx 4)
+      (let [myy (double (matrix/mget xfrm 1 1))
+            mxt (double (matrix/mget xfrm 0 2))
+            myt (double (matrix/mget xfrm 1 2))
+            rightpx (dec (.width view))
+            botpx (dec (.height view))
+
+            dotwidth (double (condp = whichgrid
+                               :minor (:minor-dot-width-px grid-settings)
+                               :major (:major-dot-width-px grid-settings)))
+            color (condp = whichgrid
+                    :minor (:minor-dot-color grid-settings)
+                    :major (:major-dot-color grid-settings))
+
+            startx (double (mod mxt spacingpx))
+            starty (double (mod myt spacingpx))
+            offset (/ (double dotwidth) -2.0)
+
+            ;; Draw dots horizontally at y
+            horiz-dots (fn [y]
+                         (loop [x startx]
+                           (when (<= x rightpx)
+                             (let [rx (+ offset 0.5 (round-to-nearest x 1.0))]
+                               (.fillOval gc rx y dotwidth dotwidth)
+                               (recur (+ x spacingpx))))))]
+
+        (.save gc)
+        (.setTransform gc (javafx.scene.transform.Affine.))
+        (.setLineWidth gc 0)
+        (.setFill gc color)
+
+        ;; Draw bunch of horizontal dots
+        (loop [y starty]
+          (when (<= y botpx)
+            (let [ry (+ offset 0.5 (round-to-nearest y 1.0))]
+              (horiz-dots ry)
+              (recur (+ y spacingpx)))))
+        (.restore gc)))))
+
+(defn draw-axes!
+  "Draws minor dots directly on GC using viewdef.  Does not collect
+  points or lines ahead of time, or use matrix.  Draws in pixel space
+  with default transform."
+  [^GraphicsContext gc,  ^toydb.editor.viewdef.ViewDef view, grid-settings]
+  (let [xfrm (:transform view)
+        mxt (double (matrix/mget xfrm 0 2))
+        myt (double (matrix/mget xfrm 1 2))
+        x (+ 0.5 (round-to-nearest mxt 1.0))
+        y (+ 0.5 (round-to-nearest myt 1.0))]
+    (.save gc)
+    (.setTransform gc (javafx.scene.transform.Affine.))
+    (.setLineWidth gc (:axis-line-width-px grid-settings))
+    (.setStroke gc (:axis-line-color grid-settings))
+    (.strokeLine gc 0 y (.width view) y)
+    (.strokeLine gc x 0 x (.height view))
+    (.restore gc)))
 
 (defn draw-grid!
   "Draws grid onto canvas using provided view-data and grid-settings,
@@ -373,12 +474,12 @@ Lines is a list with each member a pair of Point2D."
   ([^Canvas canvas ^toydb.editor.viewdef.ViewDef view-data]
    (draw-grid! canvas view-data DEFAULT-GRID-SETTINGS))
   
-  ([^Canvas canvas ^toydb.editor.viewdef.ViewDef view-data grid-settings]
+  ([^Canvas canvas ^toydb.editor.viewdef.ViewDef view grid-settings]
    (let [gst grid-settings
-         gsp (grid-specs view-data)
+         gsp (grid-specs view)
          linesmap (collect-lines gsp)
          gc (.getGraphicsContext2D canvas)
-         xfrm (:transform view-data)
+         xfrm (:transform view)
          mxx (double (matrix/mget xfrm 0 0))
          mxt (double (matrix/mget xfrm 0 2))
          myt (double (matrix/mget xfrm 1 2))]
@@ -388,59 +489,43 @@ Lines is a list with each member a pair of Point2D."
 
      (.save gc)
      ;;(.setTransform gc mxx myx mxy myy (Math/round mxt) (Math/round myt))
-     (.setTransform gc 1 0 0 -1 (Math/round mxt) (Math/round myt))
+     (.setTransform gc 1 0 0 1 (Math/round mxt) (Math/round myt))
 
      ;; Draw minor first if enabled, then major if enabled, then axes if enabled
      (let [selcat (fn [map keys] (apply concat (select-values map keys)))]
        (when (:major-grid-enable gst)
          (when (:minor-grid-enable gst)
            (when (:minor-lines-visible gst)
-             (let [line-endpts (selcat linesmap [:minvertical :minhorizontal])
-                   line-matrix (line-endpts-to-pixel-matrix line-endpts mxx)]
-               (draw-matrix-lines! gc line-matrix
-                                   (:minor-line-width-px gst)
-                                   (:minor-line-color gst))))
+             (draw-gridlines! gc view gst :minor))
 
            (when (:minor-dots-visible gst)
-             (let [dot-pts (select-values linesmap [:minvertical :minhorizontal])
-                   dot-matrix (xyvecs-to-pixel-matrix dot-pts mxx)]
-               (draw-matrix-dots! gc dot-matrix
-                                  (:minor-dot-width-px gst)
-                                  (:minor-dot-color gst)))))
+             (draw-griddots! gc view gst :minor)))
 
          (when (:major-lines-visible gst)
-           (let [line-endpts (selcat linesmap [:majvertical :majhorizontal])
-                 line-matrix (line-endpts-to-pixel-matrix line-endpts mxx)]
-             (draw-matrix-lines! gc line-matrix
-                                 (:major-line-width-px gst)
-                                 (:major-line-color gst))))
+           (draw-gridlines! gc view gst :major))
 
          (when (:major-dots-visible gst)
-           (let [dot-pts (select-values linesmap [:majvertical :majhorizontal])
-                 dot-matrix (xyvecs-to-pixel-matrix dot-pts mxx)]
-             (draw-matrix-dots! gc dot-matrix
-                                (:major-dot-width-px gst)
-                                (:major-dot-color gst)))))
+           (draw-griddots! gc view gst :major)))
        
        (when (:axes-visible gst)
-         (draw-pt-lines! gc (selcat linesmap [:axisvertical :axishorizontal])
-                         (:axis-line-width-px gst)
-                         (:axis-line-color gst)))
+         (draw-axes! gc view gst))
 
        (when (:origin-visible gst)
          (let [du 10
                -du (- du)]
            (condp = (:origin-marker gst)
-             :crosshair
-             (draw-matrix-lines! gc (matrix/matrix [[0 -du 0 du]
-                                                    [-du 0 du 0]])
-                                 (:origin-line-width-px gst)
-                                 (:origin-line-color gst))
              :diag-crosshair
              (draw-matrix-lines! gc (matrix/matrix [[-du -du du du]
                                                     [-du du du -du]])
                                  (:origin-line-width-px gst)
                                  (:origin-line-color gst))
+
+             :crosshair
+             (draw-matrix-lines! gc (matrix/matrix [[0 -du 0 du]
+                                                    [-du 0 du 0]])
+                                 (:origin-line-width-px gst)
+                                 (:origin-line-color gst))
+
              :circle
              (draw-center-circle! gc
                                   (:origin-line-width-px gst)
@@ -448,10 +533,8 @@ Lines is a list with each member a pair of Point2D."
 
        
        (when (:scale-visible gst)
-           (draw-scale! gc view-data gsp)))
-     (.restore gc)
-     
-     )))
+         (draw-scale! gc view gsp)))
+     (.restore gc))))
 
 
 
