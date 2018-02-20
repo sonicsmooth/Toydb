@@ -95,8 +95,9 @@
   "Computes major grid spacing for both grid and snap-to
   functionality.  Return values are in units, ie microns or whatever
   ufn has been set to at the top of this file."
-  (^double [^ZoomSpecs zoomspecs]
-   (let [kgpu (/ 1 (.value (ufn (:grid-spacing zoomspecs))))
+  (^double [^ViewDef view]
+   (let [zoomspecs (:zoomspecs view)
+         kgpu (/ 1 (.value (ufn (:grid-spacing zoomspecs))))
          majgpu (if (:dynamic-grid-enable zoomspecs)
                   (* kgpu (Math/pow DEFAULT-ZOOM-BASE
                                     (Math/floor (/ (.zoomlevel zoomspecs)
@@ -112,8 +113,9 @@
 (defn _compute-min-spacing
   "Computes minor gridspacing for both grid and snap-to functionality.
   Return values are in units, ie microns"
-  (^double [^ZoomSpecs zoomspecs]
-   (/ (compute-maj-spacing zoomspecs) (.kmpm zoomspecs))))
+  (^double [^ViewDef view]
+   (/ (compute-maj-spacing view) (.. view zoomspecs kmpm)
+      )))
 (def compute-min-spacing (memoize _compute-min-spacing))
 ;;(def compute-min-spacing _compute-min-spacing)
 
@@ -313,8 +315,8 @@
 
   ([^ViewDef view, ^double ux, ^double uy, whichgrid]
    (let [spacing (double (condp = whichgrid
-                           :minor (compute-min-spacing (:zoomspecs view))
-                           :major (compute-maj-spacing (:zoomspecs view))))
+                           :minor (compute-min-spacing view)
+                           :major (compute-maj-spacing view)))
          snapx (jfxc/round-to-nearest ux spacing)
          snapy (jfxc/round-to-nearest uy spacing)]
      [snapx snapy])))
