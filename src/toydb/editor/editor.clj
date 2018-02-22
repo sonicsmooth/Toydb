@@ -281,7 +281,7 @@
           [width height] [(.getWidth canvas) (.getHeight canvas)]]
       (swap! (:viewdef doc) viewdef/reset-viewdef width height)))
 
-  (pan-to! [doc point2d]
+  (pan-to! [doc point2d] 
     (swap! (:viewdef doc) viewdef/pan-to point2d))
 
   (pan-by! [doc dpoint2d]
@@ -538,7 +538,6 @@
   ([] (doc-status-bar nil))
   ([^String uid]
    (let [idfn (make-idfn uid)
-         ;;mppl (jfxc/jfxnew Label "doc mouse label" :id (idfn "pixel-pos-label"))
          mupl (jfxc/jfxnew Label "doc mouse label" :id (idfn "unit-pos-label"))
          spring (Region.)
          zoom-slider1 (jfxc/jfxnew Slider :id (idfn "zoom-slider"))
@@ -701,7 +700,7 @@
                        (when new-coords?
                          (update-coordinates! doc @(:mouse-state doc)))
                        (when new-grid-ui?
-                         (swap! grid-settings assoc
+                             (swap! grid-settings assoc
                                 ;;:zoom-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu]))) ;; why 1000?
                                 :minor-grid-ratio (get-in new [:zoomspecs :kmpm]))))))))
 

@@ -411,7 +411,7 @@ Lines is a list with each member a pair of Point2D."
                           :minor (viewdef/compute-min-spacing view)
                           :major (viewdef/compute-maj-spacing view)))
         spacingpx (* mxx spacing)]
-    (when (> spacingpx 4)
+    (when (> spacingpx 4) ;; Skip if spacing <= 4 px
       (let [myy (double (matrix/mget xfrm 1 1))
             mxt (double (matrix/mget xfrm 0 2))
             myt (double (matrix/mget xfrm 1 2))

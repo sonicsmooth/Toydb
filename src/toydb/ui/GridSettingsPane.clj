@@ -205,13 +205,15 @@ Save/load values
    {:slider "sl-zoom-ppmm"
     :textfield "tf-zoom-ppmm"
     :keyvec [:zoom-ppmm]
-    :type Long
-    :range [1 50]
-    :init 10
-    :major-tick-unit 50
-    :minor-tick-count 2
-    :show-tick-marks true
-    :show-tick-labels true}
+    :type Double
+    :range [0.25 20.0 ]
+    :init 10.0
+    ;;:major-tick-unit 5
+    ;;:minor-tick-count 5
+    ;;:show-tick-marks false
+    ;;:show-tick-labels false
+    ;;:block-increment 1.0
+    :snap-to 0.1}
    {:slider "sl-major-grid-line-width"
     :textfield "tf-major-grid-line-width"
     :keyvec [:major-line-width-px]

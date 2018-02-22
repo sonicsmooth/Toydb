@@ -16,8 +16,6 @@
                       zoomlimits ;; just a vector, so no typehint
                       grid-spacing ;; in distance record
                       ^Double px-per-mm
-                      ;;^double kppu
-                      ;;^double kgpu
                       ^Long kmpm])
 
 (defrecord ViewDef [^long width
@@ -47,7 +45,6 @@
 (def DEFAULT-ZOOM-BASE 10.0)  ;; Multiplies by this amount every zoom ratio
 (def DEFAULT-ZOOM-LIMITS [-400 400])
 (def DEFAULT-GRID-SPACING grid1-spacing)
-;;(def DEFAULT-PIXELS-PER-GRID px-per-grid)
 (def DEFAULT-PIXELS-PER-MM px-per-mm)
 (def DEFAULT-MINORS-PER-MAJOR 10)
 (def DEFAULT-METRIC-OR-INCHES :metric)
@@ -88,8 +85,7 @@
    (let [oldkmpm (.kmpm old-zoomspecs)
          oldzl (.zoomlevel old-zoomspecs) ;; dot notation allows us to avoid casting to Long
          oldzr (.zoomratio old-zoomspecs)]
-     ;; Does this need to change to DEFAULT-ZOOM-BASE?
-     (Math/pow oldkmpm (/ (- new-zoomlevel oldzl) oldzr)))))
+     (Math/pow DEFAULT-ZOOM-BASE (/ (- new-zoomlevel oldzl) oldzr)))))
 
 (defn _compute-maj-spacing
   "Computes major grid spacing for both grid and snap-to
@@ -357,26 +353,27 @@
   provided, a default ViewDef is created with width and height as
   given, and centered origin"
 
-  (^ViewDef [^double width, ^double height]
+  #_(^ViewDef [^double width, ^double height]
    (reset-viewdef (viewdef) width height))
 
   (^ViewDef [^ViewDef view, ^double width, ^double height]
    (let [origin (Point2D. (/ width 2) (/ height 2))
          zoomspecs (assoc (:zoomspecs view)
                           :zoomlevel 0)
-         trans (transform origin zoomspecs)
-         inv-trans (matrix/inverse trans)]
+         xfrm (transform origin zoomspecs)
+         ixfrm (matrix/inverse xfrm)]
      (assoc view
             :width width
             :height height
             :origin origin
-            :transform trans
-            :inv-transform inv-trans
-            :metric-or-inches DEFAULT-METRIC-OR-INCHES
-            :print-scales DEFAULT-PRINT-SCALES
-            :metric-selection DEFAULT-METRIC-SELECTION
-            :inches-selection DEFAULT-INCHES-SELECTION
-            :zoomspecs DEFAULT-ZOOMSPECS))))
+            :transform xfrm
+            :inv-transform ixfrm
+            ;;:metric-or-inches DEFAULT-METRIC-OR-INCHES
+            ;;:print-scales DEFAULT-PRINT-SCALES
+            ;;:metric-selection DEFAULT-METRIC-SELECTION
+            ;;:inches-selection DEFAULT-INCHES-SELECTION
+            ;;:zoomspecs DEFAULT-ZOOMSPECS
+            :zoomspecs zoomspecs))))
 
 (defn view-inches
   "Changes grid to show inches."
