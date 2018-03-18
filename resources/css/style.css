@@ -17,21 +17,25 @@
 	-fx-pref-height: 25;
 }
 
-.dialog-hbox {
-	-fx-padding: 12;
-	-fx-spacing: 12;
-}
+//.dialog-hbox {
+	//-fx-padding: 20;
+	//-fx-spacing: 20;
+//}
 
 .gsp-hbox {
-//	-fx-border-color: gray;
-    -fx-padding: 10;
+	-fx-border-color: blue;
+    -fx-border-width: 0;
+    -fx-padding: 5;          // inside border
+    -fx-border-insets: 0;    // outside border
     -fx-spacing: 5;
 }
 
 .gsp-vbox {
-//	-fx-border-color: gray;
-    -fx-padding: 0;
-    -fx-spacing: 5;
+	-fx-border-color: red;
+    -fx-border-width: 0;
+    -fx-padding: 0;       // inside border
+    -fx-border-insets: 0; // outside border
+    -fx-spacing: 5;  // between elements
 }
 
 .grid-pane {

@@ -34,6 +34,46 @@ Save/load values
 
 "
 
+;; This may go into a separate file someday
+(def init-vals
+  {:major-grid/enable true
+   :major-grid/spacing (um (mm 10))
+   :major-grid/lines-visible true
+   :major-grid/line-width-px 0.25
+   :major-grid/line-color javafx.scene.paint.Color/BLACK
+   :major-grid/dots-visible true
+   :major-grid/dot-width-px 2.0
+   :major-grid/dot-color javafx.scene.paint.Color/BLACK
+   :major-grid/snap-to true
+
+   :minor-grid/enable true
+   :minor-grid/ratio 8
+   :minor-grid/lines-visible true
+   :minor-grid/line-width-px 0.025
+   :minor-grid/line-color javafx.scene.paint.Color/BLACK
+   :minor-grid/dots-visible true
+   :minor-grid/dot-width-px 0.5
+   :minor-grid/dot-color javafx.scene.paint.Color/BLACK
+   :minor-grid/snap-to true
+
+   :axes/visible true
+   :axes/line-width-px 1.0
+   :axes/line-color javafx.scene.paint.Color/BLACK
+
+   :origin/visible true
+   :origin/line-width-px 3.0
+   :origin/line-color javafx.scene.paint.Color/BLACK
+   :origin/marker :diag-crosshair
+
+   :zoom/ppmm 10.0
+   :zoom/dynamic-grid-enable true
+   :zoom/scale-visible true
+
+   ;; Background is actually part of the editor not GridSettings Pane
+   :background/gradient-top (javafx.scene.paint.Color/web "F9F2FF")
+   :background/gradient-bottom (javafx.scene.paint.Color/web "E1F2FF")
+
+   })
 
 
 (defn update-names!
@@ -96,24 +136,25 @@ Save/load values
         enorig (.getGraphic tporig) ;; (lu "cb-origin-visible")
         ]
 
-    (jfxb/bind! :var state, :init true, :keyvec [:major-grid-enable]
+    (jfxb/bind! :var state, :init (:major-grid/enable init-vals), :keyvec [:major-grid/enable]
                 :targets {enmaj {:property :selected}
                           gpmaj {:property :disable, :var-to-prop-fn not}
                           tpmin {:property :disable, :var-to-prop-fn not}})
 
-    (jfxb/bind! :var state, :init true, :keyvec [:minor-grid-enable]
+    (jfxb/bind! :var state, :init (:minor-grid/enable init-vals), :keyvec [:minor-grid/enable]
                 :targets {enmin {:property :selected}
                           gpmin {:property :disable, :var-to-prop-fn not}})
 
-    (jfxb/bind! :var state, :init true, :keyvec [:axes-visible]
+    (jfxb/bind! :var state, :init (:axes/visible init-vals), :keyvec [:axes/visible]
                 :targets {enaxes {:property :selected}
                           gpaxes {:property :disable, :var-to-prop-fn not}})
 
-    (jfxb/bind! :var state, :init true, :keyvec [:origin-visible]
+    (jfxb/bind! :var state, :init (:origin/visible init-vals), :keyvec [:origin/visible]
                 :targets {enorig {:property :selected}
                           gporig {:property :disable, :var-to-prop-fn not}})
 
     ;; Adjust checkbox positions to the far right, adding 20px to avoid ellipsis
+    ;; There is also the option someplace to not show the ellipsis
     (doseq [tgt [tpmaj tpmin tpaxes tporig]]
       (.bind (jfxc/get-property tgt :graphic-text-gap)
              (.subtract (get-property tgt :width)
@@ -152,7 +193,7 @@ Save/load values
       (jfxc/add-listener! tgt :value invalid-listener)
       (jfxui/setup-number-textfield! (.getEditor tgt) (.. tgt getValueFactory getConverter) drc))
 
-    (jfxb/bind! :var state, :init (um (mm 10)), :keyvec [:grid-spacing]
+    (jfxb/bind! :var state, :init (:major-grid/spacing init-vals), :keyvec [:major-grid/spacing]
            :no-action-val nil
            :property :value
            :range-fn #(um (drc-clip %))
@@ -167,7 +208,7 @@ Save/load values
         tgt-spgpm (doto (lu "sp-minor-grid-ratio") (.setValueFactory tgt-spgpmvf))]
     (.setEditable tgt-spgpm true)
     (jfxui/setup-number-textfield! (.getEditor tgt-spgpm) (.getConverter tgt-spgpmvf) lower upper)
-    (jfxb/bind! :var state, :init 8, :keyvec [:minor-grid-ratio]
+    (jfxb/bind! :var state, :init (:minor-grid/ratio init-vals), :keyvec [:minor-grid/ratio]
            :property :value
            :no-action-val nil
            :range-fn #(jfxui/number-range-check % lower upper :clip)
@@ -180,10 +221,10 @@ Save/load values
    state lu
    {:slider "sl-axis-line-width"
     :textfield "tf-axis-line-width"
-    :keyvec [:axis-line-width-px]
+    :keyvec [:axes/line-width-px]
     :type Double
     :range [0.01 5.0]
-    :init 1.0
+    :init (:axes/line-width-px init-vals)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -192,10 +233,10 @@ Save/load values
     :snap-to 0.01}
    {:slider "sl-origin-line-width"
     :textfield "tf-origin-line-width"
-    :keyvec [:origin-line-width-px]
+    :keyvec [:origin/line-width-px]
     :type Double
     :range [0.01 5.0]
-    :init 3.0
+    :init (:origin/line-width-px init-vals)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -204,10 +245,10 @@ Save/load values
     :snap-to 0.01}
    {:slider "sl-zoom-ppmm"
     :textfield "tf-zoom-ppmm"
-    :keyvec [:zoom-ppmm]
+    :keyvec [:zoom/ppmm]
     :type Double
     :range [0.25 20.0 ]
-    :init 10.0
+    :init (:zoom/ppmm init-vals)
     ;;:major-tick-unit 5
     ;;:minor-tick-count 5
     ;;:show-tick-marks false
@@ -216,10 +257,10 @@ Save/load values
     :snap-to 0.1}
    {:slider "sl-major-grid-line-width"
     :textfield "tf-major-grid-line-width"
-    :keyvec [:major-line-width-px]
+    :keyvec [:major-grid/line-width-px]
     :type Double
     :range [0.01 8.0]
-    :init 0.25
+    :init (:major-grid/line-width-px init-vals)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -228,10 +269,10 @@ Save/load values
     :snap-to 0.01}
    {:slider "sl-major-grid-dot-width"
     :textfield "tf-major-grid-dot-width"
-    :keyvec [:major-dot-width-px]
+    :keyvec [:major-grid/dot-width-px]
     :type Double
     :range [0.01 10.0]
-    :init 2.0
+    :init (:major-grid/dot-width-px init-vals)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -240,10 +281,10 @@ Save/load values
     :snap-to 0.01}
    {:slider "sl-minor-grid-line-width"
     :textfield "tf-minor-grid-line-width"
-    :keyvec [:minor-line-width-px]
+    :keyvec [:minor-grid/line-width-px]
     :type Double
     :range [0.01 8.0]
-    :init 0.025
+    :init (:minor-grid/line-width-px init-vals)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -252,10 +293,10 @@ Save/load values
     :snap-to 0.01}
    {:slider "sl-minor-grid-dot-width"
     :textfield "tf-minor-grid-dot-width"
-    :keyvec [:minor-dot-width-px]
+    :keyvec [:minor-grid/dot-width-px]
     :type Double
     :range [0.01 10.0]
-    :init 0.5
+    :init (:minor-grid/dot-width-px init-vals)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -271,25 +312,25 @@ Save/load values
   (jfxui/setup-generic-checkbox
    state lu
    {:checkbox "cb-major-grid-snap-to"
-    :keyvec [:major-snap]
-    :init true}
+    :keyvec [:major-grid/snap-to]
+    :init (:major-grid/snap-to init-vals)}
    {:checkbox "cb-minor-grid-snap-to"
-    :keyvec [:minor-snap]
-    :init true})
+    :keyvec [:minor-grid/snap-to]
+    :init (:minor-grid/snap-to init-vals)})
 
   
-  (let [major-snap-qual #(and (:major-grid-enable %)
-                              (:major-snap %))
-        minor-snap-qual #(and (:major-grid-enable %)
-                              (:minor-grid-enable %)
-                              (:minor-snap %))
+  (let [major-snap-qual #(and (:major-grid/enable %)
+                              (:major-grid/snap-to %))
+        minor-snap-qual #(and (:major-grid/enable %)
+                              (:minor-grid/enable %)
+                              (:minor-grid/snap-to %))
         swap-snap! #(let [majsq (major-snap-qual %)
                           minsq (minor-snap-qual %)
                           anysq (or majsq minsq)]
                       (swap! state jfxc/multi-assoc-in
-                             [:calculated :major-snap-allowed] majsq
-                             [:calculated :minor-snap-allowed] minsq
-                             [:calculated :any-snap-allowed] anysq))]
+                             [:major-grid/calculated/snap-allowed] majsq
+                             [:minor-grid/calculated/snap-allowed] minsq
+                             [:any-grid/calculated/snap-allowed] anysq))]
     
     (add-watch state :snap-enabler
                (fn [key ref old new]
@@ -305,7 +346,7 @@ Save/load values
   and enable or disable related UI elements so they look grayed out
   when the feature is not available."
   [state lu]
-  (jfxb/bind! :var state, :init true, :keyvec [:major-lines-visible]
+  (jfxb/bind! :var state, :init (:major-grid/lines-visible init-vals), :keyvec [:major-grid/lines-visible]
               :property :disable
               :var-to-prop-fn not
               :targets {(lu "cb-major-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
@@ -313,7 +354,7 @@ Save/load values
                         (lu "tf-major-grid-line-width") {}
                         (lu "col-major-grid-line-color") {}})
   
-  (jfxb/bind! :var state, :init true, :keyvec [:major-dots-visible]
+  (jfxb/bind! :var state, :init (:major-grid/dots-visible init-vals), :keyvec [:major-grid/dots-visible]
               :property :disable
               :var-to-prop-fn not
               :targets {(lu "cb-major-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
@@ -321,7 +362,7 @@ Save/load values
                         (lu "tf-major-grid-dot-width") {}
                         (lu "col-major-grid-dot-color") {}})
 
-  (jfxb/bind! :var state, :init true, :keyvec [:minor-lines-visible]
+  (jfxb/bind! :var state, :init (:minor-grid/lines-visible init-vals), :keyvec [:minor-grid/lines-visible]
               :property :disable
               :var-to-prop-fn not
               :targets {(lu "cb-minor-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
@@ -329,7 +370,7 @@ Save/load values
                         (lu "tf-minor-grid-line-width") {}
                         (lu "col-minor-grid-line-color") {}})
 
-  (jfxb/bind! :var state, :init true, :keyvec [:minor-dots-visible]
+  (jfxb/bind! :var state, :init (:minor-grid/dots-visible init-vals), :keyvec [:minor-grid/dots-visible]
               :property :disable
               :var-to-prop-fn not
               :targets {(lu "cb-minor-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
@@ -341,10 +382,10 @@ Save/load values
   "Sets up generic checkboxes, which only connect to var state, not
   visibility or other logic."
   [state lu]
-  (jfxb/bind! :var state, :init true :keyvec [:dynamic-grid-enable]
+  (jfxb/bind! :var state, :init (:zoom/dynamic-grid-enable init-vals) :keyvec [:zoom/dynamic-grid-enable]
               :property :selected
               :targets [(lu "cb-dynamic-grid")])
-  (jfxb/bind! :var state, :init true :keyvec [:scale-visible]
+  (jfxb/bind! :var state, :init (:zoom/scale-visible init-vals) :keyvec [:zoom/scale-visible]
               :property :selected
               :targets [(lu "cb-scale-visible")]))
 
@@ -369,7 +410,7 @@ Save/load values
       (.setCellFactory callb)
       (.setConverter conv))
 
-    (jfxb/bind! :var state, :init :diag-crosshair, :keyvec [:origin-marker]
+    (jfxb/bind! :var state, :init (:origin/marker init-vals), :keyvec [:origin/marker]
                 :property :value
                 :targets [(lu "dd-origin-marker")])))
 
@@ -384,43 +425,41 @@ Save/load values
 (defn setup-background-color-selectors! [state lu]
   "Because [:calculated :background] is the final property used, we must create it
   separately and swap it in for initialization."
-  (let [top-init (javafx.scene.paint.Color/web "F9FCFF")
-        bot-init (javafx.scene.paint.Color/web "E1F2FF")
-        swap-background! (fn [top bot]
-                           (swap! state assoc-in [:calculated :background]
+  (let [swap-background! (fn [top bot]
+                           (swap! state assoc-in [:background/calculated]
                                   (jfxc/background top bot)))]
     (setup-generic-color-selector!
      state lu
      {:picker "col-bg-top"
-      :keyvec [:background-color-top]
-      :init top-init}
+      :keyvec [:background/gradient-top]
+      :init (:background/gradient-top init-vals)}
      {:picker "col-bg-bot"
-      :keyvec [:background-color-bot]
-      :init bot-init})
+      :keyvec [:background/gradient-bottom]
+      :init (:background/gradient-bottom init-vals)})
 
     ;; Create a new background when relevant color changes occur
     (add-watch state :background-changer
                (fn [key ref old new]
-                 (when (jfxc/keydiff old new [:background-color-top
-                                              :background-color-bot])
+                 (when (jfxc/keydiff old new [:background/gradient-top
+                                              :background/gradient-bottom])
                    (swap-background!
-                    (:background-color-top new)
-                    (:background-color-bot new)))))
-    (swap-background! top-init bot-init)))
+                    (:background/gradient-top new)
+                    (:background/gradient-bottom new)))))
+    (swap-background! (:background/gradient-top init-vals)
+                      (:background/gradient-bottom init-vals))))
 
 (defn setup-other-color-selectors! [state lu]
-  (let [idpairs ["col-axis-line-color"       [:axis-line-color ]
-                 "col-origin-line-color"     [:origin-line-color]
-                 "col-major-grid-line-color" [:major-line-color]
-                 "col-major-grid-dot-color"  [:major-dot-color ]
-                 "col-minor-grid-line-color" [:minor-line-color]
-                 "col-minor-grid-dot-color"  [:minor-dot-color ]]]
+  (let [idpairs ["col-axis-line-color"       :axes/line-color       [:axes/line-color  ]
+                 "col-origin-line-color"     :origin/line-color     [:origin/line-color]
+                 "col-major-grid-line-color" :major-grid/line-color [:major-grid/line-color ]
+                 "col-major-grid-dot-color"  :major-grid/dot-color  [:major-grid/dot-color  ]
+                 "col-minor-grid-line-color" :minor-grid/line-color [:minor-grid/line-color ]
+                 "col-minor-grid-dot-color"  :minor-grid/dot-color  [:minor-grid/dot-color  ]]]
     (apply setup-generic-color-selector! state lu
            (map #(hash-map :picker (first %)
-                           :keyvec (second %)
-                           :init javafx.scene.paint.Color/BLACK)
-                (partition 2 idpairs)))))
-
+                           :init ((second %) init-vals)
+                           :keyvec (nth % 2)) ;; third
+                (partition 3 idpairs)))))
 
 
 (defn GridSettingsPane [name]

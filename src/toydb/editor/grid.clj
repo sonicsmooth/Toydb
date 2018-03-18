@@ -373,11 +373,11 @@ Lines is a list with each member a pair of Point2D."
                           :minor (viewdef/compute-min-spacing view)
                           :major (viewdef/compute-maj-spacing view)))
         linewidth (double (condp = whichgrid
-                            :minor (:minor-line-width-px grid-settings)
-                            :major (:major-line-width-px grid-settings)))
+                            :minor (:minor-grid/line-width-px grid-settings)
+                            :major (:major-grid/line-width-px grid-settings)))
         color (condp = whichgrid
-                :minor (:minor-line-color grid-settings)
-                :major (:major-line-color grid-settings))
+                :minor (:minor-grid/line-color grid-settings)
+                :major (:major-grid/line-color grid-settings))
         step (* mxx (double spacing))]
 
     (.save gc)
@@ -419,11 +419,11 @@ Lines is a list with each member a pair of Point2D."
             botpx (dec (.height view))
 
             dotwidth (double (condp = whichgrid
-                               :minor (:minor-dot-width-px grid-settings)
-                               :major (:major-dot-width-px grid-settings)))
+                               :minor (:minor-grid/dot-width-px grid-settings)
+                               :major (:major-grid/dot-width-px grid-settings)))
             color (condp = whichgrid
-                    :minor (:minor-dot-color grid-settings)
-                    :major (:major-dot-color grid-settings))
+                    :minor (:minor-grid/dot-color grid-settings)
+                    :major (:major-grid/dot-color grid-settings))
 
             startx (double (mod mxt spacingpx))
             starty (double (mod myt spacingpx))
@@ -462,8 +462,8 @@ Lines is a list with each member a pair of Point2D."
         y (+ 0.5 (round-to-nearest myt 1.0))]
     (.save gc)
     (.setTransform gc (javafx.scene.transform.Affine.))
-    (.setLineWidth gc (:axis-line-width-px grid-settings))
-    (.setStroke gc (:axis-line-color grid-settings))
+    (.setLineWidth gc (:axes/line-width-px grid-settings))
+    (.setStroke gc (:axes/line-color grid-settings))
     (.strokeLine gc 0 y (.width view) y)
     (.strokeLine gc x 0 x (.height view))
     (.restore gc)))
@@ -493,46 +493,46 @@ Lines is a list with each member a pair of Point2D."
 
      ;; Draw minor first if enabled, then major if enabled, then axes if enabled
      (let [selcat (fn [map keys] (apply concat (select-values map keys)))]
-       (when (:major-grid-enable gst)
-         (when (:minor-grid-enable gst)
-           (when (:minor-lines-visible gst)
+       (when (:major-grid/enable gst)
+         (when (:minor-grid/enable gst)
+           (when (:minor-grid/lines-visible gst)
              (draw-gridlines! gc view gst :minor))
 
-           (when (:minor-dots-visible gst)
+           (when (:minor-grid/dots-visible gst)
              (draw-griddots! gc view gst :minor)))
 
-         (when (:major-lines-visible gst)
+         (when (:major-grid/lines-visible gst)
            (draw-gridlines! gc view gst :major))
 
-         (when (:major-dots-visible gst)
+         (when (:major-grid/dots-visible gst)
            (draw-griddots! gc view gst :major)))
        
-       (when (:axes-visible gst)
+       (when (:axes/visible gst)
          (draw-axes! gc view gst))
 
-       (when (:origin-visible gst)
+       (when (:origin/visible gst)
          (let [du 10
                -du (- du)]
-           (condp = (:origin-marker gst)
+           (condp = (:origin/marker gst)
              :diag-crosshair
              (draw-matrix-lines! gc (matrix/matrix [[-du -du du du]
                                                     [-du du du -du]])
-                                 (:origin-line-width-px gst)
-                                 (:origin-line-color gst))
+                                 (:origin/line-width-px gst)
+                                 (:origin/line-color gst))
 
              :crosshair
              (draw-matrix-lines! gc (matrix/matrix [[0 -du 0 du]
                                                     [-du 0 du 0]])
-                                 (:origin-line-width-px gst)
-                                 (:origin-line-color gst))
+                                 (:origin/line-width-px gst)
+                                 (:origin/line-color gst))
 
              :circle
              (draw-center-circle! gc
-                                  (:origin-line-width-px gst)
-                                  (:origin-line-color gst)))))
+                                  (:origin/line-width-px gst)
+                                  (:origin/line-color gst)))))
 
        
-       (when (:scale-visible gst)
+       (when (:zoom/scale-visible gst)
          (draw-scale! gc view gsp)))
      (.restore gc))))
 

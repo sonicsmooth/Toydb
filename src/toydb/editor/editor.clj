@@ -396,9 +396,9 @@
                                                             es @(:editor-settings doc)
                                                             gs @(:grid-settings doc)
                                                             newpos (.add tgtxy (:click-du ms))
-                                                            newpos (cond (and (get-in gs [:calculated :minor-snap-allowed])
+                                                            newpos (cond (and (get-in gs [:minor-grid/calculated/snap-allowed])
                                                                               (:snap es)) (minor-snapfn newpos)
-                                                                         (and (get-in gs [:calculated :major-snap-allowed])
+                                                                         (and (get-in gs [:major-grid/calculated/snap-allowed])
                                                                               (:snap es)) (major-snapfn newpos)
                                                                          :else newpos)]
                                                         (set-pos! target newpos)))
@@ -438,18 +438,6 @@
       (jfxc/set-on-event-handler! (lookup-node doc "reset-button") :action reset-btn-handler)
       (jfxc/add-listener! surface-pane :focused focus-listener))))
 
-#_(defn- get-print-scale-and-label [doc]
-  (let [view @(:viewdef doc)
-        metric? (:metric-or-inches view) ;; returns :metric or :inches
-
-        ;;print scales is either {:um 1.0, :mm 1e-3, :cm 1e-4} or
-        ;;                       {:inches (/ 1.0 igsu), :mils (/ 1000.0 igsu)}
-        ps ((:print-scales view) metric?)]
-    (condp = metric?
-      :metric (let [ms (:metric-selection view)]
-                [(ps ms) (name ms)]) ;; returns something like [1e-3 "mm"]
-      :inches (let [is (:inches-selection view)]
-                [(ps is) (name is)])))) ;; returns something like [3.937e-5 "inches"]
 
 (defn- update-coordinates!
   "Use current state to update coordinates at bottom of screen"
@@ -460,9 +448,9 @@
         es @(:editor-settings doc)
         gs @(:grid-settings doc)
 
-        snupos (cond (and (get-in gs [:calculated :minor-snap-allowed])
+        snupos (cond (and (get-in gs [:minor-grid/calculated/snap-allowed])
                           (:snap es)) (viewdef/pixels-to-snapped-units view ppos :minor)
-                     (and (get-in gs [:calculated :major-snap-allowed])
+                     (and (get-in gs [:major-grid/calculated/snap-allowed])
                           (:snap es)) (viewdef/pixels-to-snapped-units view ppos :major)
                      :else (viewdef/pixels-to-units view ppos))
 
@@ -575,9 +563,9 @@
   (let [uid (jfxc/uuid)
         idfn (make-idfn uid)
         new-viewdef (-> (viewdef/viewdef)
-                        (viewdef/change-zoom-scale (:zoom-ppmm @grid-settings))
-                        (viewdef/change-minor-grid-ratio (:minor-grid-ratio @grid-settings))
-                        (viewdef/dynamic-grid-enable (:dynamic-grid-enable @grid-settings)))
+                        (viewdef/change-zoom-scale (:zoom/ppmm @grid-settings))
+                        (viewdef/change-minor-grid-ratio (:minor-grid/ratio @grid-settings))
+                        (viewdef/dynamic-grid-enable (:zoom/dynamic-grid-enable @grid-settings)))
         
         viewdef-settings (atom new-viewdef)
         zoomlimits (get-in @viewdef-settings [:zoomspecs :zoomlimits])
@@ -616,7 +604,7 @@
         surface-pane (jfxc/make-clipped! (jfxc/jfxnew StackPane
                                                       :id (idfn "surface-pane")
                                                       :children [grid-canvas entities-pane]
-                                                      :background (get-in @editor-settings [:calculated :background])))
+                                                      :background (get-in @editor-settings [:background/calculated])))
 
         doc (map->Doc-View {:viewdef viewdef-settings
                             :doc-pane (jfxc/jfxnew BorderPane
@@ -670,20 +658,20 @@
                      (when (not did-something?)
                        (redraw-view! doc)))
                  
-                 (let [new-ppmm? (jfxc/keydiff old new [:zoom-ppmm])
-                       new-ratio? (jfxc/keydiff old new [:minor-grid-ratio])
-                       dynamic-grid? (jfxc/keydiff old new [:dynamic-grid-enable])
-                       new-grid-spacing? (jfxc/keydiff old new [:grid-spacing])]
+                 (let [new-ppmm? (jfxc/keydiff old new [:zoom/ppmm])
+                       new-ratio? (jfxc/keydiff old new [:minor-grid/ratio])
+                       dynamic-grid? (jfxc/keydiff old new [:zoom/dynamic-grid-enable])
+                       new-grid-spacing? (jfxc/keydiff old new [:major-grid/spacing])]
                    (if (and (nil? new-ppmm?)
                             (nil? new-ratio?)
                             (nil? dynamic-grid?)
                             (nil? new-grid-spacing?))
                      (redraw-view! doc)
                      (do
-                       (when (some? new-ppmm?) (change-zoom-scale! doc (:zoom-ppmm new)))
-                       (when (some? new-ratio?) (change-minor-grid-ratio! doc (:minor-grid-ratio new)))
-                       (when (some? dynamic-grid?) (dynamic-grid-enable! doc (:dynamic-grid-enable new)))
-                       (when (some? new-grid-spacing?) (change-grid-spacing! doc (:grid-spacing new))))))))
+                       (when (some? new-ppmm?) (change-zoom-scale! doc (:zoom/ppmm new)))
+                       (when (some? new-ratio?) (change-minor-grid-ratio! doc (:minor-grid/ratio new)))
+                       (when (some? dynamic-grid?) (dynamic-grid-enable! doc (:zoom/dynamic-grid-enable new)))
+                       (when (some? new-grid-spacing?) (change-grid-spacing! doc (:major-grid/spacing new))))))))
     
     ;; This watch triggers redraws when the viewdef changes, ie reset button
     (add-watch viewdef-settings :viewdef-all
@@ -702,7 +690,7 @@
                        (when new-grid-ui?
                              (swap! grid-settings assoc
                                 ;;:zoom-ppmm (Math/round (* 1000 (get-in new [:zoomspecs :kppu]))) ;; why 1000?
-                                :minor-grid-ratio (get-in new [:zoomspecs :kmpm]))))))))
+                                :minor-grid/ratio (get-in new [:zoomspecs :kmpm]))))))))
 
 
     ;; Use fancy double-binding to tie internal zoom level with slider value and text.
@@ -784,17 +772,17 @@
                 :property :selected
                 :targets [snap-checkbox])
     
-    (jfxb/bind! :init (get-in @grid-settings [:calculated :any-snap-allowed])
+    (jfxb/bind! :init (get-in @grid-settings [:any-grid/calculated/snap-allowed])
                 :var grid-settings
-                :keyvec [:calculated :any-snap-allowed]
+                :keyvec [:any-grid/calculated/snap-allowed]
                 :targets {snap-checkbox {:property :disable, :terminal true}}
                 :var-to-prop-fn not)
 
     ;; Use fancy double binding to tie background to editor settings
-    (jfxb/bind! :init (get-in @editor-settings [:calculated :background])
+    (jfxb/bind! :init (get-in @editor-settings [:background/calculated])
                 :var editor-settings
                 :terminal true
-                :keyvec [:calculated :background]
+                :keyvec [:background/calculated]
                 :property :background
                 :targets [surface-pane])
 
