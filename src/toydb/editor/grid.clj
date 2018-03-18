@@ -511,25 +511,23 @@ Lines is a list with each member a pair of Point2D."
          (draw-axes! gc view gst))
 
        (when (:origin/visible gst)
-         (let [du 10
-               -du (- du)]
+         (let [du (double (:origin/size-px gst))
+               -du (- du)
+               width (double (:origin/line-width-px gst))
+               color (:origin/line-color gst)]
            (condp = (:origin/marker gst)
              :diag-crosshair
              (draw-matrix-lines! gc (matrix/matrix [[-du -du du du]
                                                     [-du du du -du]])
-                                 (:origin/line-width-px gst)
-                                 (:origin/line-color gst))
+                                 width color)
 
              :crosshair
              (draw-matrix-lines! gc (matrix/matrix [[0 -du 0 du]
                                                     [-du 0 du 0]])
-                                 (:origin/line-width-px gst)
-                                 (:origin/line-color gst))
+                                 width color)
 
              :circle
-             (draw-center-circle! gc
-                                  (:origin/line-width-px gst)
-                                  (:origin/line-color gst)))))
+             (draw-center-circle! gc width color))))
 
        
        (when (:zoom/scale-visible gst)

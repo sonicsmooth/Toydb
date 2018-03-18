@@ -17,7 +17,6 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-
 <HBox alignment="CENTER" styleClass="gsp-hbox" stylesheets="@../css/style.css" xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1">
                      <children>
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="gsp-vbox" HBox.hgrow="SOMETIMES">
@@ -27,8 +26,7 @@
                   <HBox alignment="CENTER_LEFT" styleClass="gsp-hbox">
                      <children>
                         <Button maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Revert" />
-                        <Region HBox.hgrow="ALWAYS" />
-                        <ComboBox editable="true" prefWidth="150.0" promptText="Theme name" />
+                        <ComboBox editable="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" prefWidth="150.0" promptText="Theme name" HBox.hgrow="ALWAYS" />
                         <Button maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Load" />
                         <Button maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Save Current" />
                      </children>
@@ -36,7 +34,7 @@
                </content>
             </TitledPane>
             <Region minHeight="0.0" VBox.vgrow="ALWAYS" />
-                              <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="0.0" text="Background Colors" VBox.vgrow="SOMETIMES">
+                              <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="0.0" text="Background Color Gradient" VBox.vgrow="SOMETIMES">
                <content>
                   <GridPane styleClass="grid-pane">
                     <columnConstraints>
@@ -159,6 +157,7 @@
                      </columnConstraints>
                      <rowConstraints>
                         <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
                         <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
                         <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
                         <RowConstraints vgrow="NEVER" />
@@ -167,8 +166,22 @@
                      </rowConstraints>
                      <children>
                         <Label text="Marker" />
-                        <Label text="Line width (px)" GridPane.rowIndex="1" GridPane.vgrow="NEVER" />
-                        <HBox alignment="CENTER_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                        <ComboBox id="dd-origin-marker" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="25.0" GridPane.columnIndex="1" />
+                        <Label text="Color" GridPane.rowIndex="1" />
+                        <ColorPicker id="col-origin-line-color" maxWidth="1.7976931348623157E308" minHeight="25.0" nodeOrientation="LEFT_TO_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.vgrow="NEVER" />
+                        <Label text="Size (px)" GridPane.rowIndex="2" />
+                        <HBox alignment="CENTER_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                           <children>
+                              <Slider id="sl-origin-size" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" showTickLabels="true" showTickMarks="true" value="5.0" HBox.hgrow="ALWAYS">
+                                 <HBox.margin>
+                                    <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+                                 </HBox.margin>
+                              </Slider>
+                              <TextField id="tf-origin-size" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                           </children>
+                        </HBox>
+                        <Label text="Line width (px)" GridPane.rowIndex="3" GridPane.vgrow="NEVER" />
+                        <HBox alignment="CENTER_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="3">
                            <children>
                               <Slider id="sl-origin-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" showTickLabels="true" showTickMarks="true" value="5.0" HBox.hgrow="ALWAYS">
                                  <HBox.margin>
@@ -178,9 +191,6 @@
                               <TextField id="tf-origin-line-width" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
                            </children>
                         </HBox>
-                        <Label text="Line color" GridPane.rowIndex="2" />
-                        <ColorPicker id="col-origin-line-color" maxWidth="1.7976931348623157E308" minHeight="25.0" nodeOrientation="LEFT_TO_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="2" GridPane.vgrow="NEVER" />
-                        <ComboBox id="dd-origin-marker" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="25.0" GridPane.columnIndex="1" />
                      </children>
                   </GridPane>
                </content>

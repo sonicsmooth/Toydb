@@ -22,7 +22,8 @@
                  ]
   :resource-paths ["resources/fxml"
                    "resources/css"
-                   "resources"]
+                   "resources"
+                   "settings"]
 
   ;; Still not sure why this is here
   ;;:clean-targets ^{:protect false} [:target-path]

@@ -64,6 +64,7 @@ Save/load values
    :origin/line-width-px 3.0
    :origin/line-color javafx.scene.paint.Color/BLACK
    :origin/marker :diag-crosshair
+   :origin/size-px 10
 
    :zoom/ppmm 10.0
    :zoom/dynamic-grid-enable true
@@ -72,7 +73,6 @@ Save/load values
    ;; Background is actually part of the editor not GridSettings Pane
    :background/gradient-top (javafx.scene.paint.Color/web "F9F2FF")
    :background/gradient-bottom (javafx.scene.paint.Color/web "E1F2FF")
-
    })
 
 
@@ -243,6 +243,18 @@ Save/load values
     :show-tick-labels true
     :block-increment 1.0
     :snap-to 0.01}
+   {:slider "sl-origin-size"
+    :textfield "tf-origin-size"
+    :keyvec [:origin/size-px]
+    :type Double
+    :range [1.0 50.0]
+    :init (:origin/size-px init-vals)
+    :major-tick-unit 10
+    :minor-tick-count 4
+    :show-tick-marks true
+    :show-tick-labels true
+    :block-increment 5
+    :snap-to 0.5}
    {:slider "sl-zoom-ppmm"
     :textfield "tf-zoom-ppmm"
     :keyvec [:zoom/ppmm]
