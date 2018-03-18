@@ -116,22 +116,16 @@
 ;;(def compute-min-spacing _compute-min-spacing)
 
 
-(defn round-pt-half
-  "Rounds Point2D values to nearest integer, then adds 0.5"
-  [^Point2D pt]
-  (Point2D. (+ 0.5 (Math/round (.getX pt)))
-            (+ 0.5 (Math/round (.getY pt)))))
-
 (defn transform
   "Returns transform matrix which converts units to pixels.  This
   fuction is intended to be used when creating or 'modifying' an
-  existing viewdef"
+  existing viewdef.  Origin is snapped to the nearest non-integer half pixel."
 
   ([^Point2D origin, ^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-mm]
    (let [ppu (double (compute-ppu zoomlevel zoomratio grid-spacing px-per-mm))]
-     (matrix/matrix [[ppu 0       (.getX origin)]
-                     [0   (- ppu) (.getY origin)]
-                     [0   0       1             ]])))
+     (matrix/matrix [[ppu 0       (jfxc/snap-to-half (.getX origin))]
+                     [0   (- ppu) (jfxc/snap-to-half (.getY origin))]
+                     [0   0       1                                 ]])))
 
   ;; This one takes a ZoomSpecs map
   ([^Point2D origin, {:keys [^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-mm]}]
@@ -184,8 +178,8 @@
                 [(ps is) (name is)]))))
 
 (defn pan-to
-  "Return new Viewdef based on pan coordinates, including updated transform"
-
+  "Return new Viewdef based on pan coordinates, including updated
+  transform."
   (^ViewDef [^ViewDef view, ^Point2D new-origin-pt]
    (let [new-transform (transform new-origin-pt (:zoomspecs view))
          new-inv-transform (matrix/inverse new-transform)]

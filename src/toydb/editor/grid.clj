@@ -155,8 +155,8 @@ Lines is a list with each member a pair of Point2D."
   (.setStroke gc color)
   (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
         line-width-u (* line-width-px recipscale)  ;; Divide requested linewidth down by Mxx
-        pixel-offsetx (* -0.5 recipscale)
-        pixel-offsety (* -0.5 recipscale)]
+        pixel-offsetx (* -0.0 recipscale)
+        pixel-offsety (* -0.0 recipscale)]
     (.setLineWidth gc line-width-u)
     (doseq [line lines]
       (let [p1 ^Point2D (first line)
@@ -177,7 +177,7 @@ Lines is a list with each member a pair of Point2D."
    ^Color color]
   (.save gc)
   (.setStroke gc color)
-  (let [offset 0.5
+  (let [offset 0.0
         recipscale (/ 1.0 (.. gc getTransform getMxx))
         line-width-u (* line-width-px recipscale)]   ;; Divide requested linewidth down by Mxx
     (.setLineWidth gc line-width-u)
@@ -200,7 +200,7 @@ Lines is a list with each member a pair of Point2D."
   (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
         dot-width-u (* dot-width-px recipscale)
         center-offset-u (/ dot-width-u 2.0)
-        center-offset-u (- center-offset-u (* 0.5 recipscale))
+        ;;center-offset-u (- center-offset-u (* 0.0 recipscale))
         vlines (first lines)
         hlines (second lines)]
     
@@ -247,8 +247,9 @@ Lines is a list with each member a pair of Point2D."
   [VH scale]
   (-> (xyvecs-to-matrix VH)
       (matrix/mul! scale)
-      (matrix/round!)
-      (matrix/add! 0.5)))
+      ;;(matrix/round!)
+      ;;(matrix/add! 0.0)
+      ))
 
 (defn draw-matrix-dots!
   "Put dots on the canvas using the current transform.  dots is a Nx2
@@ -292,7 +293,7 @@ Lines is a list with each member a pair of Point2D."
         majsp (double (get-in gsp [:spacing :majspacing]))
         minsp (double (get-in gsp [:spacing :minspacing]))
         height (.height view)
-        pxos 0.5 
+        pxos 0.0 
         line-width 1.0
         txt-line-width 1.0
         scale-cap-height 3.5
@@ -350,12 +351,10 @@ Lines is a list with each member a pair of Point2D."
 (defn line-endpts-to-pixel-matrix
   "Takes N-list of pairs of Point2Ds, and returns Nx4 matrix, where
   each row is x1,y1,x2,y2 coordinate, scaled by mxx, rounded and
-  offset by 0.5."
+  offset by 0.0."
   [line-pts scale]
   (-> line-pts line-endpts-to-matrix
-      (matrix/mul! scale)
-      (matrix/round!)
-      (matrix/add! 0.5)))
+      (matrix/mul! scale)))
 
 (defn draw-gridlines!
   "Draws minor lines directly on GC using viewdef.  Does not collect
@@ -388,16 +387,14 @@ Lines is a list with each member a pair of Point2D."
     ;; Draw vertical lines
     (loop [x (double (mod mxt step))]
       (when (<= x stopx)
-        (let [rx (+ 0.5 (round-to-nearest x 1.0))]
-          (.strokeLine gc rx 0.0 rx stopy)
-          (recur (+ x step)))))
+        (.strokeLine gc x 0.0 x stopy)
+        (recur (+ x step))))
 
     ;; Draw horizontal lines
     (loop [y (double (mod myt step))]
       (when (<= y stopy)
-        (let [ry (+ 0.5 (round-to-nearest y 1.0))]
-          (.strokeLine gc 0.0 ry stopx ry)
-          (recur (+ y step))))))
+        (.strokeLine gc 0.0 y stopx y)
+        (recur (+ y step)))))
   (.restore gc))
 
 (defn draw-griddots!
@@ -433,7 +430,7 @@ Lines is a list with each member a pair of Point2D."
             horiz-dots (fn [y]
                          (loop [x startx]
                            (when (<= x rightpx)
-                             (let [rx (+ offset 0.5 (round-to-nearest x 1.0))]
+                             (let [rx (+ offset x)]
                                (.fillOval gc rx y dotwidth dotwidth)
                                (recur (+ x spacingpx))))))]
 
@@ -445,7 +442,7 @@ Lines is a list with each member a pair of Point2D."
         ;; Draw bunch of horizontal dots
         (loop [y starty]
           (when (<= y botpx)
-            (let [ry (+ offset 0.5 (round-to-nearest y 1.0))]
+            (let [ry (+ offset y)]
               (horiz-dots ry)
               (recur (+ y spacingpx)))))
         (.restore gc)))))
@@ -457,15 +454,13 @@ Lines is a list with each member a pair of Point2D."
   [^GraphicsContext gc,  ^toydb.editor.viewdef.ViewDef view, grid-settings]
   (let [xfrm (:transform view)
         mxt (double (matrix/mget xfrm 0 2))
-        myt (double (matrix/mget xfrm 1 2))
-        x (+ 0.5 (round-to-nearest mxt 1.0))
-        y (+ 0.5 (round-to-nearest myt 1.0))]
+        myt (double (matrix/mget xfrm 1 2))]
     (.save gc)
     (.setTransform gc (javafx.scene.transform.Affine.))
     (.setLineWidth gc (:axes/line-width-px grid-settings))
     (.setStroke gc (:axes/line-color grid-settings))
-    (.strokeLine gc 0 y (.width view) y)
-    (.strokeLine gc x 0 x (.height view))
+    (.strokeLine gc 0 myt (.width view) myt)
+    (.strokeLine gc mxt 0 mxt (.height view))
     (.restore gc)))
 
 (defn draw-grid!
@@ -489,7 +484,7 @@ Lines is a list with each member a pair of Point2D."
 
      (.save gc)
      ;;(.setTransform gc mxx myx mxy myy (Math/round mxt) (Math/round myt))
-     (.setTransform gc 1 0 0 1 (Math/round mxt) (Math/round myt))
+     (.setTransform gc 1 0 0 1 mxt myt)
 
      ;; Draw minor first if enabled, then major if enabled, then axes if enabled
      (let [selcat (fn [map keys] (apply concat (select-values map keys)))]
