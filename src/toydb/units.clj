@@ -19,14 +19,39 @@
   (incr [u])
   (decr [u]))
 
-(defrecord micrometer [^double value] Object (toString [d] (pr-str d)))
-(defrecord millimeter [^double value] Object (toString [d] (pr-str d)))
-(defrecord centimeter [^double value] Object (toString [d] (pr-str d)))
-(defrecord meter [^double value] Object (toString [d] (pr-str d)))
-(defrecord kilometer [^double value] Object (toString [d] (pr-str d)))
-(defrecord mils [^double value] Object (toString [d] (pr-str d))) ;; thousandth of an inch
-(defrecord inches [^double value] Object (toString [d] (pr-str d)))
+;; Replacing/defining .toString (which is used by str), prevents things from being printed like
+;; "toydb.units.micrometer@abc5e4dd" and instead like "#toydb.units.micrometer{:value 10}"
+;; For defrecords, toString does not appear to be used by pr[n][-str]
+;; For deftypes, with default print-method pr does appear to call toString, and wrapps it in #object and memory junk
+;; We can override the default print-method
+;; The .toString method still prints raw java stuff
 
+
+(deftype micrometer [^double value])
+(deftype millimeter [^double value])
+(deftype centimeter [^double value])
+(deftype meter      [^double value])
+(deftype kilometer  [^double value])
+(deftype mils       [^double value])
+(deftype inches     [^double value])
+
+;; Define print-method so it loosk like the output from a defrecord
+(defmethod print-method micrometer [^micrometer d, ^java.io.Writer writer] (.write writer (format "#toydb.units.micrometer{:value %s}" (.. d value))))
+(defmethod print-method millimeter [^millimeter d, ^java.io.Writer writer] (.write writer (format "#toydb.units.millimeter{:value %s}" (.. d value))))
+(defmethod print-method centimeter [^centimeter d, ^java.io.Writer writer] (.write writer (format "#toydb.units.centimeter{:value %s}" (.. d value))))
+(defmethod print-method meter      [^meter d,      ^java.io.Writer writer] (.write writer (format "#toydb.units.meter{:value %s}" (.. d value))))
+(defmethod print-method kilometer  [^kilometer d,  ^java.io.Writer writer] (.write writer (format "#toydb.units.kiloometer{:value %s}" (.. d value))))
+(defmethod print-method mils       [^mils d,       ^java.io.Writer writer] (.write writer (format "#toydb.units.mils{:value %s}" (.. d value))))
+(defmethod print-method inches     [^inches d,     ^java.io.Writer writer] (.write writer (format "#toydb.units.inches{:value %s}" (.. d value))))
+
+;; Bind *print-dup* to true for these to work; used for writing to an edn file
+(defmethod print-dup micrometer [^micrometer d, ^java.io.Writer writer] (.write writer (format "#Distance[%s um]" (str (.value d)))))
+(defmethod print-dup millimeter [^millimeter d, ^java.io.Writer writer] (.write writer (format "#Distance[%s mm]" (str (.value d)))))
+(defmethod print-dup centimeter [^centimeter d, ^java.io.Writer writer] (.write writer (format "#Distance[%s cm]" (str (.value d)))))
+(defmethod print-dup meter      [^meter d,      ^java.io.Writer writer] (.write writer (format "#Distance[%s m]" (str (.value d)))))
+(defmethod print-dup kilometer  [^kilometer d,  ^java.io.Writer writer] (.write writer (format "#Distance[%s km]" (str (.value d)))))
+(defmethod print-dup mils       [^mils d,       ^java.io.Writer writer] (.write writer (format "#Distance[%s mils]" (str (.value d)))))
+(defmethod print-dup inches     [^inches d,     ^java.io.Writer writer] (.write writer (format "#Distance[%s inches]" (str (.value d)))))
 
 (def KMPIN (/ 254 10000000))
 (def MPIN  (* KMPIN 1000))
@@ -216,6 +241,7 @@
   abbreviated 'in' or 'inch' or 'inches'.  Thousanths of an inch can
   be abbreviated 'mil' or 'mils'."
   ([str hint-fn]
+   ;; Called directly from above functions o from single-arity
    (let [reg-um #"(.*)(um)"
          reg-mm #"(.*)(mm)"
          reg-cm #"(.*)(cm)"
@@ -236,10 +262,15 @@
          reg-generic :>> #(hint-fn (Double/parseDouble (second %)))
          nil)
        (catch java.lang.NumberFormatException e
-         ;;(printexp "caught!")
          nil))))
-  ([str]
-   (distance str um)))
+  ([s]
+   ;; This arity expects simple strings or a vector of symbols from read-string
+   (if (instance? java.lang.String s)
+     (distance s um)
+     (distance (apply str s) um)
+     
+     )
+))
 
 (defn- fn-name [unit]
   (condp = unit
@@ -250,9 +281,6 @@
     km "km"
     mil "mil"
     inch "inch"))
-
-(defn- strquote [s]
-  (str "\"" s "\""))
 
 (defn distance-string-converter
   "Returns proxy of StringConverter, using function unit, which must be
@@ -307,13 +335,6 @@
     (if (zero? n)
       i
       (recur (dec n) (inch (cm i))))))
-
-
-
-
-
-
-
 
 
 
