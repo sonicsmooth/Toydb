@@ -483,7 +483,7 @@ Save/load values
   (let [grid-settings (atom {})
         editor-settings (atom {})
         init-file (clojure.java.io/as-file "settings/GridSettings.edn")
-        root (doto (jfxc/load-fxml-root "GridSettingsPane2.fxml"))
+        root (doto (jfxc/load-fxml-root "GridSettingsPane4.fxml"))
         lu (fn [id] (if-let [result (jfxc/lookup root id)]
                       result
                       (throw (Exception. (str "Could not find " id)))))]
@@ -494,29 +494,23 @@ Save/load values
     ;; Use *print-dup* to use print-dup instead of print-method.
     ;; Use *print-pprint-dispatch* == pr to use (pr ...) instead of default pretty-printer
     (when (not (.exists init-file))
+      (println "Init file" (.getName init-file) "not found.  Creating from scratch.")
       (binding [*print-dup* true 
-                ;;pp/*print-pprint-dispatch* prn 
-                pp/*print-right-margin* 80
-                ]   ;; don't break lines too early
-        ;;(with-open [f (clojure.java.io/writer init-file)])
-        (pp/pprint possible-init-vals )
-          ;;(pp/pprint possible-init-vals f)
-          ))
+                pp/*print-right-margin* 80 ;; don't break lines too early
+                ]  
+        (with-open [f (clojure.java.io/writer init-file)]
+          (pp/pprint (into (sorted-map) possible-init-vals) f ))))
 
-    #_(when (.exists init-file)
-        (with-open [f (clojure.java.io/reader init-file)]
-          (conv/read-string (slurp f))
+    ;; TODO: load/save actual settings
 
-          ))
-
-    (binding [*init-vals* (if (.exists init-file)
-                            (do
-                              (println "exists")
-                              (with-open [f (clojure.java.io/reader init-file)]
-                                (conv/read-string (slurp f))))
-                            (do
-                              (println "no exist")
-                              possible-init-vals))]
+    (binding [*init-vals*
+              (merge possible-init-vals
+                     (try
+                       (with-open [f (clojure.java.io/reader init-file)]
+                         (conv/read-string (slurp f)))
+                       (catch Exception e
+                         (println "Could not read" (.getName init-file))
+                         (println (:cause (Throwable->map e))))))]
       (def root root)
       (def lu lu)
       (def gs grid-settings)
@@ -539,7 +533,8 @@ Save/load values
 (defn main []
   (jfxc/set-exit false)
   (let [{:keys [root grid-settings editor-settings]} (GridSettingsPane "demo")]
-     (jfxc/stage root [800 600])))
+     (jfxc/stage root ;;[800 600]
+                 )))
 
 (defn -main []
   (jfxc/app-init)

@@ -1,5 +1,6 @@
 (ns toydb.units
-  (require [jfxutils.core :refer [printexp clip round-to-nearest]]))
+  (require [jfxutils.core :refer [printexp clip round-to-nearest]]
+           [clojure.pprint :as pp]))
 
 
 ;;(set! *warn-on-reflection* true)
@@ -19,39 +20,44 @@
   (incr [u])
   (decr [u]))
 
-;; Replacing/defining .toString (which is used by str), prevents things from being printed like
-;; "toydb.units.micrometer@abc5e4dd" and instead like "#toydb.units.micrometer{:value 10}"
-;; For defrecords, toString does not appear to be used by pr[n][-str]
-;; For deftypes, with default print-method pr does appear to call toString, and wrapps it in #object and memory junk
-;; We can override the default print-method
-;; The .toString method still prints raw java stuff
+
+;; For defrecords, toString does not appear to be used by either pr[n][-str] or pprint
+;; We override simple-dispatch for pprint
 
 
-(deftype micrometer [^double value])
-(deftype millimeter [^double value])
-(deftype centimeter [^double value])
-(deftype meter      [^double value])
-(deftype kilometer  [^double value])
-(deftype mils       [^double value])
-(deftype inches     [^double value])
+(defrecord micrometer [^double value])
+(defrecord millimeter [^double value])
+(defrecord centimeter [^double value])
+(defrecord meter      [^double value])
+(defrecord kilometer  [^double value])
+(defrecord mils       [^double value])
+(defrecord inches     [^double value])
 
-;; Define print-method so it loosk like the output from a defrecord
-(defmethod print-method micrometer [^micrometer d, ^java.io.Writer writer] (.write writer (format "#toydb.units.micrometer{:value %s}" (.. d value))))
-(defmethod print-method millimeter [^millimeter d, ^java.io.Writer writer] (.write writer (format "#toydb.units.millimeter{:value %s}" (.. d value))))
-(defmethod print-method centimeter [^centimeter d, ^java.io.Writer writer] (.write writer (format "#toydb.units.centimeter{:value %s}" (.. d value))))
-(defmethod print-method meter      [^meter d,      ^java.io.Writer writer] (.write writer (format "#toydb.units.meter{:value %s}" (.. d value))))
-(defmethod print-method kilometer  [^kilometer d,  ^java.io.Writer writer] (.write writer (format "#toydb.units.kiloometer{:value %s}" (.. d value))))
-(defmethod print-method mils       [^mils d,       ^java.io.Writer writer] (.write writer (format "#toydb.units.mils{:value %s}" (.. d value))))
-(defmethod print-method inches     [^inches d,     ^java.io.Writer writer] (.write writer (format "#toydb.units.inches{:value %s}" (.. d value))))
+(def Distance (make-hierarchy))
+;;(derive micrometer Distance)
 
-;; Bind *print-dup* to true for these to work; used for writing to an edn file
-(defmethod print-dup micrometer [^micrometer d, ^java.io.Writer writer] (.write writer (format "#Distance[%s um]" (str (.value d)))))
-(defmethod print-dup millimeter [^millimeter d, ^java.io.Writer writer] (.write writer (format "#Distance[%s mm]" (str (.value d)))))
-(defmethod print-dup centimeter [^centimeter d, ^java.io.Writer writer] (.write writer (format "#Distance[%s cm]" (str (.value d)))))
-(defmethod print-dup meter      [^meter d,      ^java.io.Writer writer] (.write writer (format "#Distance[%s m]" (str (.value d)))))
-(defmethod print-dup kilometer  [^kilometer d,  ^java.io.Writer writer] (.write writer (format "#Distance[%s km]" (str (.value d)))))
-(defmethod print-dup mils       [^mils d,       ^java.io.Writer writer] (.write writer (format "#Distance[%s mils]" (str (.value d)))))
-(defmethod print-dup inches     [^inches d,     ^java.io.Writer writer] (.write writer (format "#Distance[%s inches]" (str (.value d)))))
+
+;; Override simple-dispatch and print-dup]
+;; This way with *print-dup* false, it'll go:
+;;   pprint->simple-dispatch->pr-str->default print-method for defrecords
+;; With *print-dup* true it'll go:
+;;   pprint->simple-dispatch->pr-str->custom print-dup for units
+
+(defmethod pp/simple-dispatch micrometer [^micrometer d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch millimeter [^millimeter d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch centimeter [^centimeter d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch meter      [^meter d]      (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch kilometer  [^kilometer d]  (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch mils       [^mils d]       (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch inches     [^inches d]     (.write *out* (pr-str d)))
+
+(defmethod print-dup micrometer [^micrometer d, ^java.io.Writer writer] (.write writer (format "#Distance[%s um]"   (.value d))))
+(defmethod print-dup millimeter [^millimeter d, ^java.io.Writer writer] (.write writer (format "#Distance[%s mm]"   (.value d)) ))
+(defmethod print-dup centimeter [^centimeter d, ^java.io.Writer writer] (.write writer (format "#Distance[%s cm]"   (.value d))))
+(defmethod print-dup meter      [^meter d,      ^java.io.Writer writer] (.write writer (format "#Distance[%s m]"    (.value d))))
+(defmethod print-dup kilometer  [^kilometer d,  ^java.io.Writer writer] (.write writer (format "#Distance[%s km]"   (.value d))))
+(defmethod print-dup mils       [^mils d,       ^java.io.Writer writer] (.write writer (format "#Distance[%s mil]"  (.value d))))
+(defmethod print-dup inches     [^inches d,     ^java.io.Writer writer] (.write writer (format "#Distance[%s inch]" (.value d))))
 
 (def KMPIN (/ 254 10000000))
 (def MPIN  (* KMPIN 1000))

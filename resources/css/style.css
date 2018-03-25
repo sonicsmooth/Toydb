@@ -38,6 +38,17 @@
     -fx-spacing: 5;  // between elements
 }
 
+//.gsp-nested-titledpane {
+    //-fx-padding: 20; //inside border, shrinks content
+//    -fx-border-color: red;
+//}
+
+.gsp-nested-titledpane > .content {
+    //-fx-border-color: blue;
+    -fx-padding: 5 ;
+    
+}
+
 .grid-pane {
     -fx-padding: 5;
 }
