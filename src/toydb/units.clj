@@ -33,9 +33,6 @@
 (defrecord mils       [^double value])
 (defrecord inches     [^double value])
 
-(def Distance (make-hierarchy))
-;;(derive micrometer Distance)
-
 
 ;; Override simple-dispatch and print-dup]
 ;; This way with *print-dup* false, it'll go:
@@ -43,21 +40,21 @@
 ;; With *print-dup* true it'll go:
 ;;   pprint->simple-dispatch->pr-str->custom print-dup for units
 
-(defmethod pp/simple-dispatch micrometer [^micrometer d] (.write *out* (pr-str d)))
-(defmethod pp/simple-dispatch millimeter [^millimeter d] (.write *out* (pr-str d)))
-(defmethod pp/simple-dispatch centimeter [^centimeter d] (.write *out* (pr-str d)))
-(defmethod pp/simple-dispatch meter      [^meter d]      (.write *out* (pr-str d)))
-(defmethod pp/simple-dispatch kilometer  [^kilometer d]  (.write *out* (pr-str d)))
-(defmethod pp/simple-dispatch mils       [^mils d]       (.write *out* (pr-str d)))
-(defmethod pp/simple-dispatch inches     [^inches d]     (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch micrometer [d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch millimeter [d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch centimeter [d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch meter      [d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch kilometer  [d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch mils       [d] (.write *out* (pr-str d)))
+(defmethod pp/simple-dispatch inches     [d] (.write *out* (pr-str d)))
 
-(defmethod print-dup micrometer [^micrometer d, ^java.io.Writer writer] (.write writer (format "#Distance[%s um]"   (.value d))))
-(defmethod print-dup millimeter [^millimeter d, ^java.io.Writer writer] (.write writer (format "#Distance[%s mm]"   (.value d)) ))
-(defmethod print-dup centimeter [^centimeter d, ^java.io.Writer writer] (.write writer (format "#Distance[%s cm]"   (.value d))))
-(defmethod print-dup meter      [^meter d,      ^java.io.Writer writer] (.write writer (format "#Distance[%s m]"    (.value d))))
-(defmethod print-dup kilometer  [^kilometer d,  ^java.io.Writer writer] (.write writer (format "#Distance[%s km]"   (.value d))))
-(defmethod print-dup mils       [^mils d,       ^java.io.Writer writer] (.write writer (format "#Distance[%s mil]"  (.value d))))
-(defmethod print-dup inches     [^inches d,     ^java.io.Writer writer] (.write writer (format "#Distance[%s inch]" (.value d))))
+(defmethod print-dup micrometer [d, ^java.io.Writer writer] (.write writer (format "#Distance[%s um]"   (.value d))))
+(defmethod print-dup millimeter [d, ^java.io.Writer writer] (.write writer (format "#Distance[%s mm]"   (.value d))))
+(defmethod print-dup centimeter [d, ^java.io.Writer writer] (.write writer (format "#Distance[%s cm]"   (.value d))))
+(defmethod print-dup meter      [d, ^java.io.Writer writer] (.write writer (format "#Distance[%s m]"    (.value d))))
+(defmethod print-dup kilometer  [d, ^java.io.Writer writer] (.write writer (format "#Distance[%s km]"   (.value d))))
+(defmethod print-dup mils       [d, ^java.io.Writer writer] (.write writer (format "#Distance[%s mil]"  (.value d))))
+(defmethod print-dup inches     [d, ^java.io.Writer writer] (.write writer (format "#Distance[%s inch]" (.value d))))
 
 (def KMPIN (/ 254 10000000))
 (def MPIN  (* KMPIN 1000))

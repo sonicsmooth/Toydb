@@ -118,53 +118,6 @@ Save/load values
     (distance-string-converter unit min max))))
 
 
-(defn setup-grid-enable-checkboxes! [state lu]
-  (let [ ;; TitledPanes
-        tpmaj (lu "tp-major-grid")
-        tpmin (lu "tp-minor-grid")
-        tpaxes (lu "tp-axes")
-        tporig (lu "tp-origin")
-
-        ;; GridPanes
-        gpmaj (lu "gp-major-grid-elements")
-        gpmin (lu "gp-minor-grid-elements")
-        gpaxes (lu "gp-axes-elements")
-        gporig (lu "gp-orig-elements")
-
-        ;; Corner checkboxes
-        ;; Not using lu because jfxutils.core/subnodes does not support multiple gets of content
-        enmaj (.getGraphic tpmaj) ;; (lu "cb-major-grid-enable")
-        enmin (.getGraphic tpmin) ;; (lu "cb-minor-grid-enable")
-        enaxes (.getGraphic tpaxes) ;; (lu "cb-axes-visible")
-        enorig (.getGraphic tporig) ;; (lu "cb-origin-visible")
-        ]
-
-    (jfxb/bind! :var state, :init (:major-grid/enable *init-vals*), :keyvec [:major-grid/enable]
-                :targets {enmaj {:property :selected}
-                          gpmaj {:property :disable, :var-to-prop-fn not}
-                          tpmin {:property :disable, :var-to-prop-fn not}})
-
-    (jfxb/bind! :var state, :init (:minor-grid/enable *init-vals*), :keyvec [:minor-grid/enable]
-                :targets {enmin {:property :selected}
-                          gpmin {:property :disable, :var-to-prop-fn not}})
-
-    (jfxb/bind! :var state, :init (:axes/visible *init-vals*), :keyvec [:axes/visible]
-                :targets {enaxes {:property :selected}
-                          gpaxes {:property :disable, :var-to-prop-fn not}})
-
-    (jfxb/bind! :var state, :init (:origin/visible *init-vals*), :keyvec [:origin/visible]
-                :targets {enorig {:property :selected}
-                          gporig {:property :disable, :var-to-prop-fn not}})
-
-    ;; Adjust checkbox positions to the far right, adding 20px to avoid ellipsis
-    ;; There is also the option someplace to not show the ellipsis
-    (doseq [tgt [tpmaj tpmin tpaxes tporig]]
-      (.bind (jfxc/get-property tgt :graphic-text-gap)
-             (.subtract (get-property tgt :width)
-                        (.add (get-property (.getGraphic tgt) :width)
-                              (+ (.. (doto (javafx.scene.text.Text. (.getText tgt)) .applyCss)
-                                     getLayoutBounds getWidth) 20)))))))
-
 (defn setup-major-grid-spacing-spinners! [state lu]
   (let [lower (um 100)
         upper (um (mm 1000))
@@ -357,41 +310,106 @@ Save/load values
     (swap-snap! @state)))
 
 (defn setup-visibility-checkboxes!
-"Set up checkboxes which both enable a feature, such as axes-visible,
+  "Set up checkboxes which both enable a feature, such as axes-visible,
   and enable or disable related UI elements so they look grayed out
-  when the feature is not available."
+  when the feature is not available. "
   [state lu]
-  (jfxb/bind! :var state, :init (:major-grid/lines-visible *init-vals*), :keyvec [:major-grid/lines-visible]
-              :property :disable
-              :var-to-prop-fn not
-              :targets {(lu "cb-major-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
-                        (lu "sl-major-grid-line-width") {}
-                        (lu "tf-major-grid-line-width") {}
-                        (lu "col-major-grid-line-color") {}})
-  
-  (jfxb/bind! :var state, :init (:major-grid/dots-visible *init-vals*), :keyvec [:major-grid/dots-visible]
-              :property :disable
-              :var-to-prop-fn not
-              :targets {(lu "cb-major-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
-                        (lu "sl-major-grid-dot-width") {}
-                        (lu "tf-major-grid-dot-width") {}
-                        (lu "col-major-grid-dot-color") {}})
+  ;; Need to do getGraphic directly from grid-panes because
+  ;; jfxutils.core/subnodes does not support multiple gets out of
+  ;; content
+  (let [ ;; Outer TitledPanes
+        tp-axes (lu "tp-axes")
+        tp-origin (lu "tp-origin")
+        tp-major-grid (lu "tp-major-grid")
+        tp-minor-grid (lu "tp-minor-grid")
 
-  (jfxb/bind! :var state, :init (:minor-grid/lines-visible *init-vals*), :keyvec [:minor-grid/lines-visible]
-              :property :disable
-              :var-to-prop-fn not
-              :targets {(lu "cb-minor-grid-lines-visible") {:property :selected, :var-to-prop-fn identity}
-                        (lu "sl-minor-grid-line-width") {}
-                        (lu "tf-minor-grid-line-width") {}
-                        (lu "col-minor-grid-line-color") {}})
+        ;; Inner TitledPanes
+        tp-major-lines (lu "tp-major-lines")
+        tp-major-dots (lu "tp-major-dots")
+        tp-major-spacing (lu "tp-major-spacing")
 
-  (jfxb/bind! :var state, :init (:minor-grid/dots-visible *init-vals*), :keyvec [:minor-grid/dots-visible]
-              :property :disable
-              :var-to-prop-fn not
-              :targets {(lu "cb-minor-grid-dots-visible") {:property :selected, :var-to-prop-fn identity}
-                        (lu "sl-minor-grid-dot-width") {}
-                        (lu "tf-minor-grid-dot-width") {}
-                        (lu "col-minor-grid-dot-color") {}}))
+        tp-minor-lines (lu "tp-minor-lines")
+        tp-minor-dots (lu "tp-minor-dots")
+        tp-minor-properties (lu "tp-minor-properties")
+
+        ;; Checkboxes
+        cb-axes-visible (.getGraphic tp-axes)
+        cb-origin-visible (.getGraphic tp-origin)
+        cb-major-grid-enable (.getGraphic tp-major-grid)
+        cb-major-grid-snap-to (lu "cb-major-grid-snap-to")
+        cb-major-grid-lines-visible (.getGraphic tp-major-lines)
+        cb-major-grid-dots-visible (.getGraphic tp-major-dots)
+        cb-minor-grid-enable (.getGraphic tp-minor-grid)
+        cb-minor-grid-snap-to (lu "cb-minor-grid-snap-to")
+        cb-minor-grid-lines-visible (.getGraphic tp-minor-lines)
+        cb-minor-grid-dots-visible (.getGraphic tp-minor-dots)
+
+        ;; GridPanes
+        gp-axes-elements (lu "gp-axes-elements")
+        gp-origin-elements (lu "gp-origin-elements")
+        gp-major-lines-elements (lu "gp-major-lines-elements")
+        gp-major-dots-elements (lu "gp-major-dots-elements")
+        gp-minor-lines-elements (lu "gp-minor-lines-elements")
+        gp-minor-dots-elements (lu "gp-minor-dots-elements")]
+
+    (jfxb/bind! :var state, :init (:axes/visible *init-vals*), :keyvec [:axes/visble]
+                :targets {cb-axes-visible {:property :selected}
+                          gp-axes-elements {:property :disable, :var-to-prop-fn not}})
+
+    (jfxb/bind! :var state, :init (:origin/visible *init-vals*), :keyvec [:origin/visible]
+                :targets {cb-origin-visible {:property :selected}
+                          gp-origin-elements {:property :disable, :var-to-prop-fn not}})
+
+    (jfxb/bind! :var state, :init (:major-grid/enable *init-vals*), :keyvec [:major-grid/enable]
+                :property :disable
+                :var-to-prop-fn not
+                :targets {cb-major-grid-enable {:property :selected, :var-to-prop-fn identity}
+                          tp-minor-grid {}
+                          cb-major-grid-snap-to {}
+                          tp-major-lines {}
+                          tp-major-dots {}
+                          tp-major-spacing {}})
+    
+    (jfxb/bind! :var state, :init (:major-grid/lines-visible *init-vals*), :keyvec [:major-grid/lines-visible]
+                :targets {cb-major-grid-lines-visible {:property :selected}
+                          gp-major-lines-elements {:property :disable, :var-to-prop-fn not}})
+    
+    (jfxb/bind! :var state, :init (:major-grid/dots-visible *init-vals*), :keyvec [:major-grid/dots-visible]
+                :targets {cb-major-grid-dots-visible {:property :selected}
+                          gp-major-dots-elements {:property :disable, :var-to-prop-fn not}})
+
+
+
+
+    (jfxb/bind! :var state, :init (:minor-grid/enable *init-vals*), :keyvec [:minor-grid/enable]
+                :property :disable
+                :var-to-prop-fn not
+                :targets {cb-minor-grid-enable {:property :selected, :var-to-prop-fn identity}
+                          cb-minor-grid-snap-to {}
+                          tp-minor-lines {}
+                          tp-minor-dots {}
+                          tp-minor-properties {}})
+    
+    (jfxb/bind! :var state, :init (:minor-grid/lines-visible *init-vals*), :keyvec [:minor-grid/lines-visible]
+                :targets {cb-minor-grid-lines-visible {:property :selected}
+                          gp-minor-lines-elements {:property :disable, :var-to-prop-fn not}})
+    
+    (jfxb/bind! :var state, :init (:minor-grid/dots-visible *init-vals*), :keyvec [:minor-grid/dots-visible]
+                :targets {cb-minor-grid-dots-visible {:property :selected}
+                          gp-minor-dots-elements {:property :disable, :var-to-prop-fn not}})
+
+    ;; Adjust checkbox positions to the far right, adding 20px to avoid ellipsis
+    ;; There is also the option someplace to not show the ellipsis
+    (doseq [tgt [tp-axes tp-origin
+                 tp-major-grid tp-major-lines tp-major-dots
+                 tp-minor-grid tp-minor-lines tp-minor-dots]]
+      (.bind (jfxc/get-property tgt :graphic-text-gap)
+             (.subtract (get-property tgt :width)
+                        (.add (get-property (.getGraphic tgt) :width)
+                              (+ (.. (doto (javafx.scene.text.Text. (.getText tgt)) .applyCss)
+                                     getLayoutBounds getWidth) 20)))))
+    
+    ))
 
 (defn setup-other-checkboxes!
   "Sets up generic checkboxes, which only connect to var state, not
@@ -514,12 +532,12 @@ Save/load values
       (def root root)
       (def lu lu)
       (def gs grid-settings)
-      (setup-grid-enable-checkboxes! grid-settings lu)
+      ;;(setup-grid-enable-checkboxes! grid-settings lu)
+      (setup-visibility-checkboxes! grid-settings lu)
       (setup-major-grid-spacing-spinners! grid-settings lu)
       (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
       (setup-sliders! grid-settings lu)
       (setup-snap-to-checkboxes! grid-settings lu)
-      (setup-visibility-checkboxes! grid-settings lu)
       (setup-origin-marker-selection! grid-settings lu)
       (setup-background-color-selectors! editor-settings lu)
       (setup-other-color-selectors! grid-settings lu)
