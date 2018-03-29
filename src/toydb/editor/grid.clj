@@ -271,12 +271,13 @@ Lines is a list with each member a pair of Point2D."
 
 (defn draw-center-circle!
   [^GraphicsContext gc,
+   ^double diameter
    ^double line-width-px,
    ^Color color]
   (.save gc)
   (let [recipscale (/ 1.0 (.. gc getTransform getMxx))
         line-width-u (* line-width-px recipscale)
-        circ-dia-u (* 10.0 recipscale)
+        circ-dia-u (* diameter recipscale)
         -circ-dia-u (- circ-dia-u)]
     (.setLineWidth gc line-width-u)
     (.setStroke gc color)
@@ -522,7 +523,7 @@ Lines is a list with each member a pair of Point2D."
                                  width color)
 
              :circle
-             (draw-center-circle! gc width color))))
+             (draw-center-circle! gc du width color))))
 
        
        (when (:zoom/scale-visible gst)

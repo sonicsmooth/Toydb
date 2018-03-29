@@ -34,7 +34,7 @@
 (defrecord inches     [^double value])
 
 
-;; Override simple-dispatch and print-dup]
+;; Override simple-dispatch and print-dup
 ;; This way with *print-dup* false, it'll go:
 ;;   pprint->simple-dispatch->pr-str->default print-method for defrecords
 ;; With *print-dup* true it'll go:

@@ -23,16 +23,10 @@ the UI has line/dot color selection, but these are not currently
 connected to the state.
 
 Todo: 
-* Reduce axis to some origin marker -- cross or circle
-* Snap-to for large and small
-* Disables for large and small
 Rectangular grid
-Position/scale overlay
 keys for pan/zoom
-Enable/disable dynamic scale
-Zoom ratio
 Save/load values
-* :derivative key for background and snap-allowed
+
 
 "
 
@@ -378,9 +372,6 @@ Save/load values
                 :targets {cb-major-grid-dots-visible {:property :selected}
                           gp-major-dots-elements {:property :disable, :var-to-prop-fn not}})
 
-
-
-
     (jfxb/bind! :var state, :init (:minor-grid/enable *init-vals*), :keyvec [:minor-grid/enable]
                 :property :disable
                 :var-to-prop-fn not
@@ -407,9 +398,7 @@ Save/load values
              (.subtract (get-property tgt :width)
                         (.add (get-property (.getGraphic tgt) :width)
                               (+ (.. (doto (javafx.scene.text.Text. (.getText tgt)) .applyCss)
-                                     getLayoutBounds getWidth) 20)))))
-    
-    ))
+                                     getLayoutBounds getWidth) 20)))))))
 
 (defn setup-other-checkboxes!
   "Sets up generic checkboxes, which only connect to var state, not
@@ -494,6 +483,26 @@ Save/load values
                            :keyvec (nth % 2)) ;; third
                 (partition 3 idpairs)))))
 
+(defn setup-theme-panel! [state lu]
+
+  )
+
+;; New thing: set up gui in one phase, then set the values in another
+;; phase.
+;; There are two maps.  The changed_state map and the init_state map.
+;; Whenever init_state changes, changed_state changes to the same thing.
+;; When changed_state changes via gui, init_state does not change automatically.
+;; init_state contains values that go both into grid-settings and editor-settings.
+;; 1. Setup gui with references to the changed_state map
+;; 2. Put watch on init_state map which copies to changed_state map
+;; 3. Load from init file and swap init_state.  This swaps changed_state.
+;; 4. When user clicks revert, fake-trigger watch in init_state to refresh changed_state
+;; 5. When user clicks load, swap new values into init_state which also refreshes changed_state
+;; 6. When user clicks save, write values from changed_state to init_state.  This will trigger refresh.
+
+
+
+
 
 (defn GridSettingsPane [name]
   "Load up GridSettingsPane.  Returns a map with both the node and the
@@ -510,17 +519,14 @@ Save/load values
     ;; If it does, read it in and set binding *init-vals* before setting everything else up.
     ;; Else use possible-init-vals.  Don't write to the file unless user presses the button.
     ;; Use *print-dup* to use print-dup instead of print-method.
-    ;; Use *print-pprint-dispatch* == pr to use (pr ...) instead of default pretty-printer
     (when (not (.exists init-file))
       (println "Init file" (.getName init-file) "not found.  Creating from scratch.")
       (binding [*print-dup* true 
-                pp/*print-right-margin* 80 ;; don't break lines too early
-                ]  
+                pp/*print-right-margin* 80] ;; don't break lines too early  
         (with-open [f (clojure.java.io/writer init-file)]
           (pp/pprint (into (sorted-map) possible-init-vals) f ))))
 
     ;; TODO: load/save actual settings
-
     (binding [*init-vals*
               (merge possible-init-vals
                      (try
@@ -529,19 +535,20 @@ Save/load values
                        (catch Exception e
                          (println "Could not read" (.getName init-file))
                          (println (:cause (Throwable->map e))))))]
+      (def init-vals *init-vals*)
       (def root root)
       (def lu lu)
       (def gs grid-settings)
-      ;;(setup-grid-enable-checkboxes! grid-settings lu)
       (setup-visibility-checkboxes! grid-settings lu)
       (setup-major-grid-spacing-spinners! grid-settings lu)
       (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
       (setup-sliders! grid-settings lu)
       (setup-snap-to-checkboxes! grid-settings lu)
       (setup-origin-marker-selection! grid-settings lu)
-      (setup-background-color-selectors! editor-settings lu)
+      (setup-background-color-selectors! editor-settings lu) ;; <<-- editor-settings !!
       (setup-other-color-selectors! grid-settings lu)
-      (setup-other-checkboxes! grid-settings lu))
+      (setup-other-checkboxes! grid-settings lu)
+      (setup-theme-panel! grid-settings lu))
     
     {:root root
      :grid-settings grid-settings
