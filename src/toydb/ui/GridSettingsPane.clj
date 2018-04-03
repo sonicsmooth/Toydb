@@ -31,7 +31,7 @@ Save/load values
 "
 
 ;; This may go into a separate file someday
-(def possible-init-vals
+(def possible-init-settings
   {:major-grid/enable true
    :major-grid/spacing (um (mm 10))
    :major-grid/lines-visible true
@@ -71,7 +71,7 @@ Save/load values
    :background/gradient-bottom (javafx.scene.paint.Color/web "E1F2FFac")})
 
 ;; This gets dynamically bound with the values from the init-file
-(def ^:dynamic *init-vals*)
+;;(def ^:dynamic *init-vals*)
 
 (defn update-names!
   "Append name to all ids in settings-pane"
@@ -143,13 +143,15 @@ Save/load values
       (jfxc/add-listener! tgt :value invalid-listener)
       (jfxui/setup-number-textfield! (.getEditor tgt) (.. tgt getValueFactory getConverter) drc))
 
-    (jfxb/bind! :var state, :init (:major-grid/spacing *init-vals*), :keyvec [:major-grid/spacing]
-           :no-action-val nil
-           :property :value
-           :range-fn #(um (drc-clip %))
-           :prop-to-var-fn prop-to-var-fn
-           :targets {tgt-spmmvf {:var-to-prop-fn mm}
-                     tgt-spmilvf {:var-to-prop-fn mil}})))
+    (jfxb/bind! :var state
+                ;;:init (:major-grid/spacing *init-vals*)
+                :keyvec [:major-grid/spacing]
+                :no-action-val nil
+                :property :value
+                :range-fn #(um (drc-clip %))
+                :prop-to-var-fn prop-to-var-fn
+                :targets {tgt-spmmvf {:var-to-prop-fn mm}
+                          tgt-spmilvf {:var-to-prop-fn mil}})))
 
 (defn setup-minor-grid-per-major-grid-spinner! [state lu]
   (let [lower 2
@@ -158,13 +160,15 @@ Save/load values
         tgt-spgpm (doto (lu "sp-minor-grid-ratio") (.setValueFactory tgt-spgpmvf))]
     (.setEditable tgt-spgpm true)
     (jfxui/setup-number-textfield! (.getEditor tgt-spgpm) (.getConverter tgt-spgpmvf) lower upper)
-    (jfxb/bind! :var state, :init (:minor-grid/ratio *init-vals*), :keyvec [:minor-grid/ratio]
-           :property :value
-           :no-action-val nil
-           :range-fn #(jfxui/number-range-check % lower upper :clip)
-           :var-to-prop-fn int   ;; valueconverter is integer 
-           :prop-to-var-fn long  ;; valueconverter is integer
-           :targets [tgt-spgpmvf])  ))
+    (jfxb/bind! :var state
+                ;;:init (:minor-grid/ratio *init-vals*)
+                :keyvec [:minor-grid/ratio]
+                :property :value
+                :no-action-val nil
+                :range-fn #(jfxui/number-range-check % lower upper :clip)
+                :var-to-prop-fn int ;; valueconverter is integer 
+                :prop-to-var-fn long ;; valueconverter is integer
+                :targets [tgt-spgpmvf])  ))
 
 (defn setup-sliders! [state lu]
   (jfxui/setup-generic-slider-and-text
@@ -174,7 +178,7 @@ Save/load values
     :keyvec [:axes/line-width-px]
     :type Double
     :range [0.01 5.0]
-    :init (:axes/line-width-px *init-vals*)
+    ;;:init (:axes/line-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -186,7 +190,7 @@ Save/load values
     :keyvec [:origin/line-width-px]
     :type Double
     :range [0.01 5.0]
-    :init (:origin/line-width-px *init-vals*)
+    ;;:init (:origin/line-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -198,7 +202,7 @@ Save/load values
     :keyvec [:origin/size-px]
     :type Double
     :range [1.0 50.0]
-    :init (:origin/size-px *init-vals*)
+    ;;:init (:origin/size-px *init-vals*)
     :major-tick-unit 10
     :minor-tick-count 4
     :show-tick-marks true
@@ -210,7 +214,7 @@ Save/load values
     :keyvec [:zoom/ppmm]
     :type Double
     :range [0.25 20.0 ]
-    :init (:zoom/ppmm *init-vals*)
+    ;;:init (:zoom/ppmm *init-vals*)
     ;;:major-tick-unit 5
     ;;:minor-tick-count 5
     ;;:show-tick-marks false
@@ -222,7 +226,7 @@ Save/load values
     :keyvec [:major-grid/line-width-px]
     :type Double
     :range [0.01 8.0]
-    :init (:major-grid/line-width-px *init-vals*)
+    ;;:init (:major-grid/line-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -234,7 +238,7 @@ Save/load values
     :keyvec [:major-grid/dot-width-px]
     :type Double
     :range [0.01 10.0]
-    :init (:major-grid/dot-width-px *init-vals*)
+    ;;:init (:major-grid/dot-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -246,7 +250,7 @@ Save/load values
     :keyvec [:minor-grid/line-width-px]
     :type Double
     :range [0.01 8.0]
-    :init (:minor-grid/line-width-px *init-vals*)
+    ;;:init (:minor-grid/line-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -258,7 +262,7 @@ Save/load values
     :keyvec [:minor-grid/dot-width-px]
     :type Double
     :range [0.01 10.0]
-    :init (:minor-grid/dot-width-px *init-vals*)
+    ;;:init (:minor-grid/dot-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -271,14 +275,16 @@ Save/load values
   derivative var entry which is the and of a bunch of stuff, similar
   to how the background colors works."
   [state lu]
-  (jfxui/setup-generic-checkbox
+  (jfxui/setup-generic-checkbox!
    state lu
    {:checkbox "cb-major-grid-snap-to"
     :keyvec [:major-grid/snap-to]
-    :init (:major-grid/snap-to *init-vals*)}
+    ;;:init (:major-grid/snap-to *init-vals*)
+    }
    {:checkbox "cb-minor-grid-snap-to"
     :keyvec [:minor-grid/snap-to]
-    :init (:minor-grid/snap-to *init-vals*)})
+    ;;:init (:minor-grid/snap-to *init-vals*)
+    })
 
   
   (let [major-snap-qual #(and (:major-grid/enable %)
@@ -301,7 +307,8 @@ Save/load values
                            (not= (major-snap-qual old)
                                  (major-snap-qual new)))
                    (swap-snap! new))))
-    (swap-snap! @state)))
+    ;;(swap-snap! @state)
+    ))
 
 (defn setup-visibility-checkboxes!
   "Set up checkboxes which both enable a feature, such as axes-visible,
@@ -346,15 +353,19 @@ Save/load values
         gp-minor-lines-elements (lu "gp-minor-lines-elements")
         gp-minor-dots-elements (lu "gp-minor-dots-elements")]
 
-    (jfxb/bind! :var state, :init (:axes/visible *init-vals*), :keyvec [:axes/visble]
+    (jfxb/bind! :var state
+                ;; :init (:axes/visible *init-vals*),
+                :keyvec [:axes/visble]
                 :targets {cb-axes-visible {:property :selected}
                           gp-axes-elements {:property :disable, :var-to-prop-fn not}})
 
-    (jfxb/bind! :var state, :init (:origin/visible *init-vals*), :keyvec [:origin/visible]
+    (jfxb/bind! :var state, #_:init #_(:origin/visible *init-vals*), :keyvec [:origin/visible]
                 :targets {cb-origin-visible {:property :selected}
                           gp-origin-elements {:property :disable, :var-to-prop-fn not}})
 
-    (jfxb/bind! :var state, :init (:major-grid/enable *init-vals*), :keyvec [:major-grid/enable]
+    (jfxb/bind! :var state
+                ;;:init (:major-grid/enable *init-vals*)
+                :keyvec [:major-grid/enable]
                 :property :disable
                 :var-to-prop-fn not
                 :targets {cb-major-grid-enable {:property :selected, :var-to-prop-fn identity}
@@ -364,15 +375,21 @@ Save/load values
                           tp-major-dots {}
                           tp-major-spacing {}})
     
-    (jfxb/bind! :var state, :init (:major-grid/lines-visible *init-vals*), :keyvec [:major-grid/lines-visible]
+    (jfxb/bind! :var state
+                ;;:init (:major-grid/lines-visible *init-vals*)
+                :keyvec [:major-grid/lines-visible]
                 :targets {cb-major-grid-lines-visible {:property :selected}
                           gp-major-lines-elements {:property :disable, :var-to-prop-fn not}})
     
-    (jfxb/bind! :var state, :init (:major-grid/dots-visible *init-vals*), :keyvec [:major-grid/dots-visible]
+    (jfxb/bind! :var state,
+                ;;:init (:major-grid/dots-visible *init-vals*)
+                :keyvec [:major-grid/dots-visible]
                 :targets {cb-major-grid-dots-visible {:property :selected}
                           gp-major-dots-elements {:property :disable, :var-to-prop-fn not}})
 
-    (jfxb/bind! :var state, :init (:minor-grid/enable *init-vals*), :keyvec [:minor-grid/enable]
+    (jfxb/bind! :var state,
+                ;;:init (:minor-grid/enable *init-vals*)
+                :keyvec [:minor-grid/enable]
                 :property :disable
                 :var-to-prop-fn not
                 :targets {cb-minor-grid-enable {:property :selected, :var-to-prop-fn identity}
@@ -381,11 +398,15 @@ Save/load values
                           tp-minor-dots {}
                           tp-minor-properties {}})
     
-    (jfxb/bind! :var state, :init (:minor-grid/lines-visible *init-vals*), :keyvec [:minor-grid/lines-visible]
+    (jfxb/bind! :var state
+                ;;:init (:minor-grid/lines-visible *init-vals*)
+                :keyvec [:minor-grid/lines-visible]
                 :targets {cb-minor-grid-lines-visible {:property :selected}
                           gp-minor-lines-elements {:property :disable, :var-to-prop-fn not}})
     
-    (jfxb/bind! :var state, :init (:minor-grid/dots-visible *init-vals*), :keyvec [:minor-grid/dots-visible]
+    (jfxb/bind! :var state
+                ;;:init (:minor-grid/dots-visible *init-vals*)
+                :keyvec [:minor-grid/dots-visible]
                 :targets {cb-minor-grid-dots-visible {:property :selected}
                           gp-minor-dots-elements {:property :disable, :var-to-prop-fn not}})
 
@@ -404,10 +425,14 @@ Save/load values
   "Sets up generic checkboxes, which only connect to var state, not
   visibility or other logic."
   [state lu]
-  (jfxb/bind! :var state, :init (:zoom/dynamic-grid-enable *init-vals*) :keyvec [:zoom/dynamic-grid-enable]
+  (jfxb/bind! :var state
+              ;;:init (:zoom/dynamic-grid-enable *init-vals*)
+              :keyvec [:zoom/dynamic-grid-enable]
               :property :selected
               :targets [(lu "cb-dynamic-grid")])
-  (jfxb/bind! :var state, :init (:zoom/scale-visible *init-vals*) :keyvec [:zoom/scale-visible]
+  (jfxb/bind! :var state
+              ;;:init (:zoom/scale-visible *init-vals*)
+              :keyvec [:zoom/scale-visible]
               :property :selected
               :targets [(lu "cb-scale-visible")]))
 
@@ -432,17 +457,13 @@ Save/load values
       (.setCellFactory callb)
       (.setConverter conv))
 
-    (jfxb/bind! :var state, :init (:origin/marker *init-vals*), :keyvec [:origin/marker]
+    (jfxb/bind! :var state
+                ;;:init (:origin/marker *init-vals*)
+                :keyvec [:origin/marker]
                 :property :value
                 :targets [(lu "dd-origin-marker")])))
 
-(defn setup-generic-color-selector! [state lu & specs]
-  "Args is list of maps with :color, :keyvec, init"
-  (doseq [spec specs]
-    (jfxb/bind! :var state, :init (:init spec), :keyvec (:keyvec spec)
-                :property :value
-                :no-action-val nil
-                :targets [(lu (:picker spec))])))
+
 
 (defn setup-background-color-selectors! [state lu]
   "Because [:calculated :background] is the final property used, we must create it
@@ -450,14 +471,16 @@ Save/load values
   (let [swap-background! (fn [top bot]
                            (swap! state assoc-in [:background/calculated]
                                   (jfxc/background top bot)))]
-    (setup-generic-color-selector!
+    (jfxui/setup-generic-color-selector!
      state lu
      {:picker "col-bg-top"
       :keyvec [:background/gradient-top]
-      :init (:background/gradient-top *init-vals*)}
+      ;;:init (:background/gradient-top *init-vals*)
+      }
      {:picker "col-bg-bot"
       :keyvec [:background/gradient-bottom]
-      :init (:background/gradient-bottom *init-vals*)})
+      ;;:init (:background/gradient-bottom *init-vals*)
+      })
 
     ;; Create a new background when relevant color changes occur
     (add-watch state :background-changer
@@ -467,42 +490,67 @@ Save/load values
                    (swap-background!
                     (:background/gradient-top new)
                     (:background/gradient-bottom new)))))
-    (swap-background! (:background/gradient-top *init-vals*)
+    #_(swap-background! (:background/gradient-top *init-vals*)
                       (:background/gradient-bottom *init-vals*))))
 
 (defn setup-other-color-selectors! [state lu]
-  (let [idpairs ["col-axis-line-color"       :axes/line-color       [:axes/line-color  ]
-                 "col-origin-line-color"     :origin/line-color     [:origin/line-color]
-                 "col-major-grid-line-color" :major-grid/line-color [:major-grid/line-color ]
-                 "col-major-grid-dot-color"  :major-grid/dot-color  [:major-grid/dot-color  ]
-                 "col-minor-grid-line-color" :minor-grid/line-color [:minor-grid/line-color ]
-                 "col-minor-grid-dot-color"  :minor-grid/dot-color  [:minor-grid/dot-color  ]]]
-    (apply setup-generic-color-selector! state lu
+  (let [idtriples ["col-axis-line-color"       #_:axes/line-color       [:axes/line-color  ]
+                   "col-origin-line-color"     #_:origin/line-color     [:origin/line-color]
+                   "col-major-grid-line-color" #_:major-grid/line-color [:major-grid/line-color ]
+                   "col-major-grid-dot-color"  #_:major-grid/dot-color  [:major-grid/dot-color  ]
+                   "col-minor-grid-line-color" #_:minor-grid/line-color [:minor-grid/line-color ]
+                   "col-minor-grid-dot-color"  #_:minor-grid/dot-color  [:minor-grid/dot-color  ]]]
+    (apply jfxui/setup-generic-color-selector! state lu
            (map #(hash-map :picker (first %)
-                           :init ((second %) *init-vals*)
-                           :keyvec (nth % 2)) ;; third
-                (partition 3 idpairs)))))
+                           ;;:init ((second %) *init-vals*)
+                           :keyvec (second %)) ;; third (was nth 2)
+                (partition 2 idtriples)))))
 
-(defn setup-theme-panel! [state lu]
 
-  )
+(declare load-settings!)
 
-;; New thing: set up gui in one phase, then set the values in another
-;; phase.
-;; There are two maps.  The changed_state map and the init_state map.
-;; Whenever init_state changes, changed_state changes to the same thing.
-;; When changed_state changes via gui, init_state does not change automatically.
-;; init_state contains values that go both into grid-settings and editor-settings.
-;; 1. Setup gui with references to the changed_state map
-;; 2. Put watch on init_state map which copies to changed_state map
-;; 3. Load from init file and swap init_state.  This swaps changed_state.
-;; 4. When user clicks revert, fake-trigger watch in init_state to refresh changed_state
-;; 5. When user clicks load, swap new values into init_state which also refreshes changed_state
-;; 6. When user clicks save, write values from changed_state to init_state.  This will trigger refresh.
 
+(defn setup-theme-panel! [load! save! revert! lu]
+  (let [btn-revert (lu "btn-revert")
+        btn-load (lu "btn-load")
+        btn-save (lu "btn-save")
+        dd-theme (lu "dd-theme")
+        make-fullname #(str "settings/" (.getValue %) ".edn")]
+    (jfxc/set-on-action! btn-revert (revert!))
+    (jfxc/set-on-action! btn-load (load! (make-fullname dd-theme)))
+    (jfxc/set-on-action! btn-save (save! (make-fullname dd-theme)))
+
+    ()
 
 
 
+    ))
+
+
+(defn load-settings
+  "Load single map from src and given keys."
+  [src keyz]
+  (let [srcmap (condp instance? src
+                 clojure.lang.PersistentArrayMap src
+                 clojure.lang.PersistentHashMap src
+                 java.io.Reader (with-open [f src] (conv/read-string (slurp f)))
+                 java.lang.String (with-open [f (clojure.java.io/reader src)]
+                                    (conv/read-string (slurp f))))
+        srcvals (map #(find srcmap %) keyz)]
+    (into {} srcvals)))
+
+(defn- merge-keymaps
+  "Returns a merged keymap from keymaps, used for save.  Keymap is of
+  the form {map1 [keys-to-get] map2 [keys-to-get]} and returns the
+  form {key1 val-from-map1,...}"
+  [keymaps]
+  (let [srcmaps (keys keymaps)
+        srckeys (vals keymaps)
+        get-pair (fn [m k] (when-let [v (m k)] [k v]))
+        collect-mapvals (fn [ma keyz]
+                          (->> (mapcat get-pair (repeat @ma) keyz)
+                               (apply hash-map)))]
+    (reduce merge (map collect-mapvals srcmaps srckeys))))
 
 (defn GridSettingsPane [name]
   "Load up GridSettingsPane.  Returns a map with both the node and the
@@ -517,38 +565,93 @@ Save/load values
 
     ;; Check if init-vals file exists.  
     ;; If it does, read it in and set binding *init-vals* before setting everything else up.
-    ;; Else use possible-init-vals.  Don't write to the file unless user presses the button.
+    ;; Else use possible-init-settings.  Don't write to the file unless user presses the button.
     ;; Use *print-dup* to use print-dup instead of print-method.
     (when (not (.exists init-file))
       (println "Init file" (.getName init-file) "not found.  Creating from scratch.")
       (binding [*print-dup* true 
                 pp/*print-right-margin* 80] ;; don't break lines too early  
         (with-open [f (clojure.java.io/writer init-file)]
-          (pp/pprint (into (sorted-map) possible-init-vals) f ))))
+          (pp/pprint (into (sorted-map) possible-init-settings) f ))))
 
-    ;; TODO: load/save actual settings
-    (binding [*init-vals*
-              (merge possible-init-vals
-                     (try
-                       (with-open [f (clojure.java.io/reader init-file)]
-                         (conv/read-string (slurp f)))
-                       (catch Exception e
-                         (println "Could not read" (.getName init-file))
-                         (println (:cause (Throwable->map e))))))]
-      (def init-vals *init-vals*)
-      (def root root)
-      (def lu lu)
-      (def gs grid-settings)
-      (setup-visibility-checkboxes! grid-settings lu)
-      (setup-major-grid-spacing-spinners! grid-settings lu)
-      (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
-      (setup-sliders! grid-settings lu)
-      (setup-snap-to-checkboxes! grid-settings lu)
-      (setup-origin-marker-selection! grid-settings lu)
-      (setup-background-color-selectors! editor-settings lu) ;; <<-- editor-settings !!
-      (setup-other-color-selectors! grid-settings lu)
-      (setup-other-checkboxes! grid-settings lu)
-      (setup-theme-panel! grid-settings lu))
+    
+    (setup-visibility-checkboxes! grid-settings lu)
+    (setup-major-grid-spacing-spinners! grid-settings lu)
+    (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
+    (setup-sliders! grid-settings lu)
+    (setup-snap-to-checkboxes! grid-settings lu)
+    (setup-origin-marker-selection! grid-settings lu)
+    (setup-background-color-selectors! editor-settings lu) ;; <<-- editor-settings !!
+    (setup-other-color-selectors! grid-settings lu)
+    (setup-other-checkboxes! grid-settings lu)
+
+    ;; A quicker way might be to dissoc the :background keys
+    ;; from possible-init-settings
+    (let [keymaps {grid-settings [:axes/line-color
+                                  :axes/line-width-px 
+                                  :axes/visible true,
+                                  :major-grid/dot-color 
+                                  :major-grid/dot-width-px
+                                  :major-grid/dots-visible
+                                  :major-grid/enable 
+                                  :major-grid/line-color 
+                                  :major-grid/line-width-px 
+                                  :major-grid/lines-visible
+                                  :major-grid/snap-to 
+                                  :major-grid/spacing 
+                                  :minor-grid/dot-color
+                                  :minor-grid/dot-width-px 
+                                  :minor-grid/dots-visible 
+                                  :minor-grid/enable
+                                  :minor-grid/line-color 
+                                  :minor-grid/line-width-px 
+                                  :minor-grid/lines-visible 
+                                  :minor-grid/ratio 
+                                  :minor-grid/snap-to 
+                                  :origin/line-color 
+                                  :origin/line-width-px 
+                                  :origin/marker 
+                                  :origin/size-px 
+                                  :origin/visible 
+                                  :zoom/dynamic-grid-enable 
+                                  :zoom/ppmm
+                                  :zoom/scale-visible]
+                   editor-settings [:background/gradient-bottom
+                                    :background/gradient-top]}
+          last-init-source (atom nil)
+          load! (fn [filename]
+                  (println "Loading " filename)
+                  (doseq [[setting keyz] keymaps]
+                    ;; Merge default settings with found settings.  Merge is required
+                    ;; in case file settings are incomplete.
+                    (let [file-settings (try (load-settings filename keyz)
+                                             (catch java.io.FileNotFoundException e
+                                               (println (format "File %s not found" filename))))
+                          default-settings (load-settings possible-init-settings keyz)
+                          merged-settings (merge default-settings file-settings)]
+                      (swap! setting merge merged-settings)
+                      (reset! last-init-source filename))))
+
+          save! (fn [filename]
+                  (println "saving to " filename)
+                  (let [map-to-save (merge-keymaps keymaps)]
+                    (binding [*print-dup* true 
+                              pp/*print-right-margin* 80] ;; don't break lines too early  
+                      (with-open [f (clojure.java.io/writer filename)]
+                        (pp/pprint (into (sorted-map) map-to-save) f))
+                      (reset! last-init-source filename))))
+
+          revert! (fn [] (load! @last-init-source))]
+      
+      (setup-theme-panel! load! save! revert! lu)
+      (load! "settings/GridSettings.edn")
+
+      )
+
+    (def gs grid-settings)
+    (def es editor-settings)
+    (def root root)
+      
     
     {:root root
      :grid-settings grid-settings
