@@ -515,16 +515,35 @@ Save/load values
         btn-load (lu "btn-load")
         btn-save (lu "btn-save")
         dd-theme (lu "dd-theme")
-        make-fullname #(str "settings/" (.getValue %) ".edn")]
+        make-fullname #(str "settings/" (.getValue %) ".edn")
+        set-list! (fn []
+                    (let [dirlist (->> (file-seq (clojure.java.io/file "settings"))
+                                       (filter #(.isFile %))
+                                       (map #(.getName %))
+                                       (filter #(.endsWith % ".edn"))
+                                       (map #(clojure.string/replace % ".edn" "" )))]
+                      (jfxc/set-items! dd-theme dirlist)))]
+
+    ;; Set up the buttons
     (jfxc/set-on-action! btn-revert (revert!))
     (jfxc/set-on-action! btn-load (load! (make-fullname dd-theme)))
-    (jfxc/set-on-action! btn-save (save! (make-fullname dd-theme)))
+    (jfxc/set-on-action! btn-save (do
+                                    (save! (make-fullname dd-theme))
+                                    (set-list!)))
 
-    ()
+    ;; Set up the list to update when an item is saved, and to auto-load when selected
+    (set-list!)
+    (jfxc/add-listener! (.getSelectionModel dd-theme) :selected-item
+                        (fn [oldval newval]
+                          (load! (make-fullname dd-theme))))
 
-
-
-    ))
+    ;; Set up the load and save buttons to disable when text box is blank
+    (.bind (jfxc/get-property btn-save :disable)
+           (javafx.beans.binding.Bindings/equal
+            (jfxc/get-property (.getEditor dd-theme) :text) ""))
+    (.bind (jfxc/get-property btn-load :disable)
+           (javafx.beans.binding.Bindings/equal
+            (jfxc/get-property (.getEditor dd-theme) :text) ""))))
 
 
 (defn load-settings
@@ -557,7 +576,7 @@ Save/load values
   state. "
   (let [grid-settings (atom {})
         editor-settings (atom {})
-        init-file (clojure.java.io/as-file "settings/GridSettings.edn")
+        ;;init-file (clojure.java.io/as-file "settings/GridSettings.edn")
         root (doto (jfxc/load-fxml-root "GridSettingsPane4.fxml"))
         lu (fn [id] (if-let [result (jfxc/lookup root id)]
                       result
@@ -567,7 +586,7 @@ Save/load values
     ;; If it does, read it in and set binding *init-vals* before setting everything else up.
     ;; Else use possible-init-settings.  Don't write to the file unless user presses the button.
     ;; Use *print-dup* to use print-dup instead of print-method.
-    (when (not (.exists init-file))
+    #_(when (not (.exists init-file))
       (println "Init file" (.getName init-file) "not found.  Creating from scratch.")
       (binding [*print-dup* true 
                 pp/*print-right-margin* 80] ;; don't break lines too early  
@@ -622,14 +641,19 @@ Save/load values
           load! (fn [filename]
                   (println "Loading " filename)
                   (doseq [[setting keyz] keymaps]
-                    ;; Merge default settings with found settings.  Merge is required
-                    ;; in case file settings are incomplete.
+                    ;; Swap in default-settings first, then current settings, then file settings.
+                    ;; This ensures everything has at least some value, but does not overwrite
+                    ;; an existing value with a default value if the new file doesn't specify.
+                    ;; IOW, just change if the value is specified.
                     (let [file-settings (try (load-settings filename keyz)
                                              (catch java.io.FileNotFoundException e
-                                               (println (format "File %s not found" filename))))
-                          default-settings (load-settings possible-init-settings keyz)
-                          merged-settings (merge default-settings file-settings)]
-                      (swap! setting merge merged-settings)
+                                               (println (format "File %s not found" filename))))]
+                      (swap! setting merge
+                             (load-settings possible-init-settings keyz)
+                             @editor-settings
+                             @grid-settings
+                             file-settings)
+                      
                       (reset! last-init-source filename))))
 
           save! (fn [filename]
