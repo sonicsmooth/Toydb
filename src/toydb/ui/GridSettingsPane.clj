@@ -650,8 +650,6 @@ Save/load values
                                                (println (format "File %s not found" filename))))]
                       (swap! setting merge
                              (load-settings possible-init-settings keyz)
-                             @editor-settings
-                             @grid-settings
                              file-settings)
                       
                       (reset! last-init-source filename))))
