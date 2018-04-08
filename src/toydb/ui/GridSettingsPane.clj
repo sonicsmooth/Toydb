@@ -506,9 +506,16 @@ Save/load values
                            :keyvec (second %)) ;; third (was nth 2)
                 (partition 2 idtriples)))))
 
-
-(declare load-settings!)
-
+(defn- home-path
+  "Returns java.io.File of user's home path plus .toydb
+  subdirectory plus additional argument path.  Appears to accept both
+  / and \\ separators in addpath."
+  ([]
+   (home-path ""))
+  ([addpath]
+   (.toFile (java.nio.file.Paths/get
+             (System/getProperty "user.home")
+             (into-array [".toydb" addpath])))))
 
 (defn setup-theme-panel! [load! save! revert! lu]
   (let [btn-revert (lu "btn-revert")
@@ -517,7 +524,7 @@ Save/load values
         dd-theme (lu "dd-theme")
         make-fullname #(str "settings/" (.getValue %) ".edn")
         set-list! (fn []
-                    (let [dirlist (->> (file-seq (clojure.java.io/file "settings"))
+                    (let [dirlist (->> (file-seq (home-path "settings"))
                                        (filter #(.isFile %))
                                        (map #(.getName %))
                                        (filter #(.endsWith % ".edn"))
@@ -526,16 +533,17 @@ Save/load values
 
     ;; Set up the buttons
     (jfxc/set-on-action! btn-revert (revert!))
-    (jfxc/set-on-action! btn-load (load! (make-fullname dd-theme)))
+    (jfxc/set-on-action! btn-load (load! (home-path (make-fullname dd-theme))))
     (jfxc/set-on-action! btn-save (do
-                                    (save! (make-fullname dd-theme))
-                                    (set-list!)))
-
-    ;; Set up the list to update when an item is saved, and to auto-load when selected
+                                    (save! (home-path (make-fullname dd-theme)))
+                                    (set-list!))) ;; update list when item is saved
     (set-list!)
+
+    ;; Set up the list to auto-load when new item is selected
+    ;; Not sure why this is triggered twice when defocus
     (jfxc/add-listener! (.getSelectionModel dd-theme) :selected-item
                         (fn [oldval newval]
-                          (load! (make-fullname dd-theme))))
+                          (load! (home-path (make-fullname dd-theme)))))
 
     ;; Set up the load and save buttons to disable when text box is blank
     (.bind (jfxc/get-property btn-save :disable)
@@ -546,15 +554,19 @@ Save/load values
             (jfxc/get-property (.getEditor dd-theme) :text) ""))))
 
 
+
+
 (defn load-settings
   "Load single map from src and given keys."
   [src keyz]
   (let [srcmap (condp instance? src
                  clojure.lang.PersistentArrayMap src
                  clojure.lang.PersistentHashMap src
-                 java.io.Reader (with-open [f src] (conv/read-string (slurp f)))
-                 java.lang.String (with-open [f (clojure.java.io/reader src)]
-                                    (conv/read-string (slurp f))))
+                 ;;java.lang.String (load-settings (clojure.java.io/reader src) keyz)
+                 ;;java.io.File (load-settings (clojure.java.io/reader src) keyz)
+                 ;;java.io.Reader
+                 ;;(with-open [f src])
+                 (conv/read-string (slurp src))) ;; can take a String, File, or Reader
         srcvals (map #(find srcmap %) keyz)]
     (into {} srcvals)))
 
@@ -582,18 +594,6 @@ Save/load values
                       result
                       (throw (Exception. (str "Could not find " id)))))]
 
-    ;; Check if init-vals file exists.  
-    ;; If it does, read it in and set binding *init-vals* before setting everything else up.
-    ;; Else use possible-init-settings.  Don't write to the file unless user presses the button.
-    ;; Use *print-dup* to use print-dup instead of print-method.
-    #_(when (not (.exists init-file))
-      (println "Init file" (.getName init-file) "not found.  Creating from scratch.")
-      (binding [*print-dup* true 
-                pp/*print-right-margin* 80] ;; don't break lines too early  
-        (with-open [f (clojure.java.io/writer init-file)]
-          (pp/pprint (into (sorted-map) possible-init-settings) f ))))
-
-    
     (setup-visibility-checkboxes! grid-settings lu)
     (setup-major-grid-spacing-spinners! grid-settings lu)
     (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
@@ -638,35 +638,42 @@ Save/load values
                    editor-settings [:background/gradient-bottom
                                     :background/gradient-top]}
           last-init-source (atom nil)
-          load! (fn [filename]
-                  (println "Loading " filename)
-                  (doseq [[setting keyz] keymaps]
-                    ;; Swap in default-settings first, then current settings, then file settings.
-                    ;; This ensures everything has at least some value, but does not overwrite
-                    ;; an existing value with a default value if the new file doesn't specify.
-                    ;; IOW, just change if the value is specified.
-                    (let [file-settings (try (load-settings filename keyz)
-                                             (catch java.io.FileNotFoundException e
-                                               (println (format "File %s not found" filename))))]
-                      (swap! setting merge
-                             (load-settings possible-init-settings keyz)
-                             file-settings)
-                      
-                      (reset! last-init-source filename))))
+          load! (fn [file] ;; a String or File
+                  ;; Ensure file is a java.io.File
+                  (let [file (condp instance? file
+                               java.io.File file
+                               java.lang.String (java.io.File. file))]
+                    (println "Loading " (.getPath file))
+                    (doseq [[setting keyz] keymaps]
+                      ;; Swap in default-settings first, then current settings, then file settings.
+                      ;; This ensures everything has at least some value, but does not overwrite
+                      ;; an existing value with a default value if the new file doesn't specify.
+                      ;; IOW, just change if the value is specified.
+                      (let [file-settings (try (load-settings file keyz)
+                                               (catch java.io.FileNotFoundException e
+                                                 (println (format "File %s not found" (.getPath file)))))]
+                        (swap! setting merge
+                               (load-settings possible-init-settings keyz)
+                               file-settings)
+                        (reset! last-init-source file)))))
 
-          save! (fn [filename]
-                  (println "saving to " filename)
-                  (let [map-to-save (merge-keymaps keymaps)]
+          save! (fn [file]
+                  ;; Ensure file is a java.io.File
+                  (let [file (condp instance? file
+                               java.io.File file
+                               java.lang.String (java.io.File. file))
+                        map-to-save (merge-keymaps keymaps)]
+                    (println "Saving to " (.getPath file))
                     (binding [*print-dup* true 
                               pp/*print-right-margin* 80] ;; don't break lines too early  
-                      (with-open [f (clojure.java.io/writer filename)]
+                      (with-open [f (clojure.java.io/writer file)]
                         (pp/pprint (into (sorted-map) map-to-save) f))
-                      (reset! last-init-source filename))))
+                      (reset! last-init-source file))))
 
           revert! (fn [] (load! @last-init-source))]
       
       (setup-theme-panel! load! save! revert! lu)
-      (load! "settings/GridSettings.edn")
+      (load! (home-path "settings/GridSettings.edn"))
 
       )
 
