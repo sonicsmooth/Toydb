@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ColorPicker?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.Spinner?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+
+<HBox alignment="CENTER" styleClass="gsp-hbox" stylesheets="@../css/style.css" xmlns="http://javafx.com/javafx/8.0.111" xmlns:fx="http://javafx.com/fxml/1">
+                     <children>
+                        <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="gsp-vbox" HBox.hgrow="SOMETIMES">
+                           <children>
+            <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" text="Theme" textOverrun="CLIP">
+               <content>
+                  <HBox alignment="CENTER_LEFT" styleClass="gsp-hbox">
+                     <children>
+                        <Button id="btn-revert" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="0.0" mnemonicParsing="false" text="Revert" textOverrun="CLIP" />
+                        <ComboBox id="dd-theme" editable="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="0.0" prefWidth="150.0" promptText="Theme name" HBox.hgrow="ALWAYS" />
+                        <Button id="btn-load" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="0.0" mnemonicParsing="false" text="Load" textOverrun="CLIP" />
+                        <Button id="btn-save" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="0.0" mnemonicParsing="false" text="Save Current" textOverrun="CLIP" />
+                     </children>
+                  </HBox>
+               </content>
+            </TitledPane>
+                              <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="0.0" text="Background Color Gradient" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+               <content>
+                  <GridPane alignment="CENTER" styleClass="grid-pane">
+                    <columnConstraints>
+                      <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                      <ColumnConstraints hgrow="ALWAYS" maxWidth="1.7976931348623157E308" minWidth="10.0" />
+                    </columnConstraints>
+                    <rowConstraints>
+                      <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                      <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                    </rowConstraints>
+                     <children>
+                        <Label text="Top">
+                                                   </Label>
+                        <ColorPicker id="col-bg-top" maxWidth="1.7976931348623157E308" minHeight="25.0" GridPane.columnIndex="1" GridPane.hgrow="NEVER">
+                                                   </ColorPicker>
+                        <Label text="Bottom" GridPane.rowIndex="1">
+                                                   </Label>
+                        <ColorPicker id="col-bg-bot" maxWidth="1.7976931348623157E308" minHeight="25.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                     </children>
+                  </GridPane>
+               </content>
+                              </TitledPane>
+                              <TitledPane animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="0.0" text="Zoom" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+                                 <content>
+                                    <GridPane alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" styleClass="grid-pane">
+                                      <columnConstraints>
+                                        <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+                        <ColumnConstraints />
+                                      </columnConstraints>
+                                     <rowConstraints>
+                                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                                          <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                                          <RowConstraints vgrow="NEVER" />
+                                          <RowConstraints vgrow="NEVER" />
+                                          <RowConstraints vgrow="NEVER" />
+                                      </rowConstraints>
+                                       <children>
+                                          <Label text="Pixels/mm" GridPane.columnSpan="3" GridPane.rowIndex="2">
+                           <GridPane.margin>
+                              <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+                           </GridPane.margin>
+                        </Label>
+                                          <Label text="Dynamic grid">
+                           <GridPane.margin>
+                              <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+                           </GridPane.margin>
+                        </Label>
+                        <HBox alignment="CENTER_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2">
+                           <children>
+                                                <Slider id="sl-zoom-ppmm" blockIncrement="1.0" majorTickUnit="1.0" max="20.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minorTickCount="5" showTickLabels="true" showTickMarks="true" snapToTicks="true" value="10.0" HBox.hgrow="ALWAYS">
+                                 <HBox.margin>
+                                    <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+                                 </HBox.margin>
+                              </Slider>
+                                                <TextField id="tf-zoom-ppmm" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER">
+                                                               </TextField>
+                           </children>
+                        </HBox>
+                        <CheckBox id="cb-dynamic-grid" mnemonicParsing="false" GridPane.columnIndex="1" />
+                        <Label text="Scale visible" GridPane.rowIndex="1" />
+                        <CheckBox id="cb-scale-visible" contentDisplay="RIGHT" graphicTextGap="0.0" mnemonicParsing="false" text=" " GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" />
+                                       </children>
+                                    </GridPane>
+                                 </content>
+               <VBox.margin>
+                  <Insets />
+               </VBox.margin>
+                              </TitledPane>
+            <TitledPane id="tp-axes" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="30.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="0.0" text="Axes" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+               <content>
+                  <GridPane id="gp-axes-elements" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" styleClass="grid-pane">
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+                        <ColumnConstraints />
+                     </columnConstraints>
+                     <rowConstraints>
+                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
+                     </rowConstraints>
+                     <children>
+                        <Label text="Line width (px)" GridPane.rowIndex="0" />
+                        <HBox alignment="CENTER_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                           <children>
+                              <Slider id="sl-axis-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" showTickLabels="true" showTickMarks="true" value="5.0" HBox.hgrow="ALWAYS">
+                                 <HBox.margin>
+                                    <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+                                 </HBox.margin>
+                              </Slider>
+                              <TextField id="tf-axis-line-width" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER">
+                                                               </TextField>
+                           </children>
+                        </HBox>
+                        <Label text="Line color" GridPane.rowIndex="1" />
+                        <ColorPicker id="col-axis-line-color" maxWidth="1.7976931348623157E308" minHeight="25.0" nodeOrientation="LEFT_TO_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                     </children>
+                  </GridPane>
+               </content>
+               <graphic>
+                  <CheckBox id="cb-axes-visible" mnemonicParsing="false" nodeOrientation="RIGHT_TO_LEFT" text="Visible" />
+               </graphic>
+            </TitledPane>
+            <TitledPane id="tp-origin" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="30.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="0.0" text="Origin" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+               <content>
+                  <GridPane id="gp-origin-elements" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefWidth="220.0" styleClass="grid-pane">
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+                        <ColumnConstraints />
+                     </columnConstraints>
+                     <rowConstraints>
+                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints maxHeight="1.7976931348623157E308" vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
+                        <RowConstraints vgrow="NEVER" />
+                     </rowConstraints>
+                     <children>
+                        <Label text="Marker" />
+                        <ComboBox id="dd-origin-marker" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="25.0" GridPane.columnIndex="1" />
+                        <Label text="Color" GridPane.rowIndex="1" />
+                        <ColorPicker id="col-origin-line-color" maxWidth="1.7976931348623157E308" minHeight="25.0" nodeOrientation="LEFT_TO_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.vgrow="NEVER" />
+                        <Label text="Size (px)" GridPane.rowIndex="2" />
+                        <HBox alignment="CENTER_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                           <children>
+                              <Slider id="sl-origin-size" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" showTickLabels="true" showTickMarks="true" value="5.0" HBox.hgrow="ALWAYS">
+                                 <HBox.margin>
+                                    <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+                                 </HBox.margin>
+                              </Slider>
+                              <TextField id="tf-origin-size" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                           </children>
+                        </HBox>
+                        <Label text="Line width (px)" GridPane.rowIndex="3" GridPane.vgrow="NEVER" />
+                        <HBox alignment="CENTER_LEFT" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                           <children>
+                              <Slider id="sl-origin-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" showTickLabels="true" showTickMarks="true" value="5.0" HBox.hgrow="ALWAYS">
+                                 <HBox.margin>
+                                    <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+                                 </HBox.margin>
+                              </Slider>
+                              <TextField id="tf-origin-line-width" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                           </children>
+                        </HBox>
+                     </children>
+                  </GridPane>
+               </content>
+               <graphic>
+                  <CheckBox id="cb-origin-visible" mnemonicParsing="false" nodeOrientation="RIGHT_TO_LEFT" text="Visible" />
+               </graphic>
+            </TitledPane>
+                           </children>
+                                 </VBox>
+      <TitledPane id="tp-major-grid" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="30.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="gsp-nested-titledpane" text="Major Grid" textOverrun="CLIP">
+         <content>
+            <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="gsp-vbox">
+               <children>
+                  <CheckBox id="cb-major-grid-snap-to" mnemonicParsing="false" text="Allow snap to" />
+                  <TitledPane id="tp-major-lines" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="30.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Major Lines" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+                     <content>
+                        <GridPane id="gp-major-lines-elements" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
+                           <columnConstraints>
+                              <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                              <ColumnConstraints hgrow="ALWAYS" maxWidth="1.7976931348623157E308" minWidth="10.0" />
+                           </columnConstraints>
+                           <rowConstraints>
+                              <RowConstraints vgrow="NEVER" />
+                              <RowConstraints vgrow="NEVER" />
+                           </rowConstraints>
+                           <children>
+                              <Label id="lab-major-grid-lines-visible" text="Width (px)" GridPane.rowIndex="0" />
+                              <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                 <children>
+                                    <Slider id="sl-major-grid-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="20.0" value="5.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-major-grid-line-width" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                 </children>
+                              </HBox>
+                              <Label id="lab-major-grid-line-color" text="Color" GridPane.columnSpan="2" GridPane.rowIndex="1" />
+                              <ColorPicker id="col-major-grid-line-color" maxWidth="1.7976931348623157E308" minHeight="25.0" GridPane.columnIndex="1" GridPane.hgrow="NEVER" GridPane.rowIndex="1" />
+                           </children>
+                        </GridPane>
+                     </content>
+                     <graphic>
+                        <CheckBox id="cb-major-grid-lines-visible" mnemonicParsing="false" text="Visible" />
+                     </graphic>
+                  </TitledPane>
+                  <TitledPane id="tp-major-dots" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="30.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Major Dots" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+                     <content>
+                        <GridPane id="gp-major-dots-elements" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
+                           <columnConstraints>
+                              <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                              <ColumnConstraints hgrow="ALWAYS" maxWidth="1.7976931348623157E308" minWidth="10.0" />
+                           </columnConstraints>
+                           <rowConstraints>
+                              <RowConstraints vgrow="NEVER" />
+                              <RowConstraints vgrow="NEVER" />
+                           </rowConstraints>
+                           <children>
+                              <Label id="lab-major-grid-dot-width" text="Width (px)" GridPane.rowIndex="0" />
+                              <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                 <children>
+                                    <Slider id="sl-major-grid-dot-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="20.0" value="5.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-major-grid-dot-width" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                 </children>
+                              </HBox>
+                              <Label id="lab-major-grid-dot-color" text="Color" GridPane.rowIndex="1" />
+                              <ColorPicker id="col-major-grid-dot-color" maxWidth="1.7976931348623157E308" minHeight="25.0" GridPane.columnIndex="1" GridPane.hgrow="NEVER" GridPane.rowIndex="1" />
+                           </children>
+                        </GridPane>
+                     </content>
+                     <graphic>
+                        <CheckBox id="cb-major-grid-dots-visible" contentDisplay="RIGHT" graphicTextGap="30.0" mnemonicParsing="false" text="Visible" />
+                     </graphic>
+                  </TitledPane>
+                  <TitledPane id="tp-major-spacing" animated="false" collapsible="false" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Major Spacing" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+                     <content>
+                        <GridPane id="gp-major-spacing-elements" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
+                           <columnConstraints>
+                              <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                              <ColumnConstraints hgrow="ALWAYS" maxWidth="1.7976931348623157E308" minWidth="10.0" />
+                           </columnConstraints>
+                           <rowConstraints>
+                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                              <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="NEVER" />
+                           </rowConstraints>
+                           <children>
+                              <Spinner id="sp-major-grid-spacing-mm" maxWidth="1.7976931348623157E308" minWidth="25.0" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                              <Spinner id="sp-major-grid-spacing-mils" maxWidth="1.7976931348623157E308" minWidth="25.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                              <Label id="lab-major-grid-spacing-mm" text="Millimeters" GridPane.rowIndex="0" />
+                              <Label id="lab-major-grid-spacing-mils" text="Mils (.001&quot;)" GridPane.rowIndex="1" />
+                              
+                           </children>
+                        </GridPane>
+                     </content>
+                  </TitledPane>
+               </children>
+            </VBox>
+         </content>
+         <graphic>
+            <CheckBox id="cb-major-grid-enable" mnemonicParsing="false" nodeOrientation="RIGHT_TO_LEFT" text="Enabled" />
+         </graphic>
+         <opaqueInsets>
+            <Insets />
+         </opaqueInsets>
+      </TitledPane>
+      <TitledPane id="tp-minor-grid" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="40.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="gsp-nested-titledpane" text="Minor Grid" textOverrun="CLIP">
+         <content>
+            <VBox styleClass="gsp-vbox">
+               <children>
+                  <CheckBox id="cb-minor-grid-snap-to" mnemonicParsing="false" text="Allow snap to">
+                                                   </CheckBox>
+                  <TitledPane id="tp-minor-lines" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="30.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Minor Lines" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+                     <content>
+                        <GridPane id="gp-minor-lines-elements" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
+                           <columnConstraints>
+                              <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                              <ColumnConstraints hgrow="ALWAYS" maxWidth="1.7976931348623157E308" minWidth="10.0" />
+                           </columnConstraints>
+                           <rowConstraints>
+                              <RowConstraints vgrow="NEVER" />
+                              <RowConstraints vgrow="NEVER" />
+                           </rowConstraints>
+                           <children>
+                              <Label id="lab-minor-grid-line-width" text="Width (px)" GridPane.rowIndex="0" />
+                              <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                 <children>
+                                    <Slider id="sl-minor-grid-line-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="20.0" value="5.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-minor-grid-line-width" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                 </children>
+                              </HBox>
+                              <Label id="lab-minor-grid-line-color" text="Color" GridPane.columnSpan="2" GridPane.rowIndex="1" />
+                              <ColorPicker id="col-minor-grid-line-color" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="NEVER" GridPane.rowIndex="1" />
+                           </children>
+                        </GridPane>
+                     </content>
+                     <graphic>
+                        <CheckBox id="cb-minor-grid-lines-visible" mnemonicParsing="false" text="Visible" textOverrun="CLIP" />
+                     </graphic>
+                  </TitledPane>
+                  <TitledPane id="tp-minor-dots" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="30.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Minor Dots" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+                     <content>
+                        <GridPane id="gp-minor-dots-elements" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
+                           <columnConstraints>
+                              <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                              <ColumnConstraints hgrow="ALWAYS" maxWidth="1.7976931348623157E308" minWidth="10.0" />
+                           </columnConstraints>
+                           <rowConstraints>
+                              <RowConstraints vgrow="NEVER" />
+                              <RowConstraints vgrow="NEVER" />
+                           </rowConstraints>
+                           <children>
+                              <Label id="lab-minor-grid-dot-width" text="Dot width (px)" GridPane.rowIndex="0" />
+                              <HBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                 <children>
+                                    <Slider id="sl-minor-grid-dot-width" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="20.0" value="5.0" HBox.hgrow="ALWAYS" />
+                                    <TextField id="tf-minor-grid-dot-width" maxWidth="80.0" minWidth="50.0" prefWidth="50.0" HBox.hgrow="NEVER" />
+                                 </children>
+                              </HBox>
+                              <Label id="lab-minor-grid-dot-color" text="Dot color" GridPane.rowIndex="1" />
+                              <ColorPicker id="col-minor-grid-dot-color" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.hgrow="NEVER" GridPane.rowIndex="1" />
+                           </children>
+                        </GridPane>
+                     </content>
+                     <graphic>
+                        <CheckBox id="cb-minor-grid-dots-visible" mnemonicParsing="false" text="Visible" textOverrun="CLIP" />
+                     </graphic>
+                  </TitledPane>
+                  <TitledPane id="tp-minor-properties" animated="false" collapsible="false" contentDisplay="RIGHT" graphicTextGap="30.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" text="Minor Properties" textOverrun="CLIP" VBox.vgrow="SOMETIMES">
+                     <content>
+                        <GridPane id="gp-minor-ratio-elements" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" minWidth="0.0" styleClass="grid-pane">
+                           <columnConstraints>
+                              <ColumnConstraints hgrow="ALWAYS" maxWidth="1.7976931348623157E308" minWidth="10.0" />
+                              <ColumnConstraints hgrow="NEVER" maxWidth="1.7976931348623157E308" minWidth="85.0" />
+                           </columnConstraints>
+                           <rowConstraints>
+                              <RowConstraints vgrow="NEVER" />
+                           </rowConstraints>
+                           <children>
+                              <Label id="lab-minor-grid-ratio" text="Grid ratio" GridPane.rowIndex="0" />
+                              <Spinner id="sp-minor-grid-ratio" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                 <GridPane.margin>
+                                    <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+                                 </GridPane.margin>
+                              </Spinner>
+                           </children>
+                        </GridPane>
+                     </content>
+                  </TitledPane>
+               </children>
+            </VBox>
+         </content>
+         <graphic>
+            <CheckBox id="cb-minor-grid-enable" mnemonicParsing="false" nodeOrientation="RIGHT_TO_LEFT" text="Enabled" />
+         </graphic>
+      </TitledPane>
+                     </children>
+                  </HBox>
