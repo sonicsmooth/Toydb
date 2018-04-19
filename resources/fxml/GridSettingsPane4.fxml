@@ -24,10 +24,10 @@
                <content>
                   <HBox alignment="CENTER_LEFT" styleClass="gsp-hbox">
                      <children>
-                        <Button id="btn-revert" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="0.0" mnemonicParsing="false" text="Revert" textOverrun="CLIP" />
+                        <Button id="btn-revert" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Revert" textOverrun="CLIP" />
                         <ComboBox id="dd-theme" editable="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="0.0" prefWidth="150.0" promptText="Theme name" HBox.hgrow="ALWAYS" />
-                        <Button id="btn-load" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="0.0" mnemonicParsing="false" text="Load" textOverrun="CLIP" />
-                        <Button id="btn-save" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="0.0" mnemonicParsing="false" text="Save Current" textOverrun="CLIP" />
+                        <Button id="btn-load" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Load" textOverrun="CLIP" />
+                        <Button id="btn-save" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Save" textOverrun="CLIP" />
                      </children>
                   </HBox>
                </content>

@@ -812,7 +812,7 @@
           layeditor-settings :editor-settings} (gsp/GridSettingsPane "layout")
 
          doc1 (editor-view scheditor-settings schgrid-settings)
-         ;;doc2 (editor-view layeditor-settings laygrid-settings)
+         doc2 (editor-view layeditor-settings laygrid-settings)
          
          center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
                                       ;;:right (docks/node (:doc-pane doc2) "doc2")
@@ -833,7 +833,7 @@
                               ;;:grid-settings schgrid-settings
                               ;;:editor-settings scheditor-settings
                               }
-                             #_{:type :settings-pane
+                             {:type :settings-pane
                                 :name "Layout Grid"
                                 :root lay-root
                                 ;;:grid-settings laygrid-settings
@@ -853,13 +853,14 @@
   (let [ed (editor)]
     (def ed ed)
     (def tp (:top-pane ed))
-    (def setui (get-in ed [:behaviors 0 :root]))
-    (def state (get-in ed [:behaviors 0 :grid-settings]))
-    #_(add-watch state :wha? (fn [k r o n] (let [[oa ob bo] (clojure.data/diff o n)]
-                                             (when ob (println ob)))))
+    (def setui0 (get-in ed [:behaviors 0 :root]))
+    (def setui1 (get-in ed [:behaviors 1 :root]))
+    ;;(def state (get-in ed [:behaviors 0 :grid-settings]))
     (docks/init-style)
     (jfxc/stage tp [800 480])
-    (jfxc/stage setui [800 480]))
+    (jfxc/stage setui0 [800 480])
+    ;;(jfxc/stage setui1 [800 480])
+    )
   
 
 

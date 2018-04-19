@@ -36,9 +36,8 @@
 (def px-per-mm 10)          ;; Initial scaling
 
 ;; Derived values
-;;(def px-per-grid (* px-per-mm (.value (mm grid1-spacing)))) ;; (pixels/grid) (100px)
-(def grid1-units-per-grid (ufn (/ (.value (ufn grid1-spacing))
-                                  (.value (ufn 1))))) ;; (units distance) / (units 1)
+(def grid1-units-per-grid (ufn (/ (.nm (ufn grid1-spacing))
+                                  (.nm unit)))) ;; (units distance) / (units 1)
 
 (def DEFAULT-ZOOM-RATIO 100) ;; How many zoom levels for multiply by zoom base
 (def DEFAULT-ZOOM-LEVEL 0)
@@ -48,11 +47,11 @@
 (def DEFAULT-PIXELS-PER-MM px-per-mm)
 (def DEFAULT-MINORS-PER-MAJOR 10)
 (def DEFAULT-METRIC-OR-INCHES :metric)
-(def DEFAULT-PRINT-SCALES {:metric {:um (.value (um unit))  ;; how many um, mm, cm per unit (um)
-                                    :mm (.value (mm unit))
-                                    :cm (.value (cm unit))}
-                           :inches {:inches (.value (inch unit)) ;; how many inches, mils per unit (um)
-                                    :mils (.value (mil unit))}})  
+(def DEFAULT-PRINT-SCALES {:metric {:um (units/value (um unit))  ;; how many um, mm, cm per unit (um)
+                                    :mm (units/value (mm unit))
+                                    :cm (units/value (cm unit))}
+                           :inches {:inches (units/value (inch unit)) ;; how many inches, mils per unit (um)
+                                    :mils (units/value (mil unit))}})  
 (def DEFAULT-METRIC-SELECTION :mm) ;; keys from DEFAULT-PRINT-SCALES :metric
 (def DEFAULT-INCHES-SELECTION :inches) ;; keys from DEFAULT-PRINT-SCALES :inches
 (def DEFAULT-DYNAMIC-GRID-ENABLE true)
@@ -68,8 +67,8 @@
   function, not related to dynamic grid sizing."
   ([^Long zoomlevel, ^Long zoomratio, grid-spacing, ^Double px-per-mm]
    (let [zoom-exp (/ zoomlevel zoomratio)
-         spacing-units (.value (ufn grid-spacing))
-         px-per-grid (* px-per-mm (.value (mm grid-spacing)))
+         spacing-units (units/value (ufn grid-spacing))
+         px-per-grid (* px-per-mm (units/value (mm grid-spacing)))
          kppu (/ px-per-grid spacing-units)]
      (* kppu (Math/pow DEFAULT-ZOOM-BASE zoom-exp))))
 
@@ -93,7 +92,7 @@
   ufn has been set to at the top of this file."
   (^double [^ViewDef view]
    (let [zoomspecs (:zoomspecs view)
-         kgpu (/ 1 (.value (ufn (:grid-spacing zoomspecs))))
+         kgpu (/ 1 (units/value (ufn (:grid-spacing zoomspecs))))
          majgpu (if (:dynamic-grid-enable zoomspecs)
                   (* kgpu (Math/pow DEFAULT-ZOOM-BASE
                                     (Math/floor (/ (.zoomlevel zoomspecs)
@@ -110,8 +109,7 @@
   "Computes minor gridspacing for both grid and snap-to functionality.
   Return values are in units, ie microns"
   (^double [^ViewDef view]
-   (/ (compute-maj-spacing view) (.. view zoomspecs kmpm)
-      )))
+   (/ (compute-maj-spacing view) (.. view zoomspecs kmpm))))
 (def compute-min-spacing (memoize _compute-min-spacing))
 ;;(def compute-min-spacing _compute-min-spacing)
 

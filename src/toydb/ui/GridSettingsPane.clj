@@ -3,9 +3,9 @@
             [jfxutils.core :as jfxc :refer [printexp lookup get-property]]
             [jfxutils.ui :as jfxui]
             [jfxutils.bind :as jfxb]
-            [toydb.units :refer [um mm cm m km inch mil incr decr nearest distance
-                                 distance-string-converter distance-text-formatter
-                                 add sub]]
+            [toydb.units :as units :refer [nm um mm cm m km inch mil incr decr nearest distance
+                                            distance-string-converter distance-text-formatter
+                                            add sub]]
             [toydb.edn.converters :as conv]))
 
 
@@ -86,7 +86,7 @@ Save/load values
   with any extra args.  Returns a number rather than a distance type."
   ([d mn mx action]
    (when d
-     (jfxui/number-range-check (.value d) (.value mn) (.value mx) action)))
+     (jfxui/number-range-check (units/value d) (units/value mn) (units/value mx) action)))
   ([d mn mx]
    (distance-range-check d mn mx nil)))
 
@@ -115,7 +115,7 @@ Save/load values
 (defn setup-major-grid-spacing-spinners! [state lu]
   (let [lower (um 100)
         upper (um (mm 1000))
-        prop-to-var-fn #(nearest (um %) 0.1)
+        prop-to-var-fn #(nearest (um %) (um 0.1))
         drc #(distance-range-check (prop-to-var-fn %) lower upper)
         drc-clip #(distance-range-check (prop-to-var-fn %) lower upper :clip)
 
@@ -517,59 +517,6 @@ Save/load values
              (System/getProperty "user.home")
              (into-array [".toydb" addpath])))))
 
-(defn setup-theme-panel! [load! save! revert! lu]
-  (let [btn-revert (lu "btn-revert")
-        btn-load (lu "btn-load")
-        btn-save (lu "btn-save")
-        dd-theme (lu "dd-theme")
-        make-fullname #(str "settings/" (.getValue %) ".edn")
-        set-list! (fn []
-                    (let [dirlist (->> (file-seq (home-path "settings"))
-                                       (filter #(.isFile %))
-                                       (map #(.getName %))
-                                       (filter #(.endsWith % ".edn"))
-                                       (map #(clojure.string/replace % ".edn" "" )))]
-                      (jfxc/set-items! dd-theme dirlist)))]
-
-    ;; Set up the buttons
-    (jfxc/set-on-action! btn-revert (revert!))
-    (jfxc/set-on-action! btn-load (load! (home-path (make-fullname dd-theme))))
-    (jfxc/set-on-action! btn-save (do
-                                    (save! (home-path (make-fullname dd-theme)))
-                                    (set-list!))) ;; update list when item is saved
-    (set-list!)
-
-    ;; Set up the list to auto-load when new item is selected
-    ;; Not sure why this is triggered twice when defocus
-    (jfxc/add-listener! (.getSelectionModel dd-theme) :selected-item
-                        (fn [oldval newval]
-                          (load! (home-path (make-fullname dd-theme)))))
-
-    ;; Set up the load and save buttons to disable when text box is blank
-    (.bind (jfxc/get-property btn-save :disable)
-           (javafx.beans.binding.Bindings/equal
-            (jfxc/get-property (.getEditor dd-theme) :text) ""))
-    (.bind (jfxc/get-property btn-load :disable)
-           (javafx.beans.binding.Bindings/equal
-            (jfxc/get-property (.getEditor dd-theme) :text) ""))))
-
-
-
-
-(defn load-settings
-  "Load single map from src and given keys."
-  [src keyz]
-  (let [srcmap (condp instance? src
-                 clojure.lang.PersistentArrayMap src
-                 clojure.lang.PersistentHashMap src
-                 ;;java.lang.String (load-settings (clojure.java.io/reader src) keyz)
-                 ;;java.io.File (load-settings (clojure.java.io/reader src) keyz)
-                 ;;java.io.Reader
-                 ;;(with-open [f src])
-                 (conv/read-string (slurp src))) ;; can take a String, File, or Reader
-        srcvals (map #(find srcmap %) keyz)]
-    (into {} srcvals)))
-
 (defn- merge-keymaps
   "Returns a merged keymap from keymaps, used for save.  Keymap is of
   the form {map1 [keys-to-get] map2 [keys-to-get]} and returns the
@@ -583,16 +530,123 @@ Save/load values
                                (apply hash-map)))]
     (reduce merge (map collect-mapvals srcmaps srckeys))))
 
+(defn- setup-theme-panel! [load! save! revert! lu keymaps last-init-settings]
+  (let [btn-revert (lu "btn-revert")
+        btn-load (lu "btn-load")
+        btn-save (lu "btn-save")
+        dd-theme (lu "dd-theme")
+        make-fullname #(str "settings/" (.getValue %) ".edn")
+        update-list! (fn []
+                       (let [dirlist (->> (file-seq (home-path "settings"))
+                                          (filter #(.isFile %))
+                                          (map #(.getName %))
+                                          (filter #(.endsWith % ".edn"))
+                                          (map #(clojure.string/replace % ".edn" "" )))]
+                         (jfxc/set-items! dd-theme dirlist)))]
+
+    ;; Set up the buttons
+    (jfxc/set-on-action! btn-revert (revert!))
+    (jfxc/set-on-action! btn-load (load! (home-path (make-fullname dd-theme))))
+    (jfxc/set-on-action! btn-save (do
+                                    (save! (home-path (make-fullname dd-theme)))
+                                    (update-list!))) ;; update list when item is saved
+    (update-list!)
+
+    ;; Set up the list to auto-load when new item is selected
+    (jfxc/add-listener! (.getSelectionModel dd-theme) :selected-index
+                        (fn [oldval newval]
+                          (load! (home-path (make-fullname dd-theme)))))
+
+    ;; Set up the load and save buttons to disable when text box is blank
+    (.bind (jfxc/get-property btn-save :disable)
+           (javafx.beans.binding.Bindings/equal
+            (jfxc/get-property (.getEditor dd-theme) :text) ""))
+    (.bind (jfxc/get-property btn-load :disable)
+           (javafx.beans.binding.Bindings/equal
+            (jfxc/get-property (.getEditor dd-theme) :text) ""))
+
+    ;; Set up a watch on the keymaps keys, which are the editor's settings.
+    ;; When either watch is triggered, compute the merged settings and compare
+    ;; to last-init-settings.  If the same, then leave revert button disabled;
+    ;; If different, enable revert button
+    (let [callback (fn [k r o n]
+                     (let [merged-settings (merge-keymaps keymaps)
+                           keyz (keys merged-settings)
+                           same? (not (jfxc/keydiff merged-settings @last-init-settings keyz))]
+                       (jfxc/set-prop-val! btn-revert :disable same?)))]
+      (doseq [[setting keyz] keymaps]
+        (add-watch setting :some-dumb-key callback)))))
+
+
+
+
+
+(defn- load-settings
+  "Load single map from src and given keys."
+  [src keyz]
+  (let [srcmap (condp instance? src
+                 clojure.lang.PersistentArrayMap src
+                 clojure.lang.PersistentHashMap src
+                 (conv/read-string (slurp src))) ;; can take a String, File, or Reader
+        srcvals (map #(find srcmap %) keyz)]
+    (into {} srcvals)))
+
+
+
+(defn- make-lookup [root]
+  (fn [id] (if-let [result (jfxc/lookup root id)]
+             result
+             (throw (Exception. (str "Could not find " id))))))
+
+(defn- make-loader [keymaps last-init-settings]
+  (fn [file] ;; a String or File
+    ;; Ensure file is a java.io.File
+    (let [file (condp instance? file
+                 java.io.File file
+                 java.lang.String (java.io.File. file))]
+      (println "Loading " (.getPath file))
+      (doseq [[setting keyz] keymaps]
+        ;; Swap in default-settings first, then current settings, then file settings.
+        ;; This ensures everything has at least some value, but does not overwrite
+        ;; an existing value with a default value if the new file doesn't specify.
+        ;; IOW, just change if the value is specified.
+        (let [file-settings (try (load-settings file keyz)
+                                 (catch java.io.FileNotFoundException e
+                                   (println (format "File %s not found" (.getPath file)))))
+              new-setting (merge
+                           ;; add current settings first in accordance with comment 
+                           (load-settings possible-init-settings keyz)
+                           file-settings)]
+          ;; Doing it this way should allow for a new file load to blank out the revert button
+          (swap! last-init-settings merge new-setting)
+          (swap! setting merge new-setting))))))
+
+(defn- make-saver [keymaps last-init-settings]
+  (fn [file]
+    ;; Ensure file is a java.io.File
+    (let [file (condp instance? file
+                 java.io.File file
+                 java.lang.String (java.io.File. file))
+          settings-to-save (merge-keymaps keymaps)]
+      (println "Saving to " (.getPath file))
+      (binding [*print-dup* true 
+                pp/*print-right-margin* 80] ;; don't break lines too early  
+        (with-open [f (clojure.java.io/writer file)]
+          (pp/pprint (into (sorted-map) settings-to-save) f))
+        (swap! last-init-settings merge settings-to-save)))))
+
+(defn- make-reverter [keymaps last-init-settings]
+  (fn []
+    (doseq [[setting keyz] keymaps]
+      (reset! setting (load-settings @last-init-settings keyz)))))
+
 (defn GridSettingsPane [name]
   "Load up GridSettingsPane.  Returns a map with both the node and the
   state. "
   (let [grid-settings (atom {})
         editor-settings (atom {})
-        ;;init-file (clojure.java.io/as-file "settings/GridSettings.edn")
         root (doto (jfxc/load-fxml-root "GridSettingsPane4.fxml"))
-        lu (fn [id] (if-let [result (jfxc/lookup root id)]
-                      result
-                      (throw (Exception. (str "Could not find " id)))))]
+        lu (make-lookup root)]
 
     (setup-visibility-checkboxes! grid-settings lu)
     (setup-major-grid-spacing-spinners! grid-settings lu)
@@ -637,42 +691,13 @@ Save/load values
                                   :zoom/scale-visible]
                    editor-settings [:background/gradient-bottom
                                     :background/gradient-top]}
-          last-init-source (atom nil)
-          load! (fn [file] ;; a String or File
-                  ;; Ensure file is a java.io.File
-                  (let [file (condp instance? file
-                               java.io.File file
-                               java.lang.String (java.io.File. file))]
-                    (println "Loading " (.getPath file))
-                    (doseq [[setting keyz] keymaps]
-                      ;; Swap in default-settings first, then current settings, then file settings.
-                      ;; This ensures everything has at least some value, but does not overwrite
-                      ;; an existing value with a default value if the new file doesn't specify.
-                      ;; IOW, just change if the value is specified.
-                      (let [file-settings (try (load-settings file keyz)
-                                               (catch java.io.FileNotFoundException e
-                                                 (println (format "File %s not found" (.getPath file)))))]
-                        (swap! setting merge
-                               (load-settings possible-init-settings keyz)
-                               file-settings)
-                        (reset! last-init-source file)))))
+          last-init-settings (atom nil)
+          load! (make-loader keymaps last-init-settings)
+          save! (make-saver keymaps last-init-settings)
+          revert! (make-reverter keymaps last-init-settings)]
 
-          save! (fn [file]
-                  ;; Ensure file is a java.io.File
-                  (let [file (condp instance? file
-                               java.io.File file
-                               java.lang.String (java.io.File. file))
-                        map-to-save (merge-keymaps keymaps)]
-                    (println "Saving to " (.getPath file))
-                    (binding [*print-dup* true 
-                              pp/*print-right-margin* 80] ;; don't break lines too early  
-                      (with-open [f (clojure.java.io/writer file)]
-                        (pp/pprint (into (sorted-map) map-to-save) f))
-                      (reset! last-init-source file))))
-
-          revert! (fn [] (load! @last-init-source))]
       
-      (setup-theme-panel! load! save! revert! lu)
+      (setup-theme-panel! load! save! revert! lu keymaps last-init-settings)
       (load! (home-path "settings/GridSettings.edn"))
 
       )
