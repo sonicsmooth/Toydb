@@ -614,9 +614,9 @@ Save/load values
                                  (catch java.io.FileNotFoundException e
                                    (println (format "File %s not found" (.getPath file)))))
               new-setting (merge
-                           ;; add current settings first in accordance with comment 
-                           (load-settings possible-init-settings keyz)
-                           file-settings)]
+                           (load-settings possible-init-settings keyz) ;; default settings
+                           (merge-keymaps keymaps) ;; current settings
+                           file-settings)] ;; file settings
           ;; Doing it this way should allow for a new file load to blank out the revert button
           (swap! last-init-settings merge new-setting)
           (swap! setting merge new-setting))))))
@@ -698,9 +698,7 @@ Save/load values
 
       
       (setup-theme-panel! load! save! revert! lu keymaps last-init-settings)
-      (load! (home-path "settings/GridSettings.edn"))
-
-      )
+      (load! (home-path "settings/GridSettings.edn")))
 
     (def gs grid-settings)
     (def es editor-settings)

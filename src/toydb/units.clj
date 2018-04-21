@@ -47,7 +47,8 @@
 (defmethod print-method Mil        [d, ^java.io.Writer writer] (dopm d writer))
 (defmethod print-method Inch       [d, ^java.io.Writer writer] (dopm d writer))
 
-(defn dopd [d, ^java.io.Writer writer, ustr] (.write writer (format "#Distance[%s %s]"   (value d) ustr)))
+;;(defn dopd [d, ^java.io.Writer writer, ustr] (.write writer (format "#Distance[%s %s]"   (value d) ustr)))
+(defn dopd [d, ^java.io.Writer writer, ustr] (.write writer (format "#%s(%s)"   ustr (value d) )))
 (defmethod print-dup Nanometer  [d, ^java.io.Writer writer] (dopd d writer "nm"))
 (defmethod print-dup Micrometer [d, ^java.io.Writer writer] (dopd d writer "um"))
 (defmethod print-dup Millimeter [d, ^java.io.Writer writer] (dopd d writer "mm"))
@@ -259,6 +260,17 @@
   (mil [s] (mil (distance s mil)))
   (inch [s] (inch (distance s inch)))
   
+  clojure.lang.PersistentList ;; So you can do #km(5) in edn file
+  (km [n]   (km   (do (assert (= (count n) 1) "Only one value can be passed to km")   (km (first n)))))
+  (m [n]    (m    (do (assert (= (count n) 1) "Only one value can be passed to m")    (m (first n)))))
+  (cm [n]   (cm   (do (assert (= (count n) 1) "Only one value can be passed to cm")   (cm (first n)))))
+  (mm [n]   (mm   (do (assert (= (count n) 1) "Only one value can be passed to mm")   (mm (first n)))))
+  (um [n]   (um   (do (assert (= (count n) 1) "Only one value can be passed to um")   (um (first n)))))
+  (nm [n]   (nm   (do (assert (= (count n) 1) "Only one value can be passed to nm")   (nm (first n)))))
+  (mil [n]  (mil  (do (assert (= (count n) 1) "Only one value can be passed to mil")  (mil (first n)))))
+  (inch [n] (inch (do (assert (= (count n) 1) "Only one value can be passed to inch") (inch (first n)))))
+
+
   nil
   (km [n] nil)
   (m [n] nil)
@@ -284,15 +296,15 @@
   be abbreviated 'mil' or 'mils'."
   ([str hint-fn]
    ;; Called directly from above functions o from single-arity
-   (let [reg-nm #"(.*)(nm)"
-         reg-um #"(.*)(um)"
-         reg-mm #"(.*)(mm)"
-         reg-cm #"(.*)(cm)"
-         reg-m #"([^k]*)(m)"
-         reg-km #"(.*)(km)"
-         reg-mil #"(.*)(mil|mils)"
-         reg-inch #"(.*)(in|inch|inches)"
-         reg-generic #"(.*)"]
+   (let [reg-nm #"(.*)(nm)[ ]*"
+         reg-um #"(.*)(um)[ ]*"
+         reg-mm #"(.*)(mm)[ ]*"
+         reg-cm #"(.*)(cm)[ ]*"
+         reg-m #"([^k]*)(m)[ ]*"
+         reg-km #"(.*)(km)[ ]*"
+         reg-mil #"(.*)(mil|mils)[ ]*"
+         reg-inch #"(.*)(in|inch|inches)[ ]*"
+         reg-generic #"(.*)[ ]*"]
      (try
        (condp re-matches str
          reg-nm :>> #(nm (Double/parseDouble (second %)))
@@ -313,7 +325,7 @@
      (distance s nm)
      (distance (apply str s) nm))))
 
-(defn- fn-name [unit]
+#_(defn- fn-name [unit]
   (condp = unit
     nm "nm"
     um "um"
@@ -369,14 +381,7 @@
     ( dec u )
     (Math/floor u )))
 
-(defn test-inch
-  "Tests conversion from inch to cm and back."
-  [^long n]
-  (loop [n n
-         i (inch 1)]
-    (if (zero? n)
-      i
-      (recur (dec n) (inch (cm i))))))
+
 
 
 
