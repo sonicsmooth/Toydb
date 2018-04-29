@@ -58,34 +58,8 @@
 (defmethod print-dup Mil        [d, ^java.io.Writer writer] (dopd d writer "mil"))
 (defmethod print-dup Inch       [d, ^java.io.Writer writer] (dopd d writer "inch"))
 
-(def KMPIN (/ 254.0 10000000))
-(def MPIN  (* KMPIN 1000))
-(def CMPIN (* KMPIN 100000))
-(def MMPIN (* KMPIN 1000000))
-(def UMPIN (* KMPIN 1000000000))
-(def NMPIN (* KMPIN 1000000000000))
-
-(def KMPMIL (/ 254.0 10000000000))
-(def MPMIL  (* KMPMIL 1000))
-(def CMPMIL (* KMPMIL 100000))
-(def MMPMIL (* KMPMIL 1000000))
-(def UMPMIL (* KMPMIL 1000000000))
-(def NMPMIL (* KMPMIL 1000000000000))
-
-(def INPKM (/ 1 KMPIN))
-(def INPM  (/ 1 MPIN))
-(def INPCM (/ 1 CMPIN))
-(def INPMM (/ 1 MMPIN))
-(def INPUM (/ 1 UMPIN))
-(def INPNM (/ 1 NMPIN))
-
-(def MILPKM (/ 1 KMPMIL))
-(def MILPM  (/ 1 MPMIL))
-(def MILPCM (/ 1 CMPMIL))
-(def MILPMM (/ 1 MMPMIL))
-(def MILPUM (/ 1 UMPMIL))
-(def MILPNM (/ 1 NMPMIL))
-
+(def INPNM (/ 1 25400000.0))
+(def MILPNM (/ 1 25400.0))
 
 
 ;; The record is Mil, the function is mil
@@ -270,7 +244,6 @@
   (mil [n]  (mil  (do (assert (= (count n) 1) "Only one value can be passed to mil")  (mil (first n)))))
   (inch [n] (inch (do (assert (= (count n) 1) "Only one value can be passed to inch") (inch (first n)))))
 
-
   nil
   (km [n] nil)
   (m [n] nil)
@@ -325,17 +298,6 @@
      (distance s nm)
      (distance (apply str s) nm))))
 
-#_(defn- fn-name [unit]
-  (condp = unit
-    nm "nm"
-    um "um"
-    mm "mm"
-    cm "cm"
-    m "m"
-    km "km"
-    mil "mil"
-    inch "inch"))
-
 (defn distance-string-converter
   "Returns proxy of StringConverter, using function unit, which must be
   one of nm, um, mm, cm, m, km, mil, inch."
@@ -381,7 +343,27 @@
     ( dec u )
     (Math/floor u )))
 
+(defn distance-readers->object []
+  {'Distance toydb.units/distance
+   'nm toydb.units/nm
+   'um toydb.units/um
+   'mm toydb.units/mm
+   'cm toydb.units/cm
+   'm  toydb.units/m
+   'km toydb.units/km
+   'mil 'toydb.units/mil
+   'inch 'toydb.units/inch})
 
+(defn distance-readers->double [unitfn]
+  {'Distance #(toydb.units/value (toydb.units/distance %))
+   'nm #(toydb.units/value (unitfn (toydb.units/nm %)))
+   'um #(toydb.units/value (unitfn (toydb.units/um %)))
+   'mm #(toydb.units/value (unitfn (toydb.units/mm %)))
+   'cm #(toydb.units/value (unitfn (toydb.units/cm %)))
+   'm  #(toydb.units/value (unitfn (toydb.units/m %)))
+   'km #(toydb.units/value (unitfn (toydb.units/km %)))
+   'mil #(toydb.units/value (unitfn (toydb.units/mil %)))
+   'inch #(toydb.units/value (unitfn (toydb.units/inch %)))})
 
 
 

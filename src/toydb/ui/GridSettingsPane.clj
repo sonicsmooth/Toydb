@@ -550,9 +550,25 @@ Save/load values
     (jfxc/set-on-action! btn-save (do
                                     (save! (home-path (make-fullname dd-theme)))
                                     (update-list!))) ;; update list when item is saved
+
+    ;; Update the list whenever we click on or away from the
+    ;; drop-down.  This is in lieu of updating the list upone
+    ;; drop-down click, because this event is not exposed in API.  We
+    ;; want to do this in case the user deletes or adds settings file
+    ;; using file system rather than app.  Worst case we can add a
+    ;; watcher on the directory, but that's overkill for now.
+    (jfxc/add-listener! dd-theme :focused
+                        (fn [oldval newval]
+                          (update-list!)))
     (update-list!)
 
-    ;; Set up the list to auto-load when new item is selected
+    ;; Set up the list to auto-load when new item is selected Note we
+    ;;are not using selected-item, because this changes as soon as you
+    ;;type something else in and focus away, which happens when you
+    ;;are typing in a new name for a file which dosen't exist yet, and
+    ;;you want to press the save button; we don't want to try to load
+    ;;the new file in that case since it obviously doesn't already
+    ;;exist.
     (jfxc/add-listener! (.getSelectionModel dd-theme) :selected-index
                         (fn [oldval newval]
                           (load! (home-path (make-fullname dd-theme)))))
