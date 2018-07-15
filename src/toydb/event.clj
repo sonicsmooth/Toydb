@@ -97,28 +97,6 @@ ChangeListener can calmly call the var fn and expect something to come back.
 
 
 
-(def xxx {:var thevar
-          :keyvec [:one :two]
-          :validator vfn
-          :property :the-prop
-          :targets [t1 t2 t3]
-          :vartoprop f1
-          :proptovar f2})
-
-{t1 {:var thevar
-     :validator vfn
-     :keyvec [:one :two]
-     :property :the-prop
-     :vartoprop f1
-     :proptovar f2}
- t2 {:var thevar
-     :keyvec [:one :two]
-     :property :the-prop
-     :vartoprop f1
-     :proptovar f2}
- }
-
-
 (def bp (javafx.beans.property.SimpleBooleanProperty. true))
 
 (def block (atom false))

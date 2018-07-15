@@ -1,0 +1,5 @@
+;; property names are the same as in jfx documentation, 
+#Circle {:centerX #cm(10)
+         :centerY #mm(11)
+         :radius #cm(110.5)
+         :fill #Color("0x00ffab99")}

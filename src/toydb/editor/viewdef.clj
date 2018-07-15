@@ -30,8 +30,9 @@
                     inches-selection])
 
 ;; Initial inputs
-(def ufn um)                ;; basic unit fn
-(def unit (ufn 1))          ;; basic unit
+(def ufn toydb.units/*unitfn*)   ;; basic unit fn
+
+(def unit (ufn 1.0))          ;; basic unit
 (def grid1-spacing (mm 10)) ;; distance per grid
 (def px-per-mm 10)          ;; Initial scaling
 

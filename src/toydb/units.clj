@@ -1,6 +1,7 @@
 (ns toydb.units
   (require [jfxutils.core :refer [printexp clip round-to-nearest]]
-           [clojure.pprint :as pp]))
+           [clojure.pprint :as pp]
+           toydb.edn.finalize))
 
 
 ;;(set! *warn-on-reflection* true)
@@ -14,6 +15,17 @@
 (deftype Kilometer  [^long nm])
 (deftype Mil        [^long nm])
 (deftype Inch       [^long nm])
+(deftype Parsec     [^long nm])
+
+;; Hierarchy is used when finalizing an intermediate representation
+(derive Nanometer ::Distance)
+(derive Micrometer ::Distance)
+(derive Millimeter ::Distance)
+(derive Centimeter ::Distance)
+(derive Meter ::Distance)
+(derive Kilometer ::Distance)
+(derive Mil ::Distance)
+(derive Inch ::Distance)
 
 (defprotocol DistanceProtocol
   (value [u]) ;; returns the distance as a double, eg 10.0 for mm
@@ -29,34 +41,38 @@
   (add [u x]) ;; Sums nanometers of u and x, returns new instance of u
   (sub [u x]) ;; Subtracts nanometers of u and x, returns new instance of u
   (incr [u])  ;; Returns new instance of u rounded up to the next integer
-  (decr [u])) ;; Returns new instance of u rounded down to the next integer
+  (decr [u])  ;; Returns new instance of u rounded down to the next integer
+  (suffix [u])) ;; Returns a string for the suffix, eg "nm", etc.
 
-;; Override simple-dispatch and print-dup
+
+;; Used by viewdef and shape c'tors in toydb.edn.Shapes
+;; Change this to scale the whole world
+
+;; This var is intended to be changed to one of the distance functions
+;; (eg cm, um, etc.).  If left nil, then each distance object is
+;; writtent as is, eg a 10 centimeter object will be something like
+;; #cm(10), but if *print-unit* is um, then all distances will be
+;; written in terms of um, so 10 centimeters is written as #um(100000).
+(def ^:dynamic *print-unit* nil)
+
+
+;; Override print-method and print-dup
 ;; This way with *print-dup* false, it'll go:
 ;;   pprint->default simple-dispatch->pr-str->custom print-method for deftypes
 ;; With *print-dup* true it'll go:
 ;;   pprint->default simple-dispatch->pr-str->custom print-dup for units
 
-(defn dopm [d, ^java.io.Writer writer] (.write writer (format "#%s{%s}" (pr-str (class d)) (value d))))
-(defmethod print-method Nanometer  [d, ^java.io.Writer writer] (dopm d writer))
-(defmethod print-method Micrometer [d, ^java.io.Writer writer] (dopm d writer))
-(defmethod print-method Millimeter [d, ^java.io.Writer writer] (dopm d writer))
-(defmethod print-method Centimeter [d, ^java.io.Writer writer] (dopm d writer))
-(defmethod print-method Meter      [d, ^java.io.Writer writer] (dopm d writer))
-(defmethod print-method Kilometer  [d, ^java.io.Writer writer] (dopm d writer))
-(defmethod print-method Mil        [d, ^java.io.Writer writer] (dopm d writer))
-(defmethod print-method Inch       [d, ^java.io.Writer writer] (dopm d writer))
+(prefer-method print-method ::Distance java.lang.Object)
+(defmethod print-method ::Distance [d, ^java.io.Writer writer]
+  (.write writer (format "#%s{%s}" (pr-str (class d)) (value d))))
 
-;;(defn dopd [d, ^java.io.Writer writer, ustr] (.write writer (format "#Distance[%s %s]"   (value d) ustr)))
-(defn dopd [d, ^java.io.Writer writer, ustr] (.write writer (format "#%s(%s)"   ustr (value d) )))
-(defmethod print-dup Nanometer  [d, ^java.io.Writer writer] (dopd d writer "nm"))
-(defmethod print-dup Micrometer [d, ^java.io.Writer writer] (dopd d writer "um"))
-(defmethod print-dup Millimeter [d, ^java.io.Writer writer] (dopd d writer "mm"))
-(defmethod print-dup Centimeter [d, ^java.io.Writer writer] (dopd d writer "cm"))
-(defmethod print-dup Meter      [d, ^java.io.Writer writer] (dopd d writer "m"))
-(defmethod print-dup Kilometer  [d, ^java.io.Writer writer] (dopd d writer "km"))
-(defmethod print-dup Mil        [d, ^java.io.Writer writer] (dopd d writer "mil"))
-(defmethod print-dup Inch       [d, ^java.io.Writer writer] (dopd d writer "inch"))
+(prefer-method print-dup ::Distance java.lang.Object)
+(defmethod print-dup ::Distance  [d, ^java.io.Writer writer]
+  (if-let [ufn *print-unit*]
+    (binding [*print-unit* nil]        ; temp unbind for the recursion
+      (print-dup (ufn d) writer))
+    (.write writer (format "#%s(%s)" (suffix d) (value d) ))))
+
 
 (def INPNM (/ 1 25400000.0))
 (def MILPNM (/ 1 25400.0))
@@ -84,6 +100,7 @@
   (sub [u x] (Kilometer. (- (.nm u) (.nm x))))
   (incr [u] (km (increment (value u))))
   (decr [u] (km (decrement (value u))))
+  (suffix [u] "km")
 
   Meter
   (value [u] (* 1e-9 (.nm u)))
@@ -100,6 +117,7 @@
   (sub [u x] (Meter. (- (.nm u) (.nm x))))
   (incr [u] (m (increment (value u))))
   (decr [u] (m (decrement (value u))))
+  (suffix [u] "m")
 
   Centimeter
   (value [u] (* 1e-7 (.nm u)))
@@ -116,7 +134,8 @@
   (sub [u x] (Centimeter. (- (.nm u) (.nm x))))
   (incr [u] (cm (increment (value u))))
   (decr [u] (cm (decrement (value u))))
-
+  (suffix [u] "cm")
+  
   Millimeter
   (value [u] (* 1e-6 (.nm u)))
   (km [u] (Kilometer. (.nm u)))
@@ -132,7 +151,8 @@
   (sub [u x] (Millimeter. (- (.nm u) (.nm x))))
   (incr [u] (mm (increment (value u))))
   (decr [u] (mm (decrement (value u))))
-
+  (suffix [u] "mm")
+  
   Micrometer
   (value [u] (* 1e-3 (.nm u)))
   (km [u] (Kilometer. (.nm u)))
@@ -148,7 +168,8 @@
   (sub [u x] (Micrometer. (- (.nm u) (.nm x))))
   (incr [u] (um (increment (value u))))
   (decr [u] (um (decrement (value u))))
-
+  (suffix [u] "um")
+  
   Nanometer
   (value [u] (.nm u))
   (km [u] (Kilometer. (.nm u)))
@@ -164,6 +185,7 @@
   (sub [u x] (Nanometer. (- (.nm u) (.nm x))))
   (incr [u] (nm (increment (value u))))
   (decr [u] (nm (decrement (value u))))
+  (suffix [u] "nm")
 
   Mil
   (value [u] (* MILPNM (.nm u)))
@@ -180,7 +202,8 @@
   (sub [u x] (Mil. (- (.nm u) (.nm x))))
   (incr [u] (mil (increment (value u))))
   (decr [u] (mil (decrement (value u))))
-
+  (suffix [u] "mil")
+  
   Inch
   (value [u] (* INPNM (.nm u)))
   (km [u] (Kilometer. (.nm u)))
@@ -196,6 +219,7 @@
   (sub [u x] (Inch. (- (.nm u) (.nm x))))
   (incr [u] (inch (increment (value u))))
   (decr [u] (inch (decrement (value u))))
+  (suffix [u] "in")
 
   java.lang.Long
   (value [u] u)
@@ -210,7 +234,8 @@
   (nearest [u eps] (Long. (round-to-nearest (.double u) eps)))
   (incr [u] (long (increment (double u))))
   (decr [u] (long (decrement (double u))))
-
+  (suffix [u] "")
+  
   java.lang.Double
   (value [u] u)
   (km [u] (Kilometer. (* 1e12 u)))
@@ -224,7 +249,8 @@
   (nearest [u eps] (Long. (round-to-nearest (.double u) eps)))
   (incr [u] (double (increment (double u))))
   (decr [u] (double (decrement (double u))))
-
+  (suffix [u] "")
+  
   java.lang.String
   (km [s] (km (distance s km)))
   (m [s] (m (distance s m)))
@@ -233,6 +259,7 @@
   (um [s] (um (distance s um)))
   (mil [s] (mil (distance s mil)))
   (inch [s] (inch (distance s inch)))
+  (suffix [u] "")
   
   clojure.lang.PersistentList ;; So you can do #km(5) in edn file
   (km [n]   (km   (do (assert (= (count n) 1) "Only one value can be passed to km")   (km (first n)))))
@@ -243,7 +270,8 @@
   (nm [n]   (nm   (do (assert (= (count n) 1) "Only one value can be passed to nm")   (nm (first n)))))
   (mil [n]  (mil  (do (assert (= (count n) 1) "Only one value can be passed to mil")  (mil (first n)))))
   (inch [n] (inch (do (assert (= (count n) 1) "Only one value can be passed to inch") (inch (first n)))))
-
+  (suffix [u] "")
+  
   nil
   (km [n] nil)
   (m [n] nil)
@@ -256,7 +284,27 @@
   (add [n x] nil)
   (sub [n x] nil)
   (incr [n] nil)
-  (decr [n] nil))
+  (decr [n] nil)
+  (suffix [u] nil))
+
+
+;; We put this as a global var because we don't want to pass it around
+;; everywhere, but it's not intended to be modified, despite the
+;; dynamic.  With earmuffs it just looks global, but Clojure warns
+;; when earmuffs are used without dynamic.  We put this down here
+;; after all the fns are defined, because putting it up before the fns
+;; were defined caused the fn definition in viewdef to fail.
+(def ^:dynamic *unitfn* um) 
+
+(extend-protocol toydb.edn.finalize/FinalizeProtocol
+  toydb.units.Nanometer  (final [u] (toydb.units/value (toydb.units/*unitfn* u)))
+  toydb.units.Micrometer (final [u] (toydb.units/value (toydb.units/*unitfn* u)))
+  toydb.units.Millimeter (final [u] (toydb.units/value (toydb.units/*unitfn* u)))
+  toydb.units.Centimeter (final [u] (toydb.units/value (toydb.units/*unitfn* u)))
+  toydb.units.Meter      (final [u] (toydb.units/value (toydb.units/*unitfn* u)))
+  toydb.units.Kilometer  (final [u] (toydb.units/value (toydb.units/*unitfn* u)))
+  toydb.units.Mil        (final [u] (toydb.units/value (toydb.units/*unitfn* u)))
+  toydb.units.Inch       (final [u] (toydb.units/value (toydb.units/*unitfn* u))))
 
 (defn distance
   "Converts numerical string to units.  eg '2.54cm' becomes a
@@ -268,7 +316,7 @@
   abbreviated 'in' or 'inch' or 'inches'.  Thousanths of an inch can
   be abbreviated 'mil' or 'mils'."
   ([str hint-fn]
-   ;; Called directly from above functions o from single-arity
+   ;; Called directly from above functions or from single-arity
    (let [reg-nm #"(.*)(nm)[ ]*"
          reg-um #"(.*)(um)[ ]*"
          reg-mm #"(.*)(mm)[ ]*"
@@ -354,7 +402,7 @@
    'mil 'toydb.units/mil
    'inch 'toydb.units/inch})
 
-(defn distance-readers->double [unitfn]
+#_(defn distance-readers->double [unitfn]
   {'Distance #(toydb.units/value (toydb.units/distance %))
    'nm #(toydb.units/value (unitfn (toydb.units/nm %)))
    'um #(toydb.units/value (unitfn (toydb.units/um %)))
@@ -364,7 +412,4 @@
    'km #(toydb.units/value (unitfn (toydb.units/km %)))
    'mil #(toydb.units/value (unitfn (toydb.units/mil %)))
    'inch #(toydb.units/value (unitfn (toydb.units/inch %)))})
-
-
-
 

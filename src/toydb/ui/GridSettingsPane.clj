@@ -6,32 +6,15 @@
             [toydb.units :as units :refer [nm um mm cm m km inch mil incr decr nearest distance
                                             distance-string-converter distance-text-formatter
                                             add sub]]
-            [toydb.edn.converters :as conv]))
+            [toydb.edn.reader :as reader]))
 
-
-
-
-"Todo: describe strategy for managing textfields, etc."
-"GridSettingsPane should return state for (so far) three atoms:
-1. Editor specs, currently background colors
-2. Grid specs, such as line and dots width and color
-3. Viewdef, such as minors-per-major, and grid spacing
-
-However currently it puts grid specs and a few viewdef together in one
-atom, and doesn't have editor background color or axis toggle.  Also,
-the UI has line/dot color selection, but these are not currently
-connected to the state.
-
-Todo: 
-Rectangular grid
+"Todo: 
+Non-square grid
 keys for pan/zoom
-Save/load values
-
-
 "
 
 ;; This may go into a separate file someday
-(def possible-init-settings
+#_(def possible-init-settings
   {:major-grid/enable true
    :major-grid/spacing (um (mm 10))
    :major-grid/lines-visible true
@@ -458,51 +441,45 @@ Save/load values
       (.setConverter conv))
 
     (jfxb/bind! :var state
-                ;;:init (:origin/marker *init-vals*)
                 :keyvec [:origin/marker]
                 :property :value
                 :targets [(lu "dd-origin-marker")])))
 
 
 
+
 (defn setup-background-color-selectors! [state lu]
   "Because [:calculated :background] is the final property used, we must create it
   separately and swap it in for initialization."
-  (let [swap-background! (fn [top bot]
-                           (swap! state assoc-in [:background/calculated]
-                                  (jfxc/background top bot)))]
-    (jfxui/setup-generic-color-selector!
-     state lu
-     {:picker "col-bg-top"
-      :keyvec [:background/gradient-top]
-      ;;:init (:background/gradient-top *init-vals*)
-      }
-     {:picker "col-bg-bot"
-      :keyvec [:background/gradient-bottom]
-      ;;:init (:background/gradient-bottom *init-vals*)
-      })
+  (jfxui/setup-generic-color-selector!
+   state lu
+   {:picker "col-bg-top"
+    :keyvec [:background/gradient-top]
+    :prop-to-var-fn toydb.edn.color/color      ;; jfx color to edn color
+    :var-to-prop-fn toydb.edn.finalize/final } ;; edn color to jfx color
+   {:picker "col-bg-bot"
+    :keyvec [:background/gradient-bottom]
+    :prop-to-var-fn toydb.edn.color/color 
+    :var-to-prop-fn toydb.edn.finalize/final})
 
-    ;; Create a new background when relevant color changes occur
-    (add-watch state :background-changer
-               (fn [key ref old new]
-                 (when (jfxc/keydiff old new [:background/gradient-top
-                                              :background/gradient-bottom])
-                   (swap-background!
-                    (:background/gradient-top new)
-                    (:background/gradient-bottom new)))))
-    #_(swap-background! (:background/gradient-top *init-vals*)
-                      (:background/gradient-bottom *init-vals*))))
+  ;; Create a new background when relevant color changes occur
+  (add-watch state :background-changer
+             (fn [key ref old new]
+               (when (jfxc/keydiff old new [:background/gradient-top
+                                            :background/gradient-bottom])
+                 (swap! state assoc-in [:background/calculated]
+                        (jfxc/background (toydb.edn.finalize/final (:background/gradient-top new))
+                                         (toydb.edn.finalize/final (:background/gradient-bottom new))))))))
 
 (defn setup-other-color-selectors! [state lu]
-  (let [idtriples ["col-axis-line-color"       #_:axes/line-color       [:axes/line-color  ]
-                   "col-origin-line-color"     #_:origin/line-color     [:origin/line-color]
+  (let [idtriples ["col-axis-line-color"       #_:axes/line-color       [:axes/line-color       ]
+                   "col-origin-line-color"     #_:origin/line-color     [:origin/line-color     ]
                    "col-major-grid-line-color" #_:major-grid/line-color [:major-grid/line-color ]
                    "col-major-grid-dot-color"  #_:major-grid/dot-color  [:major-grid/dot-color  ]
                    "col-minor-grid-line-color" #_:minor-grid/line-color [:minor-grid/line-color ]
                    "col-minor-grid-dot-color"  #_:minor-grid/dot-color  [:minor-grid/dot-color  ]]]
     (apply jfxui/setup-generic-color-selector! state lu
            (map #(hash-map :picker (first %)
-                           ;;:init ((second %) *init-vals*)
                            :keyvec (second %)) ;; third (was nth 2)
                 (partition 2 idtriples)))))
 
@@ -603,7 +580,7 @@ Save/load values
   (let [srcmap (condp instance? src
                  clojure.lang.PersistentArrayMap src
                  clojure.lang.PersistentHashMap src
-                 (conv/read-string (slurp src))) ;; can take a String, File, or Reader
+                 (reader/read-string (slurp src))) ;; can take a String, File, or Reader
         srcvals (map #(find srcmap %) keyz)]
     (into {} srcvals)))
 
@@ -617,25 +594,28 @@ Save/load values
 (defn- make-loader [keymaps last-init-settings]
   (fn [file] ;; a String or File
     ;; Ensure file is a java.io.File
-    (let [file (condp instance? file
-                 java.io.File file
-                 java.lang.String (java.io.File. file))]
-      (println "Loading " (.getPath file))
-      (doseq [[setting keyz] keymaps]
-        ;; Swap in default-settings first, then current settings, then file settings.
-        ;; This ensures everything has at least some value, but does not overwrite
-        ;; an existing value with a default value if the new file doesn't specify.
-        ;; IOW, just change if the value is specified.
-        (let [file-settings (try (load-settings file keyz)
-                                 (catch java.io.FileNotFoundException e
-                                   (println (format "File %s not found" (.getPath file)))))
-              new-setting (merge
-                           (load-settings possible-init-settings keyz) ;; default settings
-                           (merge-keymaps keymaps) ;; current settings
-                           file-settings)] ;; file settings
-          ;; Doing it this way should allow for a new file load to blank out the revert button
-          (swap! last-init-settings merge new-setting)
-          (swap! setting merge new-setting))))))
+    (try
+      (let [file (condp instance? file
+                   java.io.File file
+                   java.lang.String (java.io.File. file))]
+        (println "Loading " (.getPath file))
+        (doseq [[setting keyz] keymaps]
+          ;; Swap in default-settings first, then current settings, then file settings.
+          ;; This ensures everything has at least some value, but does not overwrite
+          ;; an existing value with a default value if the new file doesn't specify.
+          ;; IOW, just change if the value is specified.
+          (let [file-settings (try (load-settings file keyz)
+                                   (catch java.io.FileNotFoundException e
+                                     (println (format "File %s not found" (.getPath file)))))
+                new-setting (merge
+                             ;;(load-settings possible-init-settings keyz) ;; default settings
+                             (merge-keymaps keymaps) ;; current settings
+                             file-settings)] ;; file settings
+            ;; Doing it this way should allow for a new file load to blank out the revert button
+            (swap! last-init-settings merge new-setting)
+            (swap! setting merge new-setting))))
+      (catch Exception e
+        (println "Oops!" (:cause (Throwable->map e)))))))
 
 (defn- make-saver [keymaps last-init-settings]
   (fn [file]
@@ -648,8 +628,10 @@ Save/load values
       (binding [*print-dup* true 
                 pp/*print-right-margin* 80] ;; don't break lines too early  
         (with-open [f (clojure.java.io/writer file)]
-          (pp/pprint (into (sorted-map) settings-to-save) f))
-        (swap! last-init-settings merge settings-to-save)))))
+          ;;(pp/pprint (into (sorted-map) settings-to-save) f)
+          (pp/pprint "what" f))
+       ;; (swap! last-init-settings merge settings-to-save)
+        ))))
 
 (defn- make-reverter [keymaps last-init-settings]
   (fn []
@@ -664,15 +646,15 @@ Save/load values
         root (doto (jfxc/load-fxml-root "GridSettingsPane4.fxml"))
         lu (make-lookup root)]
 
-    (setup-visibility-checkboxes! grid-settings lu)
-    (setup-major-grid-spacing-spinners! grid-settings lu)
-    (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
-    (setup-sliders! grid-settings lu)
-    (setup-snap-to-checkboxes! grid-settings lu)
-    (setup-origin-marker-selection! grid-settings lu)
+    ;(setup-visibility-checkboxes! grid-settings lu)
+    ;(setup-major-grid-spacing-spinners! grid-settings lu)
+    ;(setup-minor-grid-per-major-grid-spinner! grid-settings lu)
+    ;(setup-sliders! grid-settings lu)
+    ;(setup-snap-to-checkboxes! grid-settings lu)
+    ;(setup-origin-marker-selection! grid-settings lu)
     (setup-background-color-selectors! editor-settings lu) ;; <<-- editor-settings !!
-    (setup-other-color-selectors! grid-settings lu)
-    (setup-other-checkboxes! grid-settings lu)
+    ;(setup-other-color-selectors! grid-settings lu)
+    ;(setup-other-checkboxes! grid-settings lu)
 
     ;; A quicker way might be to dissoc the :background keys
     ;; from possible-init-settings
@@ -710,15 +692,18 @@ Save/load values
           last-init-settings (atom nil)
           load! (make-loader keymaps last-init-settings)
           save! (make-saver keymaps last-init-settings)
-          revert! (make-reverter keymaps last-init-settings)]
+          revert! (make-reverter keymaps last-init-settings)
+          ]
 
       
       (setup-theme-panel! load! save! revert! lu keymaps last-init-settings)
-      (load! (home-path "settings/GridSettings.edn")))
+      (load! (home-path "settings/GridSettings.edn"))
+      )
 
     (def gs grid-settings)
     (def es editor-settings)
     (def root root)
+    (def lu lu)
       
     
     {:root root
