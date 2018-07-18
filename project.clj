@@ -39,8 +39,8 @@
              }
 
   ;;:aot :all
-  ;;:main toydb.ui.GridSettingsPane
-  :main toydb.core
+  :main toydb.ui.GridSettingsPane
+  ;;:main toydb.core
 
 
   
