@@ -1,6 +1,0 @@
-[submodule "JFXUtils"]
-	path = JFXUtils
-	url = https://github.com/sonicsmooth/JFXUtils.git
-[submodule "Docks"]
-	path = Docks
-	url = https://github.com/sonicsmooth/Docks.git
