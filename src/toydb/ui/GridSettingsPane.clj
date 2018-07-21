@@ -161,7 +161,6 @@ keys for pan/zoom
     :keyvec [:axes/line-width-px]
     :type Double
     :range [0.01 5.0]
-    ;;:init (:axes/line-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -173,7 +172,6 @@ keys for pan/zoom
     :keyvec [:origin/line-width-px]
     :type Double
     :range [0.01 5.0]
-    ;;:init (:origin/line-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -185,7 +183,6 @@ keys for pan/zoom
     :keyvec [:origin/size-px]
     :type Double
     :range [1.0 50.0]
-    ;;:init (:origin/size-px *init-vals*)
     :major-tick-unit 10
     :minor-tick-count 4
     :show-tick-marks true
@@ -197,7 +194,6 @@ keys for pan/zoom
     :keyvec [:zoom/ppmm]
     :type Double
     :range [0.25 20.0 ]
-    ;;:init (:zoom/ppmm *init-vals*)
     ;;:major-tick-unit 5
     ;;:minor-tick-count 5
     ;;:show-tick-marks false
@@ -209,7 +205,6 @@ keys for pan/zoom
     :keyvec [:major-grid/line-width-px]
     :type Double
     :range [0.01 8.0]
-    ;;:init (:major-grid/line-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -221,7 +216,6 @@ keys for pan/zoom
     :keyvec [:major-grid/dot-width-px]
     :type Double
     :range [0.01 10.0]
-    ;;:init (:major-grid/dot-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -233,7 +227,6 @@ keys for pan/zoom
     :keyvec [:minor-grid/line-width-px]
     :type Double
     :range [0.01 8.0]
-    ;;:init (:minor-grid/line-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -245,7 +238,6 @@ keys for pan/zoom
     :keyvec [:minor-grid/dot-width-px]
     :type Double
     :range [0.01 10.0]
-    ;;:init (:minor-grid/dot-width-px *init-vals*)
     :major-tick-unit 5
     :minor-tick-count 3
     :show-tick-marks true
@@ -262,11 +254,9 @@ keys for pan/zoom
    state lu
    {:checkbox "cb-major-grid-snap-to"
     :keyvec [:major-grid/snap-to]
-    ;;:init (:major-grid/snap-to *init-vals*)
     }
    {:checkbox "cb-minor-grid-snap-to"
     :keyvec [:minor-grid/snap-to]
-    ;;:init (:minor-grid/snap-to *init-vals*)
     })
 
   
@@ -359,19 +349,16 @@ keys for pan/zoom
                           tp-major-spacing {}})
     
     (jfxb/bind! :var state
-                ;;:init (:major-grid/lines-visible *init-vals*)
                 :keyvec [:major-grid/lines-visible]
                 :targets {cb-major-grid-lines-visible {:property :selected}
                           gp-major-lines-elements {:property :disable, :var-to-prop-fn not}})
     
     (jfxb/bind! :var state,
-                ;;:init (:major-grid/dots-visible *init-vals*)
                 :keyvec [:major-grid/dots-visible]
                 :targets {cb-major-grid-dots-visible {:property :selected}
                           gp-major-dots-elements {:property :disable, :var-to-prop-fn not}})
 
     (jfxb/bind! :var state,
-                ;;:init (:minor-grid/enable *init-vals*)
                 :keyvec [:minor-grid/enable]
                 :property :disable
                 :var-to-prop-fn not
@@ -382,13 +369,11 @@ keys for pan/zoom
                           tp-minor-properties {}})
     
     (jfxb/bind! :var state
-                ;;:init (:minor-grid/lines-visible *init-vals*)
                 :keyvec [:minor-grid/lines-visible]
                 :targets {cb-minor-grid-lines-visible {:property :selected}
                           gp-minor-lines-elements {:property :disable, :var-to-prop-fn not}})
     
     (jfxb/bind! :var state
-                ;;:init (:minor-grid/dots-visible *init-vals*)
                 :keyvec [:minor-grid/dots-visible]
                 :targets {cb-minor-grid-dots-visible {:property :selected}
                           gp-minor-dots-elements {:property :disable, :var-to-prop-fn not}})
@@ -409,12 +394,10 @@ keys for pan/zoom
   visibility or other logic."
   [state lu]
   (jfxb/bind! :var state
-              ;;:init (:zoom/dynamic-grid-enable *init-vals*)
               :keyvec [:zoom/dynamic-grid-enable]
               :property :selected
               :targets [(lu "cb-dynamic-grid")])
   (jfxb/bind! :var state
-              ;;:init (:zoom/scale-visible *init-vals*)
               :keyvec [:zoom/scale-visible]
               :property :selected
               :targets [(lu "cb-scale-visible")]))
@@ -580,9 +563,11 @@ keys for pan/zoom
   (let [srcmap (condp instance? src
                  clojure.lang.PersistentArrayMap src
                  clojure.lang.PersistentHashMap src
-                 (reader/read-string (slurp src))) ;; can take a String, File, or Reader
-        srcvals (map #(find srcmap %) keyz)]
-    (into {} srcvals)))
+                 (reader/read-string (slurp src)))]  ;; can take a String, File, or Reader; must return map
+    (if (map? srcmap)
+      (let [srcvals (map #(find srcmap %) keyz)]
+        (into {} srcvals))
+      (println "No valid settings found."))))
 
 
 
