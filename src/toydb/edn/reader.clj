@@ -30,8 +30,13 @@
   encountered, then the Double value 100 000.0 is returned; any notion
   of nanometers is lost."
   ([s]
-   (clojure.edn/read-string {:readers (merge (toydb.units/distance-readers->object) jfx-readers)
-                             :default default-reader} s))
+   (try
+     (clojure.edn/read-string {:readers (merge (toydb.units/distance-readers->object) jfx-readers)
+                               :default default-reader
+                               } s)
+     (catch java.lang.RuntimeException e
+       (println "Could not read string" s)
+       (println (:cause (Throwable->map e))))))
   #_([s unitfn]
    (clojure.edn/read-string {:readers (merge (toydb.units/distance-readers->double unitfn) jfx-readers)
                              :default default-reader} s)))
