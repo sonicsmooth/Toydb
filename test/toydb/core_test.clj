@@ -6,17 +6,17 @@
   (testing "FIXME, I fail."
     (is (= 0 1))))
 
-(deftest b-test
-  (testing "What!!"
-    (is (= 2 (+ 1 1)))))
 
-(deftest c-test
-  (testing "What!!"
-    (is (= 3 (+ 1 1)))))
+;; Ways to test color:
+;; Javafx color <-> toydb.color <-> string <-> file
 
-(deftest create-color
-  (testing "Creating color"
-    (let )))
+
+(deftest jfxcol-to-toydbcol
+  (testing "JFX Color to toydb color"
+    (let [jfxcol1 (javafx.scene.paint.Color/RED)
+          jfxcol2 (javafx.scene.paint.Color/web "0x123456ff")
+          tdbcol1 (toydb.color/color jfxcol1)]
+      )))
 
 
 
