@@ -3,7 +3,7 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.8.0"]
+  :dependencies [[org.clojure/clojure "1.9.0"]
                  [jfxutils "0.1.0-SNAPSHOT"]
                  [docks/docks "0.1.0-SNAPSHOT"]
                  ;;[uncomplicate/neanderthal "0.14.0"]
@@ -41,17 +41,4 @@
   ;;:aot :all
   :main toydb.ui.GridSettingsPane
   ;;:main toydb.core
-
-
-  
-
-
-
-
-
-
-
-
-
-
   )

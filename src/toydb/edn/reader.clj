@@ -26,17 +26,14 @@
   object is returned (which actually is represented internally as 100
   000 000 nanometers).
 
-  If the toydb.units/um function is provided and #cm(10) is
-  encountered, then the Double value 100 000.0 is returned; any notion
-  of nanometers is lost."
+  ;;If the toydb.units/um function is provided and #cm(10) is
+  ;;encountered, then the Double value 100 000.0 is returned; any notion
+  ;;of nanometers is lost."
   ([s]
-   (try
-     (clojure.edn/read-string {:readers (merge (toydb.units/distance-readers->object) jfx-readers)
-                               :default default-reader
-                               } s)
-     (catch java.lang.RuntimeException e
-       (println "Could not read string" s)
-       (println (:cause (Throwable->map e))))))
+   (clojure.edn/read-string {:readers (merge (toydb.units/distance-readers->object)
+                                             jfx-readers)
+                             :default default-reader}
+                            s))
   #_([s unitfn]
    (clojure.edn/read-string {:readers (merge (toydb.units/distance-readers->double unitfn) jfx-readers)
                              :default default-reader} s)))

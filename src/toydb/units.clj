@@ -1,7 +1,8 @@
 (ns toydb.units
-  (require [jfxutils.core :refer [printexp clip round-to-nearest]]
-           [clojure.pprint :as pp]
-           toydb.edn.finalize))
+  (:require [jfxutils.core :refer [printexp clip round-to-nearest]]
+            [clojure.pprint :as pp]
+            toydb.edn.finalize
+   ))
 
 
 ;;(set! *warn-on-reflection* true)

@@ -613,9 +613,10 @@ keys for pan/zoom
       (binding [*print-dup* true 
                 pp/*print-right-margin* 80] ;; don't break lines too early  
         (with-open [f (clojure.java.io/writer file)]
-          ;;(pp/pprint (into (sorted-map) settings-to-save) f)
-          (pp/pprint "what" f))
-       ;; (swap! last-init-settings merge settings-to-save)
+          (pp/pprint (into (sorted-map) settings-to-save) f)
+          ;;(pp/pprint "what" f)
+          )
+        (swap! last-init-settings merge settings-to-save)
         ))))
 
 (defn- make-reverter [keymaps last-init-settings]
