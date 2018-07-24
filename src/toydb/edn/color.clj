@@ -51,23 +51,27 @@
       ;; use a string literal "0x0a141eff" rather than long literal
       ;; 0xa141eff or 0x0a141eff or 305419896 in your edn file and
       ;; when calling (color...)
-      (let [jfxcol (cond (instance? java.lang.String arg) (javafx.scene.paint.Color/web arg)
-                         (instance? clojure.lang.Symbol arg) (javafx.scene.paint.Color/web (name arg))
-                         (instance? java.lang.Long arg) (javafx.scene.paint.Color/web (format "0x%x" arg))
-                         (sequential? arg) (condp = (count arg)
-                                             1 (color (first arg)) ;; okay so some recursion... messes things up a little down below
-                                             2 (throw (java.lang.IllegalArgumentException. "Could not convert 2 args to a color"))
-                                             3 (let [[r g b] arg]
-                                                 (condp = (class r)
-                                                   java.lang.Double (javafx.scene.paint.Color/color r g b)
-                                                   java.lang.Long (javafx.scene.paint.Color/web (str "rgb(" (clojure.string/join "," arg) ")"))))
-                                             4 (let [[r g b a] arg]
-                                                 (condp = (class r)
-                                                   java.lang.Double (javafx.scene.paint.Color/color r g b a)
-                                                   java.lang.Long (javafx.scene.paint.Color/web (str "rgba(" (clojure.string/join "," arg) ")")))))
-                         (instance? javafx.scene.paint.Color arg) arg
-                         :default (throw (java.lang.IllegalArgumentException.
-                                          (str "Could not convert " arg " to color"))))]
+      (let [jfxcol (try (cond (instance? java.lang.String arg) (javafx.scene.paint.Color/web arg)
+                              (instance? clojure.lang.Symbol arg) (javafx.scene.paint.Color/web (name arg))
+                              (instance? java.lang.Long arg) (javafx.scene.paint.Color/web (format "0x%08x" arg))
+                              (sequential? arg) (condp = (count arg)
+                                                  1 (color (first arg)) ;; okay so some recursion... messes things up a little down below
+                                                  2 (throw (java.lang.IllegalArgumentException. "Could not convert 2 args to a color"))
+                                                  3 (let [[r g b] arg]
+                                                      (condp = (class r)
+                                                        java.lang.Double (javafx.scene.paint.Color/color r g b)
+                                                        java.lang.Long (javafx.scene.paint.Color/web (str "rgb(" (clojure.string/join "," arg) ")"))))
+                                                  4 (let [[r g b a] arg] ;; a is a double
+                                                      (condp = (class r)
+                                                        java.lang.Double (javafx.scene.paint.Color/color r g b a)
+                                                        java.lang.Long (javafx.scene.paint.Color/web (str "rgba(" (clojure.string/join "," arg) ")")))))
+                              (instance? javafx.scene.paint.Color arg) arg
+                              :default (throw (java.lang.IllegalArgumentException.
+                                               (str "Could not convert " arg " to color"))))
+                        (catch java.lang.IllegalArgumentException e
+                          (println "Could not create color:" (:cause (Throwable->map e)))
+                          (println (format "Arg is %s of type %s" arg (class arg)))
+                          javafx.scene.paint.Color/BLACK))]
         (if (instance? toydb.edn.color.Color jfxcol)
           jfxcol ;; not really a jfxcol, but a tdbcol
           (let [newstr (reverse-color-map (.toString jfxcol))]
@@ -78,8 +82,24 @@
                                 (.getBlue jfxcol)
                                 (.getOpacity jfxcol)]}))))))
 
-(defn random-toydb-color []
+(defn split-rgb-longs
+  "Given a long, returns 4 doubles based on bit position"
+  [longval]
+  (let [r (bit-shift-right (bit-and longval 0xff000000) 24)
+        g (bit-shift-right (bit-and longval 0x00ff0000) 16)
+        b (bit-shift-right (bit-and longval 0x0000ff00)  8)
+        a (bit-shift-right (bit-and longval 0x000000ff)  0)]
+    [r g b a]))
+
+(defn split-rgb-doubles
+  "Given a long, returns 4 doubles based on bit position"
+  [longval]
+  (let [[r g b a] (split-rgb-longs longval)]
+    (map #(/ % 255.0) [r g b a])))
+
+(defn random-toydb-color
   "Returns a random toydb color"
+  []
   (if (> (rand) 0.5)
     (let [lrnd #(long (rand 256))
           [r g b a] (repeatedly 4 lrnd)
@@ -89,12 +109,17 @@
       (map->Color {:name name :hexstring hexstring :rgba [rd gd bd ad]}))
     (let [[hexstring name] (nth (seq reverse-color-map) (rand-int (count reverse-color-map)))
           longval (Long/decode hexstring)
-          r (bit-shift-right (bit-and longval 0xff000000) 24)
-          g (bit-shift-right (bit-and longval 0x00ff0000) 16)
-          b (bit-shift-right (bit-and longval 0x0000ff00)  8)
-          a (bit-shift-right (bit-and longval 0x000000ff)  0)
-          [rd gd bd ad] (map #(/ % 255.0) [r g b a])]
+          [rd gd bd ad] (split-rgb-doubles longval)]
       (map->Color {:name name :hexstring hexstring :rgba [rd gd bd ad]}))))
+
+(defn seq-toydb-color
+  "Returns lazy list of sequential colors"
+  [start stop]
+  (let [longval (range start stop)
+        rgblz (map split-rgb-doubles longval)]
+    (map toydb.edn.color/color rgblz)))
+
+
 
 (defn random-jfx-color
   "Returns a random JFX color"
@@ -126,11 +151,16 @@
 (defmethod print-dup Color [^toydb.edn.color.Color c, ^java.io.Writer writer]
   (if-let [colstr (:name c)] 
     (.write writer (format "#Color(%s)" colstr))
-    (if (= (last (:rgba c)) 1.0)
-      ;;(.write writer (format "#Color(%s) " (clojure.string/join "," (map pr-str (take 3 (:rgba c))))))
-      ;;(.write writer (format "#Color(%s) " (clojure.string/join "," (map pr-str (take 3 (:rgba c))))))
+    (.write writer (format "#Color(%s)" (:hexstring c)))
+    #_(if (= (last (:rgba c)) 1.0)
+      ;;(.write writer (apply format "#Color(%.3f,%.3f,%.3f)" (take 3 (:rgba c))))
+      ;;(.write writer (apply format "#Color(%.3f,%.3f,%.3f,%.3f)" (:rgba c)))
       (.write writer (apply format "#Color(%.3f,%.3f,%.3f)" (take 3 (:rgba c))))
-      (.write writer (apply format "#Color(%.3f,%.3f,%.3f,%.3f)" (:rgba c))))))
+      (.write writer (apply format "#Color(%.3f,%.3f,%.3f,%.3f)" (:rgba c)))
+      )
+    )
+  )
+
 
 (defmethod clojure.pprint/simple-dispatch Color [^toydb.edn.color.Color c]
   (.write *out* (pr-str c)))

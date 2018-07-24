@@ -35,7 +35,7 @@
 
 (deftest toydbcol-to-jfxcol
   (testing "Conversion of toydb color to JFX Color and back"
-    (dotimes [_ 1000]
+    (dotimes [_ 10000]
       (let [tdbcol1 (toydb.edn.color/random-toydb-color)
             jfxcol (toydb.edn.finalize/final tdbcol1)
             tdbcol2 (toydb.edn.color/color jfxcol)]
@@ -44,15 +44,23 @@
 (deftest toydbcol-to-string
   (testing "Conversion of toydb color to serializable string and back"
     (binding [*print-dup* true]
-      (dotimes [_ 1000]
+      (dotimes [_ 10000]
         (let [tdbcol1 (toydb.edn.color/random-toydb-color)
               tdbstr (with-out-str (print-dup tdbcol1 *out*))
               tdbcol2 (toydb.edn.reader/read-string tdbstr)]
           (is (toydb.edn.color/color-equal? tdbcol1 tdbcol2)))))))
 
+(deftest toydbcol-seq-to-string
+  (testing "Conversion of toydb color to serializable string and back"
+    (binding [*print-dup* true]
+      (doseq [tdbcol1 (toydb.edn.color/seq-toydb-color 0 0xfffff)]
+        (let [tdbstr (with-out-str (print-dup tdbcol1 *out*))
+              tdbcol2 (toydb.edn.reader/read-string tdbstr)]
+          (is (toydb.edn.color/color-equal? tdbcol1 tdbcol2)))))))
+
 (deftest toydbcol-to-file
   (testing "Conversion of toydb colors to file and back"
-    (let [numtimes 1000
+    (let [numtimes 10000
           tdbcols1 (take numtimes (repeatedly toydb.edn.color/random-toydb-color))]
       (binding [*print-dup* true
                 *print-length* numtimes]
@@ -74,15 +82,15 @@
         (println "#Color(RED)")
         (println "#Color 0x7f7f7f80")
         (println "#Color(0x7f7f7f80)")
-        (println ";; #Color(0xa141eff)  ;; fails to read because leading zero is required...") 
-        (println ";; #Color(0x0a141eff) ;; but not captured when reader interprets long literal")
+        (println "#Color(0xa141eff)  ;; leading zero assumed...") 
+        (println "#Color(0x0a141eff)")
         (println "#Color \"0x0a141eff\"   ;; works because leading zero is captured as string")
         (println "#Color (\"0x0a141eff\")")
         (println "#Color(0xf0f8ff)")
         (println "#Color 2139062144")
         (println "#Color(2139062144)")
         (println "#Color((2139062144))")
-        (println "#Color(127,127,127)")
+        ;;;(println "#Color(127,127,127)")
         (println "#Color(127,127,127,0.50)")
         (println "#Color \"hsl(270,50%,50%)\"")
         (println "#Color \"hsla(270,50%,50%,0.5)\"")
@@ -97,15 +105,15 @@
                     (toydb.edn.color/color 0xff0000ff)
                     (toydb.edn.color/color 0x7f7f7f80)
                     (toydb.edn.color/color 0x7f7f7f80)
-                    ;;(toydb.edn.color/color "0x0a141eff")
-                    ;;(toydb.edn.color/color "0x0a141eff")
+                    (toydb.edn.color/color "0x0a141eff")
+                    (toydb.edn.color/color "0x0a141eff")
                     (toydb.edn.color/color "0x0a141eff")
                     (toydb.edn.color/color "0x0a141eff")
                     (toydb.edn.color/color 0xf0f8ff)
                     (toydb.edn.color/color 2139062144)
                     (toydb.edn.color/color 2139062144)
                     (toydb.edn.color/color 2139062144)
-                    (toydb.edn.color/color 0x7f7f7f)
+                    ;;(toydb.edn.color/color 0x7f7f7f)
                     (toydb.edn.color/color 0x7f7f7f80)
                     (toydb.edn.color/color 0x604080ff)
                     (toydb.edn.color/color 0x60408080)

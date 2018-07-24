@@ -473,9 +473,10 @@ keys for pan/zoom
   ([]
    (home-path ""))
   ([addpath]
-   (.toFile (java.nio.file.Paths/get
-             (System/getProperty "user.home")
-             (into-array [".toydb" addpath])))))
+   (let [pth (java.nio.file.Paths/get
+              (System/getProperty "user.home")
+              (into-array [".toydb" addpath]))]
+     (.toFile pth))))
 
 (defn- merge-keymaps
   "Returns a merged keymap from keymaps, used for save.  Keymap is of
@@ -563,7 +564,7 @@ keys for pan/zoom
   (let [srcmap (condp instance? src
                  clojure.lang.PersistentArrayMap src
                  clojure.lang.PersistentHashMap src
-                 (reader/read-string (slurp src)))]  ;; can take a String, File, or Reader; must return map
+                 (reader/read-string (slurp src)))] ;; can take a String, File, or Reader; must return map
     (if (map? srcmap)
       (let [srcvals (map #(find srcmap %) keyz)]
         (into {} srcvals))
@@ -583,24 +584,25 @@ keys for pan/zoom
       (let [file (condp instance? file
                    java.io.File file
                    java.lang.String (java.io.File. file))]
-        (println "Loading " (.getPath file))
+        (print "Attempting to load " (.getPath file) "...")
         (doseq [[setting keyz] keymaps]
           ;; Swap in default-settings first, then current settings, then file settings.
           ;; This ensures everything has at least some value, but does not overwrite
           ;; an existing value with a default value if the new file doesn't specify.
           ;; IOW, just change if the value is specified.
-          (let [file-settings (try (load-settings file keyz)
-                                   (catch java.io.FileNotFoundException e
-                                     (println (format "File %s not found" (.getPath file)))))
+          (let [file-settings (load-settings file keyz)
                 new-setting (merge
                              ;;(load-settings possible-init-settings keyz) ;; default settings
                              (merge-keymaps keymaps) ;; current settings
-                             file-settings)] ;; file settings
+                             file-settings)]         ;; file settings
             ;; Doing it this way should allow for a new file load to blank out the revert button
             (swap! last-init-settings merge new-setting)
             (swap! setting merge new-setting))))
+      (catch java.io.FileNotFoundException e
+        (println (format "\nFile %s not found" (.getPath file))))
       (catch Exception e
-        (println "Oops!" (:cause (Throwable->map e)))))))
+        (println "Oops!" (:cause (Throwable->map e)))))
+    (println "done")))
 
 (defn- make-saver [keymaps last-init-settings]
   (fn [file]
@@ -616,8 +618,7 @@ keys for pan/zoom
           (pp/pprint (into (sorted-map) settings-to-save) f)
           ;;(pp/pprint "what" f)
           )
-        (swap! last-init-settings merge settings-to-save)
-        ))))
+        (swap! last-init-settings merge settings-to-save)))))
 
 (defn- make-reverter [keymaps last-init-settings]
   (fn []
