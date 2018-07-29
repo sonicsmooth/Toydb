@@ -14,34 +14,34 @@ keys for pan/zoom
 "
 
 ;; This may go into a separate file someday
-#_(def possible-init-settings
+(def possible-init-settings
   {:major-grid/enable true
    :major-grid/spacing (um (mm 10))
    :major-grid/lines-visible true
    :major-grid/line-width-px 0.25
-   :major-grid/line-color javafx.scene.paint.Color/BLACK
+   :major-grid/line-color (toydb.edn.color/color javafx.scene.paint.Color/BLACK)
    :major-grid/dots-visible true
    :major-grid/dot-width-px 2.0
-   :major-grid/dot-color javafx.scene.paint.Color/BLACK
+   :major-grid/dot-color (toydb.edn.color/color javafx.scene.paint.Color/BLACK)
    :major-grid/snap-to true
 
    :minor-grid/enable true
    :minor-grid/ratio 8
    :minor-grid/lines-visible true
    :minor-grid/line-width-px 0.025
-   :minor-grid/line-color javafx.scene.paint.Color/BLACK
+   :minor-grid/line-color (toydb.edn.color/color javafx.scene.paint.Color/BLACK)
    :minor-grid/dots-visible true
    :minor-grid/dot-width-px 0.5
-   :minor-grid/dot-color javafx.scene.paint.Color/BLACK
+   :minor-grid/dot-color (toydb.edn.color/color javafx.scene.paint.Color/BLACK)
    :minor-grid/snap-to true
 
    :axes/visible true
    :axes/line-width-px 1.0
-   :axes/line-color javafx.scene.paint.Color/BLACK
+   :axes/line-color (toydb.edn.color/color javafx.scene.paint.Color/BLACK)
 
    :origin/visible true
    :origin/line-width-px 3.0
-   :origin/line-color javafx.scene.paint.Color/GREEN
+   :origin/line-color (toydb.edn.color/color javafx.scene.paint.Color/GREEN)
    :origin/marker :diag-crosshair
    :origin/size-px 10
 
@@ -50,8 +50,8 @@ keys for pan/zoom
    :zoom/scale-visible true
 
    ;; Background is actually part of the editor not GridSettings Pane
-   :background/gradient-top (javafx.scene.paint.Color/web "F9F2FF")
-   :background/gradient-bottom (javafx.scene.paint.Color/web "E1F2FFac")})
+   :background/gradient-top (toydb.edn.color/color "F9F2FF")
+   :background/gradient-bottom (toydb.edn.color/color "E1F2FFac")})
 
 ;; This gets dynamically bound with the values from the init-file
 ;;(def ^:dynamic *init-vals*)
@@ -463,7 +463,9 @@ keys for pan/zoom
                    "col-minor-grid-dot-color"  #_:minor-grid/dot-color  [:minor-grid/dot-color  ]]]
     (apply jfxui/setup-generic-color-selector! state lu
            (map #(hash-map :picker (first %)
-                           :keyvec (second %)) ;; third (was nth 2)
+                           :keyvec (second %) ;; third (was nth 2)
+                           :prop-to-var-fn toydb.edn.color/color
+                           :var-to-prop-fn toydb.edn.finalize/final) 
                 (partition 2 idtriples)))))
 
 (defn- home-path
@@ -480,7 +482,7 @@ keys for pan/zoom
 
 (defn- merge-keymaps
   "Returns a merged keymap from keymaps, used for save.  Keymap is of
-  the form {map1 [keys-to-get] map2 [keys-to-get]} and returns the
+  the form {mapatom1 [keys-to-get] mapatom2 [keys-to-get]} and returns the
   form {key1 val-from-map1,...}"
   [keymaps]
   (let [srcmaps (keys keymaps)
@@ -513,7 +515,7 @@ keys for pan/zoom
                                     (update-list!))) ;; update list when item is saved
 
     ;; Update the list whenever we click on or away from the
-    ;; drop-down.  This is in lieu of updating the list upone
+    ;; drop-down.  This is in lieu of updating the list upon
     ;; drop-down click, because this event is not exposed in API.  We
     ;; want to do this in case the user deletes or adds settings file
     ;; using file system rather than app.  Worst case we can add a
@@ -523,7 +525,7 @@ keys for pan/zoom
                           (update-list!)))
     (update-list!)
 
-    ;; Set up the list to auto-load when new item is selected Note we
+    ;; Set up the list to auto-load when new item is selected. Note we
     ;;are not using selected-item, because this changes as soon as you
     ;;type something else in and focus away, which happens when you
     ;;are typing in a new name for a file which dosen't exist yet, and
@@ -592,7 +594,7 @@ keys for pan/zoom
           ;; IOW, just change if the value is specified.
           (let [file-settings (load-settings file keyz)
                 new-setting (merge
-                             ;;(load-settings possible-init-settings keyz) ;; default settings
+                             (load-settings possible-init-settings keyz) ;; default settings
                              (merge-keymaps keymaps) ;; current settings
                              file-settings)]         ;; file settings
             ;; Doing it this way should allow for a new file load to blank out the revert button
@@ -614,10 +616,12 @@ keys for pan/zoom
       (println "Saving to " (.getPath file))
       (binding [*print-dup* true 
                 pp/*print-right-margin* 80] ;; don't break lines too early  
-        (with-open [f (clojure.java.io/writer file)]
-          (pp/pprint (into (sorted-map) settings-to-save) f)
-          ;;(pp/pprint "what" f)
-          )
+        (try (with-open [f (clojure.java.io/writer file)]
+               (pp/pprint (into (sorted-map) settings-to-save) f))
+             (catch Exception e
+               (println "Oops!" (:cause (Throwable->map e)))
+               (binding [*print-dup* false]
+                 (pp/pprint (into (sorted-map) settings-to-save)))))
         (swap! last-init-settings merge settings-to-save)))))
 
 (defn- make-reverter [keymaps last-init-settings]
@@ -633,15 +637,15 @@ keys for pan/zoom
         root (doto (jfxc/load-fxml-root "GridSettingsPane4.fxml"))
         lu (make-lookup root)]
 
-    ;(setup-visibility-checkboxes! grid-settings lu)
-    ;(setup-major-grid-spacing-spinners! grid-settings lu)
-    ;(setup-minor-grid-per-major-grid-spinner! grid-settings lu)
-    ;(setup-sliders! grid-settings lu)
-    ;(setup-snap-to-checkboxes! grid-settings lu)
-    ;(setup-origin-marker-selection! grid-settings lu)
+    (setup-visibility-checkboxes! grid-settings lu)
+    (setup-major-grid-spacing-spinners! grid-settings lu)
+    (setup-minor-grid-per-major-grid-spinner! grid-settings lu)
+    (setup-sliders! grid-settings lu)
+    (setup-snap-to-checkboxes! grid-settings lu)
+    (setup-origin-marker-selection! grid-settings lu)
     (setup-background-color-selectors! editor-settings lu) ;; <<-- editor-settings !!
-    ;(setup-other-color-selectors! grid-settings lu)
-    ;(setup-other-checkboxes! grid-settings lu)
+    (setup-other-color-selectors! grid-settings lu)
+    (setup-other-checkboxes! grid-settings lu)
 
     ;; A quicker way might be to dissoc the :background keys
     ;; from possible-init-settings
