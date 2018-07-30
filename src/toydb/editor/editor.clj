@@ -583,6 +583,12 @@
         little-group (jfxc/jfxnew Group
                                   :id (idfn "little-group")
                                   :children twocircles)
+
+        read-group (jfxc/jfxnew Group
+                                  :id (idfn "read-group")
+                                  :children (map toydb.edn.finalize/final
+                                                 (toydb.edn.reader/read-string (slurp "test/testshapes.edn"))))
+
         shapes [(jfxc/jfxnew Line -1 -1 1 1 :stroke Color/GREEN :stroke-width 0.05)
                 (jfxc/jfxnew Line -1 1 1 -1 :stroke Color/BLUE :stroke-width 0.05)
                 (jfxc/jfxnew Circle -1 -1 0.1 :stroke Color/GREEN :stroke-width 0.05)
@@ -590,7 +596,9 @@
                 (jfxc/jfxnew Circle 0 0 0.1 :stroke Color/CADETBLUE :stroke-width 0.05 :fill Color/BISQUE)
                 (jfxc/jfxnew Rectangle 0 0 10000 10000 :stroke Color/AQUAMARINE :stroke-width 1000 :fill nil)
                 (jfxc/jfxnew Line -3 0 0 0 :stroke Color/ORANGE :stroke-width 0.1)
-                little-group]
+                little-group
+                read-group
+                ]
 
         entities-group (jfxc/jfxnew Group
                                     :id (idfn "entities-group")
@@ -643,21 +651,6 @@
     ;; This watch triggers a redraw when one of the grid settings changes from the UI panel
     (add-watch grid-settings :grid-settings-redraw
                (fn [key ref old new]
-                 #_(let [do-map [{:zoom-ppmm change-zoom-scale!
-                                  :minor-grid-ratio change-minor-grid-ratio!
-                                  :dynamic-grid-enable dynamic-grid-enable!
-                                  :major-spacing-um change-grid-distance!}]
-                         do-new! (fn [old new doc do-map]
-                                   ;; Returns true when something has been done
-                                   (some identity
-                                         (for [[key action] do-map]
-                                           (when-let [doval (jfxc/keydiff old new key)]
-                                             (action doc doval)
-                                             doval))))
-                         did-something? (do-new! old new doc do-map )]
-                     (when (not did-something?)
-                       (redraw-view! doc)))
-                 
                  (let [new-ppmm? (jfxc/keydiff old new [:zoom/ppmm])
                        new-ratio? (jfxc/keydiff old new [:minor-grid/ratio])
                        dynamic-grid? (jfxc/keydiff old new [:zoom/dynamic-grid-enable])
@@ -679,8 +672,7 @@
                  (let [new-coords? (jfxc/keydiff old new [:metric-or-inches
                                                           :inches-selection
                                                           :metric-selection])
-                       new-grid-ui? (jfxc/keydiff old new [ ;;[:zoomspecs :kppu]
-                                                           [:zoomspecs :kmpm]])]
+                       new-grid-ui? (jfxc/keydiff old new [[:zoomspecs :kmpm]])]
                    (if (and (not new-coords?)
                             (not new-grid-ui?))
                      (redraw-view! doc) ;; what happen when neither of the two specific things happens
@@ -801,7 +793,7 @@
   ;; Start a new editor with a few editor-views Behaviors for now are
   ;; just GridSettingsPanes But eventually will include things like
   ;; menu definitions and keyboard shortcuts
-  ([] (editor nil))
+  ([] (editor nil)) 
   ([app]
    ;; Todo -- different types of docs, ie schematic and layout
    (let [{sch-root :root
@@ -830,14 +822,14 @@
                  :behaviors [{:type :settings-pane
                               :name "Schematic Grid"
                               :root sch-root
-                              ;;:grid-settings schgrid-settings
-                              ;;:editor-settings scheditor-settings
+                              :grid-settings schgrid-settings
+                              :editor-settings scheditor-settings
                               }
-                             {:type :settings-pane
+                             #_{:type :settings-pane
                                 :name "Layout Grid"
                                 :root lay-root
-                                ;;:grid-settings laygrid-settings
-                                ;;:editor-settings scheditor-settings
+                                :grid-settings laygrid-settings
+                                :editor-settings scheditor-settings
                                 }]}]
      
      ;; How it works, for each doc:

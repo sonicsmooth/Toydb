@@ -8,7 +8,8 @@
 
 (def jfx-readers
   {'Color  toydb.edn.color/color
-   'Circle toydb.edn.shapes/map->Circle})
+   'Circle toydb.edn.shapes/map->Circle
+   'Rectangle toydb.edn.shapes/map->Rectangle})
 
 (defn default-reader [tag value]
   (println "Default reader:" tag value)

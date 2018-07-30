@@ -3,7 +3,8 @@
     (:use [jfxutils.core :exclude [-main]])
     (:use [clojure.data :only [diff]])
     (:use [clojure.pprint])
-    (:require [toydb.editor.viewdef :as viewdef])
+    (:require [toydb.editor.viewdef :as viewdef]
+              [toydb.edn.finalize :refer [final]])
     (:require [clojure.core.matrix :as matrix]
               [clojure.core.matrix.operators :as matrixop])
     (:import [javafx.geometry Insets VPos Point2D]
@@ -376,8 +377,8 @@ Lines is a list with each member a pair of Point2D."
                             :minor (:minor-grid/line-width-px grid-settings)
                             :major (:major-grid/line-width-px grid-settings)))
         color (condp = whichgrid
-                :minor (:minor-grid/line-color grid-settings)
-                :major (:major-grid/line-color grid-settings))
+                :minor (final (:minor-grid/line-color grid-settings))
+                :major (final (:major-grid/line-color grid-settings)))
         step (* mxx (double spacing))]
 
     (.save gc)
@@ -420,8 +421,8 @@ Lines is a list with each member a pair of Point2D."
                                :minor (:minor-grid/dot-width-px grid-settings)
                                :major (:major-grid/dot-width-px grid-settings)))
             color (condp = whichgrid
-                    :minor (:minor-grid/dot-color grid-settings)
-                    :major (:major-grid/dot-color grid-settings))
+                    :minor (final (:minor-grid/dot-color grid-settings))
+                    :major (final (:major-grid/dot-color grid-settings)))
 
             startx (double (mod mxt spacingpx))
             starty (double (mod myt spacingpx))
@@ -459,7 +460,7 @@ Lines is a list with each member a pair of Point2D."
     (.save gc)
     (.setTransform gc (javafx.scene.transform.Affine.))
     (.setLineWidth gc (:axes/line-width-px grid-settings))
-    (.setStroke gc (:axes/line-color grid-settings))
+    (.setStroke gc (final (:axes/line-color grid-settings)))
     (.strokeLine gc 0 myt (.width view) myt)
     (.strokeLine gc mxt 0 mxt (.height view))
     (.restore gc)))
@@ -510,7 +511,7 @@ Lines is a list with each member a pair of Point2D."
          (let [du (double (:origin/size-px gst))
                -du (- du)
                width (double (:origin/line-width-px gst))
-               color (:origin/line-color gst)]
+               color (final (:origin/line-color gst))]
            (condp = (:origin/marker gst)
              :diag-crosshair
              (draw-matrix-lines! gc (matrix/matrix [[-du -du du du]

@@ -59,20 +59,17 @@
   ;; Clear out the old settings pane
   (toydb.ui.SettingsPane/reset-pane!)
   
-  (let [iv1 (jfxc/image-view "docknode.png")
-        iv2 (jfxc/image-view "docknode.png")
-        iv3 (jfxc/image-view "docknode.png")
-        open-item (mb/menu-item :id "menu-file-open", :text "Open", :icon "icons/tango-icon-theme-0.8.90/scalable/actions/document-open.svg")
-        new-item  (mb/menu-item :id "menu-file-new",  :text "New",  :icon "icons/tango-icon-theme-0.8.90/scalable/actions/window-new.svg")        
-        save-item (mb/menu-item :id "menu-file-save", :text "Save", :icon "icons/tango-icon-theme-0.8.90/scalable/actions/document-save.svg")
-        saveas-item (mb/menu-item :id "menu-file-save-as", :text "Save As...", :icon "icons/tango-icon-theme-0.8.90/scalable/actions/document-save-as.svg")
-        submenu-item (mb/menu :name "Submenu", :icon "icons/tango-icon-theme-0.8.90/scalable/actions/list-add.svg"
+  (let [open-item (mb/menu-item :id "menu-file-open", :text "Open", :icon "icons/tango-icon-theme-0.8.90/16x16/actions/document-open.png")
+        new-item  (mb/menu-item :id "menu-file-new",  :text "New",  :icon "icons/tango-icon-theme-0.8.90/16x16/actions/window-new.png")        
+        save-item (mb/menu-item :id "menu-file-save", :text "Save", :icon "icons/tango-icon-theme-0.8.90/16x16/actions/document-save.png")
+        saveas-item (mb/menu-item :id "menu-file-save-as", :text "Save As...", :icon "icons/tango-icon-theme-0.8.90/16x16/actions/document-save-as.png")
+        submenu-item (mb/menu :name "Submenu", :icon "icons/tango-icon-theme-0.8.90/16x16/actions/list-add.png"
                               :items [(mb/menu-item :id "menu-file-sub-1", :text "Sub1")
                                       (mb/menu-item :id "menu-file-sub-2", :text "Sub2")])
         separator-item (mb/separator-menu-item)
         close-item (mb/menu-item :id "menu-file-exit",
                                  :text "Exit",
-                                 :icon "icons/tango-icon-theme-0.8.90/scalable/actions/system-log-out.svg"
+                                 :icon "icons/tango-icon-theme-0.8.90/16x16/actions/system-log-out.png"
                                  :action #(jfxc/close-all-stages))
 
         settings-pane (toydb.ui.SettingsPane/settings-pane nil)
@@ -82,7 +79,7 @@
                                    (mb/menu :text "Settings"
                                             :items [(mb/menu-item :id "settings-grid"
                                                                   :text "Grid"
-                                                                  :icon "icons/tango-icon-theme-0.8.90/scalable/categories/preferences-desktop.svg"
+                                                                  :icon "icons/tango-icon-theme-0.8.90/16x16/categories/preferences-desktop.png"
                                                                   :action #(toydb.ui.SettingsPane/show settings-pane))])])
         pane-label (Label. "App status bar")
         mouse-label (Label.)

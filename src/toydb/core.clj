@@ -83,7 +83,7 @@
 
 
 ;; UI can change the type of an item
-#_(def initial-db-map {:components [{:name "My Rectangle"
+(def initial-db-map {:components [{:name "My Rectangle"
                                    :type :polygon
                                    :sides 4
                                    :width1 10.0
@@ -140,8 +140,8 @@
                                                   ))
 
     ;; Assign content to currently empty app fields
-    ;;(dosync (alter (:database app) (fn [a b] b) initial-db-map))
-    ;;(reset! (:editor app) editor)
+    (dosync (alter (:database app) (fn [a b] b) initial-db-map))
+    (reset! (:editor app) editor)
     ;;(reset! (:panes app) panes)
     ;;(reset! (:windows app) windows)
     app
