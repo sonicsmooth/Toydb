@@ -31,63 +31,6 @@
 (set! *warn-on-reflection* false)
 (set! *unchecked-math* false)
 
-
-(def EDITOR-SETTINGS1
-  (atom {:background (jfxc/background Color/ALICEBLUE Color/LIGHTBLUE)}))
-
-(def GRID-SETTINGS1
-  (atom {:major-lines-visible true
-         :major-line-color Color/BLACK
-         :major-line-width-px 0.15
-
-         :major-dots-visible true
-         :major-dot-color Color/RED
-         :major-dot-width-px 2
-         :major-snap true
-
-         :minor-lines-visible true
-         :minor-line-color Color/DARKGRAY
-         :minor-line-width-px 0.5
-
-         :minor-dots-visible true
-         :minor-dot-color Color/PINK
-         :minor-dot-width-px 0.5
-         :minor-snap true
-
-         :axis-visible true
-         :axis-line-color Color/DARKBLUE
-         :axis-line-width-px 2
-         }))
-
-(def EDITOR-SETTINGS2
-  (atom {:background (jfxc/background Color/ALICEBLUE Color/RED)}))
-
-(def GRID-SETTINGS2
-  (atom {:major-lines-visible true
-         :major-line-color Color/BLACK
-         :major-line-width-px 0.15
-
-         :major-dots-visible true
-         :major-dot-color Color/RED
-         :major-dot-width-px 2
-         :major-snap true
-
-         :minor-lines-visible true
-         :minor-line-color Color/DARKGRAY
-         :minor-line-width-px 0.5
-
-         :minor-dots-visible true
-         :minor-dot-color Color/PINK
-         :minor-dot-width-px 0.5
-         :minor-snap true
-
-         :axis-visible true
-         :axis-line-color Color/DARKBLUE
-         :axis-line-width-px 2
-         }))
-
-
-
 (defn _make-idfn
   "Returns a function that appends the given 'post' string to another
   given 'pre' string"
@@ -239,6 +182,13 @@
           curr-node ;; found!
           (recur curr-parent (.getParent curr-parent))))))) ;; keep going
 
+
+(defn load-db-file [name]
+  (println name)
+  (let [read-group (jfxc/jfxnew Group
+                                :children (map toydb.edn.finalize/final
+                                               (toydb.edn.reader/read-string (slurp "test/testshapes.edn"))))]
+    (jfxc/printexp read-group)))
 
 (declare update-coordinates!)
 (declare get-print-scale-and-label)
@@ -426,7 +376,8 @@
 
           keyboard-handler (jfxc/event-handler [key-event] (capture-kbd! key-event))
           focus-listener (jfxc/change-listener [oldval newval] nil)
-          reset-btn-handler (jfxc/event-handler [action-event] (reset-view! doc))]
+          ;;reset-btn-handler (jfxc/event-handler [action-event] (reset-view! doc))
+          ]
       
       (jfxc/add-event-filter! surface-pane MouseEvent/MOUSE_MOVED move-handler)
       (jfxc/add-event-filter! surface-pane MouseEvent/MOUSE_PRESSED click-down-handler)
@@ -435,7 +386,7 @@
       (jfxc/add-event-filter! surface-pane ScrollEvent/SCROLL scroll-handler)
       (jfxc/set-on-event-handler! surface-pane :key-pressed keyboard-handler)
       (jfxc/set-on-event-handler! surface-pane :key-released keyboard-handler)
-      (jfxc/set-on-event-handler! (lookup-node doc "reset-button") :action reset-btn-handler)
+      (jfxc/set-on-action! (lookup-node doc "reset-button") (reset-view! doc))
       (jfxc/add-listener! surface-pane :focused focus-listener))))
 
 
@@ -517,10 +468,13 @@
   "Creates editor tool bar, where each button has id as suffix."
   ([] (editor-tool-bar nil))
   ([^String uid]
-   (let [idfn (make-idfn uid)]
-     (mb/tool-bar [(jfxc/jfxnew Button :id (idfn "edit-1") :text "edit-1")
-                   (jfxc/jfxnew Button :id (idfn "edit-2") :text "edit-2")
-                   (jfxc/jfxnew Button :id (idfn "edit-3") :text "edit-3")]))))
+   (let [idfn (make-idfn uid)
+         btn1 (jfxc/jfxnew Button :id (idfn "edit-1") :text "Load Shapes")
+         btn2 (jfxc/jfxnew Button :id (idfn "edit-2") :text "edit-2")
+         btn3 (jfxc/jfxnew Button :id (idfn "edit-3") :text "edit-3")]
+     ;; Should be able to set htis directly on button, but it doesn't work
+     (jfxc/set-on-action! btn1 (load-db-file "testshapes.edn"))
+     (mb/tool-bar [btn1 btn2 btn3]))))
 
 (defn doc-status-bar
   ([] (doc-status-bar nil))
@@ -584,11 +538,6 @@
                                   :id (idfn "little-group")
                                   :children twocircles)
 
-        read-group (jfxc/jfxnew Group
-                                  :id (idfn "read-group")
-                                  :children (map toydb.edn.finalize/final
-                                                 (toydb.edn.reader/read-string (slurp "test/testshapes.edn"))))
-
         shapes [(jfxc/jfxnew Line -1 -1 1 1 :stroke Color/GREEN :stroke-width 0.05)
                 (jfxc/jfxnew Line -1 1 1 -1 :stroke Color/BLUE :stroke-width 0.05)
                 (jfxc/jfxnew Circle -1 -1 0.1 :stroke Color/GREEN :stroke-width 0.05)
@@ -596,9 +545,7 @@
                 (jfxc/jfxnew Circle 0 0 0.1 :stroke Color/CADETBLUE :stroke-width 0.05 :fill Color/BISQUE)
                 (jfxc/jfxnew Rectangle 0 0 10000 10000 :stroke Color/AQUAMARINE :stroke-width 1000 :fill nil)
                 (jfxc/jfxnew Line -3 0 0 0 :stroke Color/ORANGE :stroke-width 0.1)
-                little-group
-                read-group
-                ]
+                little-group]
 
         entities-group (jfxc/jfxnew Group
                                     :id (idfn "entities-group")
@@ -783,11 +730,6 @@
     (init-handlers! doc)
     doc))
 
-(defn doc-test []
-  (let [[width height] [640 480]
-        doc (editor-view EDITOR-SETTINGS1 GRID-SETTINGS1) ;;width height
-        stage (jfxc/stage (:doc-pane doc) [800 800])]
-    doc))
 
 (defn editor
   ;; Start a new editor with a few editor-views Behaviors for now are
@@ -799,12 +741,12 @@
    (let [{sch-root :root
           schgrid-settings :grid-settings
           scheditor-settings :editor-settings} (gsp/GridSettingsPane "schematic")
-         {lay-root :root
+         #_{lay-root :root
           laygrid-settings :grid-settings
-          layeditor-settings :editor-settings} (gsp/GridSettingsPane "layout")
+          layeditor-settings :editor-settings} #_(gsp/GridSettingsPane "layout")
 
          doc1 (editor-view scheditor-settings schgrid-settings)
-         doc2 (editor-view layeditor-settings laygrid-settings)
+         #_doc2 #_(editor-view layeditor-settings laygrid-settings)
          
          center-dock-base (docks/base :left (docks/node (:doc-pane doc1) "doc1")
                                       ;;:right (docks/node (:doc-pane doc2) "doc2")
@@ -850,7 +792,7 @@
     ;;(def state (get-in ed [:behaviors 0 :grid-settings]))
     (docks/init-style)
     (jfxc/stage tp [800 480])
-    (jfxc/stage setui0 [800 480])
+    ;;(jfxc/stage setui0 [800 480])
     ;;(jfxc/stage setui1 [800 480])
     )
   

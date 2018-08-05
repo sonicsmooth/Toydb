@@ -1,5 +1,6 @@
+
 ;; property names are the same as in jfx documentation, 
-[#Circle {:centerX #mm(5)
+[#_ #Circle {:centerX #mm(5)
           :centerY #mm(-5)
           :radius #mm(10.5)
           :stroke #Color("0x00ffabff")
@@ -12,7 +13,8 @@
              :height #mm(20)
              :stroke #Color("0x00ffab99")
              :strokeWidth #mm(1)
-             :fill #Color(Chartreuse)
+             :fill #Color(0x0000ff90)
              }
+
  
 ]

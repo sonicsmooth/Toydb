@@ -32,6 +32,7 @@
   :profiles {:dev {:jvm-opts ["-Dtoolkit-compile-timeout=10000"
                               "-Dtoolkit-debug=true"
                               "-XX:-OmitStackTraceInFastThrow"
+                              "-Xverify:none"
                               ]}
              #_:uberjar #_{:jvm-opts ["-Dtoolkit-compile-timeout=5000"
                                   "-Dtoolkit-debug=true"]}
