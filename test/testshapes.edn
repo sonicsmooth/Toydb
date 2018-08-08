@@ -1,5 +1,106 @@
 
 ;; property names are the same as in jfx documentation, 
+
+"
+What thing should/could be defined in edn file?
+For Schematic/footprint libraries:
+  Schlib/Pcblib tag
+  Schlib/Pcblib name  
+  List of components
+  Each component contains:
+    graphical elements or pointers to graphical elements
+      Referenced graphical elements can be in this lib or elsewhere
+    Parameters
+    Pointer to footprint
+
+Schematic Sheet:
+  Sheet tag
+  Sheet name
+  Sheet parameters
+  List of components from libraries
+  List of graphical elements
+  List of wires (netlist is dynamic based on wiring)
+  
+There are some 'basic' libraries that consist only of triangles, zigzags, boxes, etc., used for
+amplifiers, resistors, etc.
+
+"
+;; saved in myfirstlib.schlib (schlibs can have footprints, models, parameters)
+#Schlib {:name "first schematic library"
+         :parameters {:not-sure 'what?}
+         :components [{:name "RESISTOR"
+                       :ref-prefix "R"
+                       :shapes [#Reference{:source "basic-libs.symlib" ;; symlibs not allowed to have footprints or parameters
+                                           :source-name: "zigzag" ;; could reference anything Hashable
+                                           :transforms [#Transform{:name "xfrm1"
+                                                                   :matrix #Matrix[1 0 0 0, 0 1 0 0, 0 0 1 0, 0 0 0 1]}
+                                                        #Transform{:name "xfrm2", ...}]}
+                                #Line{:startX #mm(0)
+                                      :startY #mm(5)
+                                      :endX #mm(20)
+                                      :endY #mm(25)
+                                      :transforms [...]}
+                                #Group{:children [#Circle{...}
+                                                  #Rectangle{...}]
+                                       :transforms [#Transform]}] 
+                       :pins [#Pin{:number "A1" ;; Need to support pins with multiple names, directions, domains for eg. MCU
+                                   :name "VDD"
+                                   :domain :analog
+                                   :strength :hi
+                                   :font #Reference{:source {system-defaults :pin/default-font}} ;; default references don't need to be specified
+                                   :number-hidden False
+                                   :name-hidden False}
+                              #Pin{:number "A2"
+                                   :name "GND"}]}
+
+                      ;; Multiple configurations, eg sizes for caps or shapes for mosfets
+                      {:name "CAPACITOR"
+                       :ref-prefix "C"
+                       ;; Multiple configurations can share common pin, or have different ones,
+                       ; but it's an error if defined both here and within configurations
+                       :pins [...]
+                       :configurations [{:name "Large" :shapes [...] :pins [...]}    ;; configurations or shapes
+                                        {:name "Medium" :shapes [...] :pins [...]}   ;; sibling with :name, but 
+                                        {:name "Small" :shapes [...] :pins [...]}]}  ;; not both  
+                      
+                      ;; Multiple sub-parts -- add something about component swapping
+                      {:name "LM3511IRFGZ" ;; made up
+                       :ref-prefix "U"
+                       ;; each part must define its own pins
+                       :parts [{:shapes [#Rectangle{...}] :pins [...]} ;; part A
+                               {:shapes [...]} :pins [...]]            ;; part B
+                       :footprints [#Footprint{...} ;; yes a footprint can be defined literally/locally/immediately
+                                    #Reference{:source "some-footprints.fplib" ;; omit to use installed libs
+                                               :name "QFN64X100X100X20N"}]
+                       :pin-mapping {1 "E1" 2 "B1" 6 "C1" 3 "E2" 4 "B2" 5 "C2"}} ;; footprints should have natural order of pins
+
+                      ;; Multiple configurations and subparts
+                      ;; Eg you want one big symbol, or multiple small ones
+                      {:name "IC_FREESCALE_XYZ"
+                       :ref-prefix "U"
+                       :configurations [{:name "Single" :shapes [...] :pins [...]}
+                                        {:name "Multiple" :parts [{:shapes [...]}]}]}]}
+
+#SchematicSheet {:name "Sheet1"
+                 :parameters {...}
+                 :template "template.edn"
+                 :grid-settings {...}
+                 :components [#Instance{#Reference {:source "myfirstlib.schlib" :name "Resistor"}
+                                        :designator "R1"
+                                        :transforms [...]}
+                              #Instance{#Reference {:source "outer.dblib" :name "LM3511IRFGZ"}
+                                        :designator "U1"}]
+                 :wire-units inch
+                 :wires [[[[] []]] ;; figure out how each wire can have arbitrary branches
+                         []]
+                 :ports []
+                 :offsheets []
+                 :netlist []}  ;; figure this out.
+
+
+
+
+
 [#_ #Circle {:centerX #mm(5)
           :centerY #mm(-5)
           :radius #mm(10.5)

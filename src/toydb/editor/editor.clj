@@ -27,6 +27,16 @@
            [javafx.scene.transform Affine Rotate]
            [org.controlsfx.control SegmentedButton]))
 
+;; Organized as
+;;'doc' (Doc-View)
+;;  :doc-pane BorderPane
+;;    :center 'surface-pane' (StackPane)
+;;      :children ['grid-canvas' (Canvas)
+;;                 'entities-pane' (Pane)]
+;;                   :children ['entities-group' (Group)]
+;;                     :children ['shapes' (Vector)]
+ 
+
 
 (set! *warn-on-reflection* false)
 (set! *unchecked-math* false)
@@ -790,9 +800,10 @@
     (def setui0 (get-in ed [:behaviors 0 :root]))
     (def setui1 (get-in ed [:behaviors 1 :root]))
     ;;(def state (get-in ed [:behaviors 0 :grid-settings]))
-    (docks/init-style)
+
     (jfxc/stage tp [800 480])
-    ;;(jfxc/stage setui0 [800 480])
+    (jfxc/run-now (docks/init-style))
+    (jfxc/stage setui0 [800 480])
     ;;(jfxc/stage setui1 [800 480])
     )
   
